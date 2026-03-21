@@ -1,0 +1,16 @@
+[Unit]
+Description=RVCoder Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/opt/dashboard
+EnvironmentFile=/etc/environment
+Environment="PATH=/opt/dashboard/venv/bin:%h/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/opt/dashboard/venv/bin/uvicorn main:app --host 127.0.0.1 --port 5000 --workers 1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

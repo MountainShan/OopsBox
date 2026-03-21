@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>RVCoder</title>
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#f4f5f7" id="meta-theme">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RVCoder">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=3">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ── Dark theme (default) ── */
+:root{
+  --bg:#0a0c10;--bg2:#12141a;--bg3:#1a1d26;
+  --border:#1e2130;--text:#c9cdd8;--text-hi:#e8eaf0;--muted:#5c6178;
+  --accent:#6b7280;--accent-hover:#9ca3af;--green:#10b981;--red:#ef4444;
+  --r:8px;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --sidebar:260px;
+  --iframe-bg:#0a0c10;
+  --theme-meta:#0a0c10;
+}
+
+/* ── Light theme ── */
+html.light{
+  --bg:#f4f5f7;--bg2:#ffffff;--bg3:#eceef2;
+  --border:#d8dbe3;--text:#3b3f51;--text-hi:#1a1d2b;--muted:#8b8fa3;
+  --accent:#4b5563;--accent-hover:#6b7280;--green:#059669;--red:#dc2626;
+  --iframe-bg:#ffffff;
+  --theme-meta:#f4f5f7;
+}
+
+body{font-family:'Inter',-apple-system,system-ui,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);
+  height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;
+  padding-top:var(--safe-top);padding-bottom:var(--safe-bottom);
+  -webkit-user-select:none;user-select:none;overscroll-behavior:none;font-size:13px;letter-spacing:-.01em;
+  transition:background .2s,color .2s}
+
+.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.ic-sm{width:14px;height:14px}
+
+header{padding:0 20px;height:48px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--bg2);transition:background .2s,border-color .2s}
+.logo{display:flex;align-items:center;gap:8px;flex:1}
+.logo-icon{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.logo h1{font-size:14px;font-weight:700;color:var(--text-hi);letter-spacing:-.02em}
+.logo h1 span{color:var(--text-hi);font-weight:800}
+.hdr-actions{display:flex;gap:6px;align-items:center}
+
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;color:var(--text)}
+.btn:hover{opacity:.88}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-ghost{background:transparent;border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg3)}
+.btn-danger{background:transparent;color:var(--red);border:1px solid color-mix(in srgb,var(--red) 25%,transparent)}
+.btn-danger:hover{background:color-mix(in srgb,var(--red) 8%,transparent)}
+.btn-sm{padding:5px 9px;font-size:11px}
+.btn-icon{padding:6px;border-radius:6px;background:transparent;border:1px solid var(--border);cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all .15s}
+.btn-icon:hover{color:var(--text);background:var(--bg3)}
+
+.layout{display:flex;flex:1;overflow:hidden}
+
+.sidebar{width:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;background:var(--bg2);transition:width .2s ease,opacity .15s,background .2s,border-color .2s}
+.layout.collapsed .sidebar{width:0;opacity:0;border-right:none;pointer-events:none}
+.sidebar-head{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.sidebar-head span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600}
+.proj-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px}
+.proj{padding:10px 12px;border-radius:var(--r);margin-bottom:2px;cursor:pointer;transition:all .12s;border:1px solid transparent}
+.proj:hover{background:var(--bg3)}
+.proj:active,.proj.on{background:var(--bg3);border-color:var(--border)}
+.proj-top{display:flex;align-items:center;gap:8px}
+.proj-name{font-size:12px;font-weight:600;color:var(--text-hi);flex:1}
+.status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.status-dot.running{background:var(--green);box-shadow:0 0 6px color-mix(in srgb,var(--green) 40%,transparent)}
+.status-dot.idle{background:var(--muted)}
+.proj-meta{font-size:10px;color:var(--muted);margin-top:4px;padding-left:14px}
+.proj-actions{display:flex;gap:4px;margin-top:8px;padding-left:14px}
+
+.content{flex:1;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;transition:background .2s}
+.content-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);gap:8px}
+.content-empty svg{width:40px;height:40px;stroke:var(--border);stroke-width:1.2}
+.content-bar{padding:0 12px;height:40px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--bg2);transition:background .2s,border-color .2s}
+.content-bar .name{font-size:12px;font-weight:600;color:var(--text-hi);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.content-tabs{display:flex;gap:2px;background:var(--bg);border-radius:6px;padding:2px;transition:background .2s}
+.ctab{padding:4px 12px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;color:var(--muted);transition:all .12s;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:4px}
+.ctab.on{background:var(--accent);color:#fff}
+.ctab:not(.on):hover{color:var(--text)}
+.content-frame{flex:1;overflow:hidden}
+.content-frame iframe{width:100%;height:100%;border:none;background:var(--iframe-bg);transition:background .2s}
+
+.overlay{display:none;position:fixed;inset:0;background:var(--bg);flex-direction:column;z-index:100}
+.overlay.open{display:flex}
+.overlay-bar{padding:0 14px;height:44px;padding-top:var(--safe-top);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--bg2)}
+.overlay-bar .name{font-size:13px;font-weight:600;color:var(--text-hi);flex:1}
+.overlay-frame{flex:1;overflow:hidden}
+.overlay-frame iframe{width:100%;height:100%;border:none;background:var(--iframe-bg)}
+
+.backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;padding:20px}
+html.light .backdrop{background:rgba(0,0,0,.4)}
+.backdrop.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:340px;transition:background .2s,border-color .2s}
+.modal h2{font-size:14px;font-weight:700;color:var(--text-hi);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:500}
+.field input{width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text-hi);font-size:13px;outline:none;-webkit-appearance:none;transition:border-color .15s,background .2s}
+.field input:focus{border-color:var(--accent)}
+.ma{display:flex;gap:8px;justify-content:flex-end}
+.err{color:var(--red);font-size:11px;margin-bottom:8px;display:none}
+.empty-proj{text-align:center;color:var(--muted);padding:40px 16px;font-size:11px}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:sp .6s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+
+/* ── Terminal floating menu ── */
+.term-fab{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:11;opacity:.4;transition:opacity .2s,background .15s;color:var(--muted)}
+.term-fab:hover{opacity:1;background:var(--bg3);color:var(--text)}
+.term-menu{position:absolute;right:48px;top:50%;transform:translateY(-50%);background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:4px;z-index:12;display:none;box-shadow:0 4px 16px rgba(0,0,0,.3);min-width:120px}
+.term-menu.open{display:block}
+.term-menu-item{display:flex;align-items:center;gap:6px;width:100%;padding:7px 10px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--text);transition:background .1s;text-align:left}
+.term-menu-item:hover{background:var(--bg3)}
+.term-menu-item.danger{color:var(--red)}
+.term-menu-item.danger:hover{background:color-mix(in srgb,var(--red) 10%,var(--bg3))}
+.term-menu-sep{height:1px;background:var(--border);margin:3px 6px}
+
+/* ── System monitor ── */
+.sidebar-footer{border-top:1px solid var(--border);padding:8px 12px;flex-shrink:0;transition:border-color .2s}
+.sys-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:10px;color:var(--muted)}
+.sys-row:last-child{margin-bottom:0}
+.sys-label{width:32px;flex-shrink:0;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.sys-bar-bg{flex:1;height:4px;background:var(--bg);border-radius:2px;overflow:hidden}
+.sys-bar{height:100%;border-radius:2px;transition:width .5s ease,background .3s}
+.sys-bar.ok{background:var(--green)}
+.sys-bar.warn{background:#f59e0b}
+.sys-bar.crit{background:var(--red)}
+.sys-val{width:36px;text-align:right;font-variant-numeric:tabular-nums}
+.sys-term-btn{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;margin-top:8px;padding:5px;border-radius:5px;font-size:10px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s}
+.sys-term-btn:hover{color:var(--text);background:var(--bg3)}
+
+@media(max-width:768px){
+  .sidebar{width:100%;border-right:none}
+  .content{display:none !important}
+  .proj-list{padding:12px 16px}
+  .proj{padding:12px 14px}
+}
+@media(min-width:769px){
+  .overlay{display:none !important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
+    <h1><span>RV</span>Coder</h1>
+  </div>
+  <div class="hdr-actions">
+    <button class="btn btn-primary btn-sm" onclick="openModal()">New</button>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-head"><span>Projects</span></div>
+    <div class="proj-list" id="proj-list"><div class="empty-proj">No projects yet</div></div>
+    <div class="sidebar-footer">
+      <div class="sys-row"><span class="sys-label">CPU</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-cpu" style="width:0%"></div></div><span class="sys-val" id="val-cpu">--</span></div>
+      <div class="sys-row"><span class="sys-label">RAM</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-ram" style="width:0%"></div></div><span class="sys-val" id="val-ram">--</span></div>
+      <div class="sys-row"><span class="sys-label">SWAP</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-swap" style="width:0%"></div></div><span class="sys-val" id="val-swap">--</span></div>
+      <div class="sys-row"><span class="sys-label">DISK</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-disk" style="width:0%"></div></div><span class="sys-val" id="val-disk">--</span></div>
+      <button class="sys-term-btn" onclick="openSystemTerm()">
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        System Terminal
+      </button>
+    </div>
+  </div>
+
+  <div class="content" id="desk-content">
+    <div class="content-empty" id="desk-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      <span>Select a project to begin</span>
+    </div>
+    <div id="desk-active" style="display:none;flex:1;flex-direction:column">
+      <div class="content-bar">
+        <button class="btn-icon" onclick="toggleSidebar()" title="Toggle sidebar">
+          <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        </button>
+        <div class="name" id="desk-name"></div>
+        <div class="content-tabs">
+          <div class="ctab on" id="dt-term" onclick="deskTab('term')">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            Terminal
+          </div>
+          <div class="ctab" id="dt-code" onclick="deskTab('code')">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Editor
+          </div>
+        </div>
+      </div>
+      <div class="content-frame" id="desk-frame-term" style="position:relative">
+        <iframe id="df-term" src="" allow="clipboard-read;clipboard-write"></iframe>
+        <div class="term-fab" onclick="toggleTermMenu(this)">
+          <svg class="ic" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        </div>
+        <div class="term-menu" id="desk-term-menu">
+          <button class="term-menu-item danger" onclick="sendCtrlC();toggleTermMenu()">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            Ctrl+C
+          </button>
+          <button class="term-menu-item" onclick="sendCtrlD();toggleTermMenu()">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Ctrl+D
+          </button>
+          <div class="term-menu-sep"></div>
+          <button class="term-menu-item" onclick="openTermTab();toggleTermMenu()">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Pop out
+          </button>
+        </div>
+      </div>
+      <div class="content-frame" id="desk-frame-code" style="display:none"><iframe id="df-code" src="" allow="clipboard-read;clipboard-write"></iframe></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="mob-overlay">
+  <div class="overlay-bar">
+    <div class="name" id="mob-name"></div>
+    <div class="content-tabs">
+      <div class="ctab on" id="mt-term" onclick="mobTab('term')">
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Terminal
+      </div>
+      <div class="ctab" id="mt-code" onclick="mobTab('code')">
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Editor
+      </div>
+    </div>
+    <button class="btn-icon" onclick="closeOverlay()">
+      <svg class="ic" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="overlay-frame" id="mob-frame-term" style="position:relative">
+    <iframe id="mf-term" src="" allow="clipboard-read;clipboard-write"></iframe>
+    <div class="term-fab" onclick="toggleTermMenu(this)">
+      <svg class="ic" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+    </div>
+    <div class="term-menu" id="mob-term-menu">
+      <button class="term-menu-item danger" onclick="sendCtrlC();toggleTermMenu()">
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        Ctrl+C
+      </button>
+      <button class="term-menu-item" onclick="sendCtrlD();toggleTermMenu()">
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Ctrl+D
+      </button>
+      <div class="term-menu-sep"></div>
+      <button class="term-menu-item" onclick="openTermTab();toggleTermMenu()">
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Pop out
+      </button>
+    </div>
+  </div>
+  <div class="overlay-frame" id="mob-frame-code" style="display:none"><iframe id="mf-code" src="" allow="clipboard-read;clipboard-write"></iframe></div>
+</div>
+
+<div class="backdrop" id="modal">
+  <div class="modal">
+    <h2>
+      <svg class="ic" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      New Project
+    </h2>
+    <div class="field">
+      <label>Project name</label>
+      <input id="pname" placeholder="my-project" autocapitalize="none" autocorrect="off" spellcheck="false"
+             onkeydown="if(event.key==='Enter')doCreate()">
+    </div>
+    <div class="err" id="cerr"></div>
+    <div class="ma">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="cbtn" onclick="doCreate()">Create</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+if(location.protocol==='https:') location.replace('http://'+location.host+location.pathname);
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));
+  caches.keys().then(ks=>ks.forEach(k=>caches.delete(k)));
+}
+
+/* ── Theme: always light ── */
+document.documentElement.classList.add('light');
+document.getElementById('meta-theme').content='#f4f5f7';
+
+let projects=[], selected=null;
+const isMobile=()=>window.innerWidth<=768;
+function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function toggleSidebar(){document.querySelector('.layout').classList.toggle('collapsed')}
+
+async function load(){
+  const r=await fetch('/api/projects').catch(()=>null);
+  if(!r||!r.ok)return;
+  projects=(await r.json()).projects||[];
+  renderList();
+}
+
+function renderList(){
+  const el=document.getElementById('proj-list');
+  if(!projects.length){el.innerHTML='<div class="empty-proj">No projects yet</div>';return;}
+  el.innerHTML=projects.map(p=>`
+    <div class="proj${selected===p.name?' on':''}" onclick="selectProj('${esc(p.name)}')">
+      <div class="proj-top">
+        <span class="status-dot ${p.status}"></span>
+        <div class="proj-name">${esc(p.name)}</div>
+      </div>
+      <div class="proj-meta">${p.status==='running'?'Running':'Idle'}</div>
+      <div class="proj-actions">
+        ${p.status==='running'
+          ?`<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openView('${esc(p.name)}',${p.code_port},${p.ttyd_port})">
+              <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+              Enter</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();act('stop','${esc(p.name)}')">
+              <svg class="ic ic-sm" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+              Stop</button>`
+          :`<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();act('start','${esc(p.name)}')">
+              <svg class="ic ic-sm" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Start</button>`}
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();del('${esc(p.name)}')">
+          <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+function selectProj(name){
+  selected=name;renderList();
+  const p=projects.find(x=>x.name===name);
+  if(!p||p.status!=='running')return;
+  openView(name,p.code_port,p.ttyd_port);
+}
+
+let deskCurrent=null;
+function openDesktop(name,cp,tp,tab){
+  const changed=!deskCurrent||deskCurrent.name!==name;
+  deskCurrent={name,cp,tp};
+  document.getElementById('desk-empty').style.display='none';
+  document.getElementById('desk-active').style.display='flex';
+  document.getElementById('desk-name').textContent=name;
+  if(changed){
+    const thm=document.documentElement.classList.contains('light')?'light':'dark';
+    document.getElementById('df-term').src=`/proj/${name}/term/`;
+    document.getElementById('df-code').src=`/static/editor.html?project=${name}&theme=${thm}`;
+  }
+  deskTab(tab||'term');
+}
+function deskTab(t){
+  document.getElementById('dt-term').classList.toggle('on',t==='term');
+  document.getElementById('dt-code').classList.toggle('on',t==='code');
+  document.getElementById('desk-frame-term').style.display=t==='term'?'block':'none';
+  document.getElementById('desk-frame-code').style.display=t==='code'?'block':'none';
+  if(t==='code'&&deskCurrent){
+    const thm=document.documentElement.classList.contains('light')?'light':'dark';
+    document.getElementById('df-code').src=`/static/editor.html?project=${deskCurrent.name}&theme=${thm}`;
+  }
+}
+
+let mobCurrent=null;
+function openOverlay(name,cp,tp,tab){
+  mobCurrent={name,cp,tp};
+  document.getElementById('mob-name').textContent=name;
+  const thm=document.documentElement.classList.contains('light')?'light':'dark';
+  document.getElementById('mf-term').src=`/proj/${name}/term/`;
+  document.getElementById('mf-code').src=`/static/editor.html?project=${name}&theme=${thm}`;
+  document.getElementById('mob-overlay').classList.add('open');
+  mobTab(tab||'term');
+}
+function mobTab(t){
+  document.getElementById('mt-term').classList.toggle('on',t==='term');
+  document.getElementById('mt-code').classList.toggle('on',t==='code');
+  document.getElementById('mob-frame-term').style.display=t==='term'?'block':'none';
+  document.getElementById('mob-frame-code').style.display=t==='code'?'block':'none';
+  if(t==='code'&&mobCurrent){
+    const thm=document.documentElement.classList.contains('light')?'light':'dark';
+    document.getElementById('mf-code').src=`/static/editor.html?project=${mobCurrent.name}&theme=${thm}`;
+  }
+}
+function closeOverlay(){
+  document.getElementById('mob-overlay').classList.remove('open');
+  document.getElementById('mf-term').src='';document.getElementById('mf-code').src='';
+  mobCurrent=null;
+}
+
+function openView(name,cp,tp,tab){
+  selected=name;renderList();
+  if(isMobile()) openOverlay(name,cp,tp,tab||'term');
+  else openDesktop(name,cp,tp,tab||'term');
+}
+
+async function act(action,name){
+  await fetch(`/api/projects/${name}/${action}`,{method:'POST'});
+  if(action==='stop'){
+    if(deskCurrent&&deskCurrent.name===name){
+      document.getElementById('desk-active').style.display='none';
+      document.getElementById('desk-empty').style.display='flex';
+      document.getElementById('df-term').src='';document.getElementById('df-code').src='';
+      deskCurrent=null;
+    }
+    if(mobCurrent&&mobCurrent.name===name) closeOverlay();
+    if(selected===name) selected=null;
+  }
+  load();
+}
+async function del(name){
+  if(!confirm(`Delete "${name}"? This cannot be undone.`))return;
+  await fetch(`/api/projects/${name}`,{method:'DELETE'});
+  if(deskCurrent&&deskCurrent.name===name){
+    document.getElementById('desk-active').style.display='none';
+    document.getElementById('desk-empty').style.display='flex';
+    deskCurrent=null;
+  }
+  if(mobCurrent&&mobCurrent.name===name) closeOverlay();
+  if(selected===name) selected=null;
+  load();
+}
+
+function openModal(){
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('pname').value='';
+  document.getElementById('cerr').style.display='none';
+  setTimeout(()=>document.getElementById('pname').focus(),100);
+}
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
+
+async function doCreate(){
+  const name=document.getElementById('pname').value.trim();
+  const err=document.getElementById('cerr');
+  const btn=document.getElementById('cbtn');
+  if(!name||!/^[a-zA-Z0-9._-]{2,40}$/.test(name)){
+    err.textContent='Letters, numbers, dots, underscores, hyphens (2\u201340 chars)';
+    err.style.display='block';return;
+  }
+  btn.innerHTML='<span class="spin"></span> Creating...';btn.disabled=true;
+  try{
+    const r=await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+    if(!r.ok){const d=await r.json();throw new Error(d.detail||'Failed');}
+    closeModal();load();
+  }catch(e){err.textContent=e.message;err.style.display='block';}
+  finally{btn.innerHTML='Create';btn.disabled=false;}
+}
+
+load();
+setInterval(load,5000);
+
+/* ── Terminal helpers ── */
+function sendCtrlC(){
+  const name=deskCurrent?deskCurrent.name:(mobCurrent?mobCurrent.name:null);
+  if(!name)return;
+  fetch(`/api/projects/${name}/send-keys?keys=C-c`,{method:'POST'});
+}
+function sendCtrlD(){
+  const name=deskCurrent?deskCurrent.name:(mobCurrent?mobCurrent.name:null);
+  if(!name)return;
+  fetch(`/api/projects/${name}/send-keys?keys=C-d`,{method:'POST'});
+}
+function toggleTermMenu(fab){
+  // Close all menus first
+  document.querySelectorAll('.term-menu').forEach(m=>m.classList.remove('open'));
+  if(fab){
+    const menu=fab.parentElement.querySelector('.term-menu');
+    if(menu) menu.classList.toggle('open');
+  }
+}
+// Close menu when clicking elsewhere
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.term-fab')&&!e.target.closest('.term-menu')){
+    document.querySelectorAll('.term-menu').forEach(m=>m.classList.remove('open'));
+  }
+});
+function openTermTab(){
+  if(deskCurrent) window.open(`/proj/${deskCurrent.name}/term/`,'_blank');
+  else if(mobCurrent) window.open(`/proj/${mobCurrent.name}/term/`,'_blank');
+}
+
+/* ── System monitor ── */
+function barClass(pct){return pct<60?'ok':pct<80?'warn':'crit'}
+async function loadSys(){
+  const r=await fetch('/api/system').catch(()=>null);
+  if(!r||!r.ok)return;
+  const s=await r.json();
+  for(const [k,v] of [['cpu',s.cpu],['ram',s.ram],['swap',s.swap],['disk',s.disk]]){
+    const bar=document.getElementById('bar-'+k);
+    const val=document.getElementById('val-'+k);
+    if(!bar||!val)continue;
+    const pct=v.percent||0;
+    bar.style.width=pct+'%';
+    bar.className='sys-bar '+barClass(pct);
+    if(k==='cpu') val.textContent=pct+'%';
+    else if(k==='ram') val.textContent=(v.used_mb/1024).toFixed(1)+'G';
+    else if(k==='swap') val.textContent=v.total_mb>0?(v.used_mb/1024).toFixed(1)+'G':'0';
+    else if(k==='disk') val.textContent=v.used_gb+'G';
+  }
+}
+function openSystemTerm(){
+  if(isMobile()){
+    window.open('/system/term/','_blank');
+  } else {
+    deskCurrent={name:'_system',cp:null,tp:null};
+    document.getElementById('desk-empty').style.display='none';
+    document.getElementById('desk-active').style.display='flex';
+    document.getElementById('desk-name').textContent='System';
+    document.getElementById('df-term').src='/system/term/';
+    const thm=document.documentElement.classList.contains('light')?'light':'dark';
+    document.getElementById('df-code').src=`/static/editor.html?project=_system&theme=${thm}`;
+    deskTab('term');
+  }
+}
+loadSys();
+setInterval(loadSys,3000);
+
+/* ── PAC Proxy Settings ── */
+
+}
+
+  if(!r||!r.ok)return;
+  const d=await r.json();
+}
+
+      <span class="subnet" title="${esc(p.subnet)}">${esc(p.subnet)}</span>
+      <span class="note" title="${esc(p.note||'')}">${esc(p.note||'—')}</span>
+        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+  row.outerHTML=`
+    </div>`;
+}
+
+  if(!subnet)return;
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({subnet,note})
+  });
+  if(!r.ok){const d=await r.json().catch(()=>({}));alert(d.detail||'Failed');return;}
+}
+
+  if(!subnet)return;
+  if(!r.ok){const d=await r.json().catch(()=>({}));alert(d.detail||'Failed');return;}
+}
+
+  if(!confirm(`Remove ${subnet}?`))return;
+}
+</script>
+</body>
+</html>

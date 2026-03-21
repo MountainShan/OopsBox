@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Editor</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/material-darker.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/default.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0c10;--bg2:#12141a;--bg3:#1a1d26;--border:#1e2130;--text:#c9cdd8;--text-hi:#e8eaf0;--muted:#5c6178;--accent:#6b7280;--green:#10b981}
+body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden;font-size:13px}
+body.light{--bg:#f4f5f7;--bg2:#ffffff;--bg3:#eceef2;--border:#d8dbe3;--text:#3b3f51;--text-hi:#1a1d2b;--muted:#8b8fa3}
+
+.tree{width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.tree-head{padding:6px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px}
+.tree-head span{flex:1}
+.tree-head-btn{padding:2px 6px;border-radius:3px;font-size:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;font-weight:500}
+.tree-head-btn:hover{color:var(--text);background:var(--bg3)}
+.tree-list{flex:1;overflow-y:auto;padding:4px 0}
+.tree-item{display:flex;align-items:center;gap:6px;padding:4px 12px;cursor:pointer;font-size:12px;color:var(--text);transition:background .1s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
+.tree-item:hover{background:var(--bg3)}
+.tree-item.active{background:var(--bg3);color:var(--text-hi);font-weight:500}
+.tree-item.dir{color:var(--muted);font-weight:600}
+.tree-item.drag-over{border-top:2px solid var(--green);padding-top:2px}
+.tree-item.drag-over-dir{background:color-mix(in srgb,var(--green) 15%,var(--bg3))}
+.tree-item.dragging{opacity:.4}
+.tree-icon{width:14px;height:14px;flex-shrink:0;opacity:.5}
+
+.editor-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.editor-toolbar{display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.tb-btn{display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;white-space:nowrap}
+.tb-btn:hover{color:var(--text);background:var(--bg3)}
+.tb-btn:active{transform:scale(.96)}
+.tb-btn.primary{background:var(--accent,#6b7280);color:#fff;border-color:transparent}
+.tb-btn.primary:hover{opacity:.85}
+.tb-btn svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tb-sep{width:1px;height:16px;background:var(--border);margin:0 2px}
+.editor-tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0;min-height:32px;align-items:center}
+.tab{display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:11px;color:var(--muted);cursor:pointer;border-right:1px solid var(--border);white-space:nowrap;transition:all .1s}
+.tab.active{background:var(--bg);color:var(--text-hi)}
+.tab-close{opacity:.4;cursor:pointer;font-size:14px;line-height:1}
+.tab-close:hover{opacity:1}
+.editor-info{padding:4px 12px;font-size:10px;color:var(--muted);background:var(--bg2);border-top:1px solid var(--border);display:flex;gap:12px;flex-shrink:0}
+.editor-wrap{flex:1;overflow:hidden}
+.empty-editor{flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+.saved-indicator{color:var(--green);font-size:10px;opacity:0;transition:opacity .3s}
+.saved-indicator.show{opacity:1}
+
+/* New file modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px;width:320px}
+.modal h3{font-size:13px;color:var(--text-hi);margin-bottom:12px}
+.modal input{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text-hi);font-size:12px;outline:none}
+.modal input:focus{border-color:var(--accent)}
+.modal-hint{font-size:10px;color:var(--muted);margin-top:4px}
+.modal-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:12px}
+
+/* Markdown preview */
+.md-preview{display:none;flex:1;overflow-y:auto;padding:20px 28px;background:var(--bg);color:var(--text);font-size:14px;line-height:1.7;-webkit-overflow-scrolling:touch}
+.md-preview h1,.md-preview h2,.md-preview h3,.md-preview h4{color:var(--text-hi);margin:1.2em 0 .5em;font-weight:700}
+.md-preview h1{font-size:1.6em;border-bottom:1px solid var(--border);padding-bottom:.3em}
+.md-preview h2{font-size:1.3em;border-bottom:1px solid var(--border);padding-bottom:.2em}
+.md-preview h3{font-size:1.1em}
+.md-preview p{margin:.6em 0}
+.md-preview a{color:#60a5fa;text-decoration:none}
+.md-preview a:hover{text-decoration:underline}
+.md-preview code{background:var(--bg3);padding:2px 5px;border-radius:3px;font-size:.9em;font-family:monospace}
+.md-preview pre{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px 16px;overflow-x:auto;margin:.8em 0}
+.md-preview pre code{background:none;padding:0}
+.md-preview blockquote{border-left:3px solid var(--border);padding-left:14px;color:var(--muted);margin:.8em 0}
+.md-preview ul,.md-preview ol{padding-left:24px;margin:.6em 0}
+.md-preview li{margin:.2em 0}
+.md-preview table{border-collapse:collapse;margin:.8em 0;width:100%}
+.md-preview th,.md-preview td{border:1px solid var(--border);padding:6px 10px;text-align:left}
+.md-preview th{background:var(--bg3);font-weight:600}
+.md-preview img{max-width:100%;border-radius:4px}
+.md-preview hr{border:none;border-top:1px solid var(--border);margin:1.5em 0}
+.md-preview .mermaid{background:var(--bg2);border-radius:6px;padding:12px;margin:.8em 0;text-align:center}
+.md-preview input[type="checkbox"]{margin-right:6px}
+
+.CodeMirror{height:100% !important;font-size:13px;line-height:1.5;font-family:monospace}
+.cm-s-material-darker .CodeMirror-gutters{background:#0a0c10;border-right:1px solid #1e2130}
+</style>
+</head>
+<body>
+
+<div class="tree">
+  <div class="tree-head">
+    <span id="proj-name">Files</span>
+    <button class="tree-head-btn" onclick="showNewFileModal()">+ New</button>
+  </div>
+  <div class="tree-list" id="tree"></div>
+</div>
+
+<div class="editor-area">
+  <div class="editor-toolbar">
+    <button class="tb-btn primary" onclick="save()" title="Save (Ctrl+S)">
+      <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save
+    </button>
+    <button class="tb-btn" onclick="saveAs()" title="Save As (Ctrl+Shift+S)">
+      <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+      Save As
+    </button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" onclick="showNewFileModal()" title="New File (Ctrl+N)">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+      New
+    </button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" onclick="doUndo()" title="Undo (Ctrl+Z)">
+      <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      Undo
+    </button>
+    <button class="tb-btn" onclick="doRedo()" title="Redo (Ctrl+Shift+Z)">
+      <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
+      Redo
+    </button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" onclick="findReplace()" title="Find & Replace (Ctrl+H)">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+      Replace
+    </button>
+    <div class="tb-sep" id="md-sep" style="display:none"></div>
+    <button class="tb-btn" id="md-preview-btn" onclick="togglePreview()" title="Toggle Preview" style="display:none">
+      <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      Preview
+    </button>
+  </div>
+  <div class="editor-tabs" id="tabs"></div>
+  <div class="editor-wrap" id="editor-wrap">
+    <div class="empty-editor" id="empty-msg">Select a file to edit</div>
+  </div>
+  <div class="md-preview" id="md-preview"></div>
+  <div class="editor-info">
+    <span id="info-path">--</span>
+    <span class="saved-indicator" id="saved-ind">Saved</span>
+    <span style="flex:1"></span>
+    <span id="info-lang">--</span>
+    <span id="info-pos">Ln 1, Col 1</span>
+  </div>
+</div>
+
+<!-- New file modal -->
+<div class="modal-bg" id="newfile-modal">
+  <div class="modal">
+    <h3>New File</h3>
+    <input id="newfile-path" placeholder="path/to/filename.ext" autocomplete="off" spellcheck="false"
+           onkeydown="if(event.key==='Enter')createNewFile()">
+    <div class="modal-hint">Enter relative path. Directories will be created automatically.</div>
+    <div class="modal-actions">
+      <button class="tb-btn" onclick="hideNewFileModal()">Cancel</button>
+      <button class="tb-btn primary" onclick="createNewFile()">Create</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/mode/loadmode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/meta.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/shell/shell.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/markdown/markdown.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/yaml/yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/toml/toml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/go/go.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/rust/rust.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/dockerfile/dockerfile.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/nginx/nginx.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/sql/sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/search/search.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/search/jump-to-line.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/dialog/dialog.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/dialog/dialog.min.css">
+<!-- Markdown & Mermaid -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+
+<script>
+const params=new URLSearchParams(location.search);
+const PROJECT=params.get('project');
+const theme='dark';
+if(theme==='light') document.body.classList.add('light');
+document.getElementById('proj-name').textContent=PROJECT||'Files';
+
+let editor=null, openFiles={}, activeFile=null, expandedDirs=new Set(['']);
+let dragSrcPath=null, dragSrcType=null;
+
+function modeForFile(name){
+  const ext=name.split('.').pop().toLowerCase();
+  const map={js:'javascript',jsx:'javascript',ts:'javascript',tsx:'javascript',mjs:'javascript',py:'python',sh:'shell',bash:'shell',zsh:'shell',md:'markdown',html:'htmlmixed',htm:'htmlmixed',css:'css',scss:'css',less:'css',json:{name:'javascript',json:true},yaml:'yaml',yml:'yaml',toml:'toml',go:'go',rs:'rust',c:'text/x-csrc',cpp:'text/x-c++src',h:'text/x-csrc',java:'text/x-java',dockerfile:'dockerfile',nginx:'nginx',conf:'nginx',sql:'sql',xml:'xml',svg:'xml'};
+  return map[ext]||'text/plain';
+}
+function langName(name){
+  const ext=name.split('.').pop().toLowerCase();
+  const map={js:'JavaScript',ts:'TypeScript',py:'Python',sh:'Shell',md:'Markdown',html:'HTML',css:'CSS',json:'JSON',yaml:'YAML',go:'Go',rs:'Rust',c:'C',cpp:'C++',java:'Java',sql:'SQL'};
+  return map[ext]||ext.toUpperCase();
+}
+
+// ── New file modal ──
+function showNewFileModal(){
+  document.getElementById('newfile-modal').classList.add('open');
+  const inp=document.getElementById('newfile-path');
+  inp.value='';
+  setTimeout(()=>inp.focus(),50);
+}
+function hideNewFileModal(){document.getElementById('newfile-modal').classList.remove('open')}
+document.getElementById('newfile-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)hideNewFileModal()});
+
+async function createNewFile(){
+  const path=document.getElementById('newfile-path').value.trim();
+  if(!path)return;
+  const r=await fetch(`/api/files/${PROJECT}/write?path=${encodeURIComponent(path)}`,{
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:''})
+  });
+  if(!r.ok){alert('Failed to create file');return;}
+  hideNewFileModal();
+  // Expand parent dirs
+  const parts=path.split('/');
+  let p='';
+  for(let i=0;i<parts.length-1;i++){
+    p+=((p?'/':'')+parts[i]);
+    expandedDirs.add(p);
+  }
+  await renderTree();
+  openFile(path,parts[parts.length-1]);
+}
+
+// ── File tree ──
+async function loadTree(path=''){
+  const r=await fetch(`/api/files/${PROJECT}?path=${encodeURIComponent(path)}`);
+  if(!r.ok)return[];
+  return (await r.json()).entries||[];
+}
+
+async function renderTree(){
+  const el=document.getElementById('tree');
+  el.innerHTML='';
+  await renderDir(el,'',0);
+}
+
+async function renderDir(container,path,depth){
+  const entries=await loadTree(path);
+  for(const e of entries){
+    const div=document.createElement('div');
+    div.className='tree-item'+(e.type==='dir'?' dir':'')+(activeFile===e.path?' active':'');
+    div.style.paddingLeft=(12+depth*16)+'px';
+    const icon=e.type==='dir'?(expandedDirs.has(e.path)?'&#9662;':'&#9656;'):'&#9679;';
+    div.innerHTML=`<span class="tree-icon">${icon}</span>${e.name}`;
+
+    // Drag source
+    div.draggable=true;
+    div.addEventListener('dragstart',ev=>{
+      dragSrcPath=e.path;
+      dragSrcType=e.type;
+      div.classList.add('dragging');
+      ev.dataTransfer.effectAllowed='move';
+      ev.dataTransfer.setData('text/plain',e.path);
+    });
+    div.addEventListener('dragend',()=>{
+      div.classList.remove('dragging');
+      document.querySelectorAll('.drag-over,.drag-over-dir').forEach(el=>el.classList.remove('drag-over','drag-over-dir'));
+      dragSrcPath=null;
+    });
+
+    // Drop target
+    div.addEventListener('dragover',ev=>{
+      ev.preventDefault();
+      if(dragSrcPath===e.path)return;
+      ev.dataTransfer.dropEffect='move';
+      div.classList.add(e.type==='dir'?'drag-over-dir':'drag-over');
+    });
+    div.addEventListener('dragleave',()=>{
+      div.classList.remove('drag-over','drag-over-dir');
+    });
+    div.addEventListener('drop',async ev=>{
+      ev.preventDefault();
+      div.classList.remove('drag-over','drag-over-dir');
+      if(!dragSrcPath||dragSrcPath===e.path)return;
+      const srcName=dragSrcPath.split('/').pop();
+      let dest;
+      if(e.type==='dir'){
+        dest=e.path+'/'+srcName;
+      } else {
+        const parentParts=e.path.split('/');
+        parentParts.pop();
+        dest=(parentParts.length?parentParts.join('/')+'/':'')+srcName;
+      }
+      if(dest===dragSrcPath)return;
+      const r=await fetch(`/api/files/${PROJECT}/move?path=${encodeURIComponent(dragSrcPath)}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dest})
+      });
+      if(r.ok){
+        // Update open files if moved
+        if(openFiles[dragSrcPath]){
+          openFiles[dest]=openFiles[dragSrcPath];
+          delete openFiles[dragSrcPath];
+          if(activeFile===dragSrcPath) activeFile=dest;
+        }
+        renderTree();
+        renderTabs();
+      } else {
+        const d=await r.json().catch(()=>({}));
+        alert(d.detail||'Move failed');
+      }
+    });
+
+    if(e.type==='dir'){
+      div.onclick=()=>{
+        if(expandedDirs.has(e.path)) expandedDirs.delete(e.path);
+        else expandedDirs.add(e.path);
+        renderTree();
+      };
+    } else {
+      div.onclick=()=>openFile(e.path,e.name);
+    }
+    container.appendChild(div);
+
+    if(e.type==='dir'&&expandedDirs.has(e.path)){
+      await renderDir(container,e.path,depth+1);
+    }
+  }
+}
+
+// ── Editor ──
+function initEditor(){
+  const wrap=document.getElementById('editor-wrap');
+  const empty=document.getElementById('empty-msg');
+  if(empty)empty.style.display='none';
+  if(editor) return;
+  const ta=document.createElement('textarea');
+  wrap.appendChild(ta);
+  editor=CodeMirror.fromTextArea(ta,{
+    theme:theme==='light'?'default':'material-darker',
+    lineNumbers:true,lineWrapping:false,indentUnit:2,tabSize:2,indentWithTabs:false,matchBrackets:true,styleActiveLine:true,
+    extraKeys:{
+      'Ctrl-S':save,'Cmd-S':save,
+      'Ctrl-W':()=>{closeActive();return false},'Cmd-W':()=>{closeActive();return false},
+      'Ctrl-Shift-S':saveAs,'Cmd-Shift-S':saveAs,
+      'Ctrl-N':()=>{showNewFileModal();return false},'Cmd-N':()=>{showNewFileModal();return false},
+      'Ctrl-H':()=>{findReplace();return false},'Cmd-H':()=>{findReplace();return false},
+    }
+  });
+  editor.on('cursorActivity',()=>{
+    const pos=editor.getCursor();
+    document.getElementById('info-pos').textContent=`Ln ${pos.line+1}, Col ${pos.ch+1}`;
+  });
+  editor.on('change',()=>{
+    if(activeFile&&openFiles[activeFile]){openFiles[activeFile].modified=true;renderTabs();}
+  });
+}
+
+async function openFile(path,name){
+  if(!openFiles[path]){
+    const r=await fetch(`/api/files/${PROJECT}/read?path=${encodeURIComponent(path)}`);
+    if(!r.ok){alert('Cannot open file');return;}
+    const d=await r.json();
+    openFiles[path]={content:d.content,name:d.name,doc:CodeMirror.Doc(d.content,modeForFile(name||path)),modified:false};
+  }
+  activeFile=path;
+  initEditor();
+  editor.swapDoc(openFiles[path].doc);
+  document.getElementById('info-path').textContent=path;
+  document.getElementById('info-lang').textContent=langName(openFiles[path].name);
+  // Exit preview when switching files
+  if(previewMode) togglePreview();
+  updateMdButton();
+  renderTabs();renderTree();
+}
+
+function closeFile(path){
+  if(openFiles[path]&&openFiles[path].modified){
+    if(!confirm(`${path} has unsaved changes. Close anyway?`))return;
+  }
+  delete openFiles[path];
+  if(activeFile===path){
+    const keys=Object.keys(openFiles);
+    if(keys.length>0) openFile(keys[keys.length-1],openFiles[keys[keys.length-1]].name);
+    else{
+      activeFile=null;
+      if(editor){editor.toTextArea();editor=null;}
+      document.getElementById('editor-wrap').innerHTML='<div class="empty-editor" id="empty-msg">Select a file to edit</div>';
+      document.getElementById('info-path').textContent='--';
+      document.getElementById('info-lang').textContent='--';
+    }
+  }
+  renderTabs();renderTree();
+}
+function closeActive(){if(activeFile)closeFile(activeFile)}
+
+function doUndo(){if(editor)editor.undo()}
+function doRedo(){if(editor)editor.redo()}
+
+// ── Markdown preview ──
+let previewMode=false;
+const mermaidTheme=theme==='light'?'default':'dark';
+mermaid.initialize({startOnLoad:false,theme:mermaidTheme,securityLevel:'loose'});
+
+function isMarkdown(){
+  if(!activeFile)return false;
+  const ext=activeFile.split('.').pop().toLowerCase();
+  return ext==='md'||ext==='markdown';
+}
+
+function updateMdButton(){
+  const show=isMarkdown();
+  document.getElementById('md-preview-btn').style.display=show?'flex':'none';
+  document.getElementById('md-sep').style.display=show?'block':'none';
+  if(!show&&previewMode) togglePreview();
+}
+
+async function togglePreview(){
+  previewMode=!previewMode;
+  const wrap=document.getElementById('editor-wrap');
+  const prev=document.getElementById('md-preview');
+  const btn=document.getElementById('md-preview-btn');
+
+  if(previewMode){
+    wrap.style.display='none';
+    prev.style.display='block';
+    btn.classList.add('primary');
+    // Render markdown
+    const content=editor?editor.getValue():'';
+    const renderer=new marked.Renderer();
+    // Custom renderer for mermaid code blocks
+    const origCode=renderer.code;
+    renderer.code=function({text,lang}){
+      if(lang==='mermaid'){
+        return `<div class="mermaid">${text}</div>`;
+      }
+      return `<pre><code class="language-${lang||''}">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</code></pre>`;
+    };
+    // Checkbox support for task lists
+    renderer.listitem=function({text}){
+      if(text.startsWith('[x] ')||text.startsWith('[X] ')){
+        return `<li><input type="checkbox" checked disabled>${text.slice(4)}</li>`;
+      }
+      if(text.startsWith('[ ] ')){
+        return `<li><input type="checkbox" disabled>${text.slice(4)}</li>`;
+      }
+      return `<li>${text}</li>`;
+    };
+    marked.setOptions({renderer,breaks:true,gfm:true});
+    prev.innerHTML=marked.parse(content);
+    // Render mermaid diagrams
+    try{
+      const mermaidEls=prev.querySelectorAll('.mermaid');
+      for(let i=0;i<mermaidEls.length;i++){
+        const el=mermaidEls[i];
+        const code=el.textContent;
+        const id='mermaid-'+i+'-'+Date.now();
+        const {svg}=await mermaid.render(id,code);
+        el.innerHTML=svg;
+      }
+    }catch(e){console.warn('Mermaid render error:',e)}
+  } else {
+    wrap.style.display='block';
+    prev.style.display='none';
+    btn.classList.remove('primary');
+    if(editor) editor.refresh();
+  }
+}
+
+function findReplace(){
+  if(!editor)return;
+  editor.execCommand('replace');
+}
+
+async function save(){
+  if(!activeFile||!openFiles[activeFile])return;
+  const content=editor.getValue();
+  const r=await fetch(`/api/files/${PROJECT}/write?path=${encodeURIComponent(activeFile)}`,{
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})
+  });
+  if(r.ok){
+    openFiles[activeFile].modified=false;
+    openFiles[activeFile].content=content;
+    const ind=document.getElementById('saved-ind');
+    ind.classList.add('show');setTimeout(()=>ind.classList.remove('show'),1500);
+    renderTabs();
+  }
+}
+
+async function saveAs(){
+  if(!activeFile||!openFiles[activeFile]||!editor)return;
+  const newPath=prompt('Save as:',activeFile);
+  if(!newPath||newPath===activeFile){if(newPath)save();return;}
+  const content=editor.getValue();
+  const r=await fetch(`/api/files/${PROJECT}/write?path=${encodeURIComponent(newPath)}`,{
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})
+  });
+  if(r.ok){
+    const name=newPath.split('/').pop();
+    openFiles[newPath]={content,name,doc:CodeMirror.Doc(content,modeForFile(name)),modified:false};
+    delete openFiles[activeFile];
+    activeFile=newPath;
+    editor.swapDoc(openFiles[newPath].doc);
+    document.getElementById('info-path').textContent=newPath;
+    document.getElementById('info-lang').textContent=langName(name);
+    const ind=document.getElementById('saved-ind');
+    ind.classList.add('show');setTimeout(()=>ind.classList.remove('show'),1500);
+    renderTabs();renderTree();
+  }
+}
+
+function renderTabs(){
+  const el=document.getElementById('tabs');
+  const paths=Object.keys(openFiles);
+  if(!paths.length){el.innerHTML='';return;}
+  el.innerHTML=paths.map(p=>{
+    const f=openFiles[p];
+    return `<div class="tab${p===activeFile?' active':''}" onclick="openFile('${p.replace(/'/g,"\\'")}','${(f.name||'').replace(/'/g,"\\'")}')">
+      ${f.modified?'&bull; ':''}${f.name}
+      <span class="tab-close" onclick="event.stopPropagation();closeFile('${p.replace(/'/g,"\\'")}')">&times;</span>
+    </div>`;
+  }).join('');
+}
+
+if(PROJECT) renderTree();
+</script>
+</body>
+</html>

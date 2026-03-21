@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+venv/
+.code-server/
+*.log
+*.pid
+.port-registry.json
+node_modules/
+proxy.pac
+pac-policies.json
