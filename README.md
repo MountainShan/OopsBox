@@ -2,6 +2,19 @@
 
 [English](#english) | [繁體中文](#繁體中文)
 
+<p align="center">
+  <img src="docs/screenshots/icon.png" width="120" alt="OopsBox icon">
+</p>
+
+<p align="center">
+  <em>I just wanted to code on iPad. Now there's a whole platform. oops.</em>
+</p>
+
+<!-- screenshots - add your own! -->
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="800" alt="Dashboard">
+</p>
+
 ---
 
 ## English
@@ -17,6 +30,20 @@ It wasn't planned. It just... happened. And it kinda works? So here you go.
 A web dashboard that lets you run AI coding agents (Claude, Codex, whatever) on a remote server and control them from your iPad, phone, or any browser. You get a terminal, a chat view for your AI agent, a code editor, and some system monitoring stuff thrown in because why not.
 
 Think of it as a toy that accidentally became useful.
+
+### screenshots
+
+| AI Agent | Terminal | Editor |
+|:---:|:---:|:---:|
+| ![AI Agent](docs/screenshots/ai-agent.png) | ![Terminal](docs/screenshots/terminal.png) | ![Editor](docs/screenshots/editor.png) |
+
+<!-- mobile screenshot -->
+<details>
+<summary>📱 iPad / Mobile</summary>
+<p align="center">
+  <img src="docs/screenshots/mobile.png" width="300" alt="Mobile view">
+</p>
+</details>
 
 ### the accidental feature list
 
@@ -99,6 +126,12 @@ MIT — do whatever you want with it. if it breaks, that's on you. I just wanted
 一個網頁 dashboard，讓你在遠端 server 上跑 AI coding agent（Claude、Codex 之類的），然後用 iPad、手機或任何瀏覽器操控它。你會得到一個 terminal、一個跟 AI agent 對話的介面、一個 code editor，還有系統監控 — 反正都做了，多加一個也沒差。
 
 就當作一個意外變得能用的玩具吧。
+
+### 截圖
+
+| AI Agent | Terminal | Editor |
+|:---:|:---:|:---:|
+| ![AI Agent](docs/screenshots/ai-agent.png) | ![Terminal](docs/screenshots/terminal.png) | ![Editor](docs/screenshots/editor.png) |
 
 ### 意外產生的功能
 
