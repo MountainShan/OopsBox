@@ -12,7 +12,7 @@
 
 <!-- screenshots - add your own! -->
 <p align="center">
-  <img src="docs/screenshots/dashboard.png" width="800" alt="Dashboard">
+  <img src="docs/screenshots/dashboard.jpeg" width="800" alt="Dashboard">
 </p>
 
 ---
@@ -35,13 +35,13 @@ Think of it as a toy that accidentally became useful.
 
 | AI Agent | Terminal | Editor |
 |:---:|:---:|:---:|
-| ![AI Agent](docs/screenshots/ai-agent.png) | ![Terminal](docs/screenshots/terminal.png) | ![Editor](docs/screenshots/editor.png) |
+| ![AI Agent](docs/screenshots/agent.jpeg) | ![Terminal](docs/screenshots/terminal.jpeg) | ![Editor](docs/screenshots/editor.jpeg) |
 
 <!-- mobile screenshot -->
 <details>
 <summary>📱 iPad / Mobile</summary>
 <p align="center">
-  <img src="docs/screenshots/mobile.png" width="300" alt="Mobile view">
+  <img src="docs/screenshots/mobile.jpeg" width="300" alt="Mobile view">
 </p>
 </details>
 
@@ -161,7 +161,7 @@ MIT — do whatever you want with it. if it breaks, that's on you. I just wanted
 
 | AI Agent | Terminal | Editor |
 |:---:|:---:|:---:|
-| ![AI Agent](docs/screenshots/ai-agent.png) | ![Terminal](docs/screenshots/terminal.png) | ![Editor](docs/screenshots/editor.png) |
+| ![AI Agent](docs/screenshots/agent.jpeg) | ![Terminal](docs/screenshots/terminal.jpeg) | ![Editor](docs/screenshots/editor.jpeg) |
 
 ### 意外產生的功能
 
