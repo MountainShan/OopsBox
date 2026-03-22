@@ -111,20 +111,6 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
 .spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:sp .6s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 
-/* ── PAC policy list ── */
-.pac-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;margin-bottom:6px;background:var(--bg2);border:1px solid var(--border);font-size:13px}
-.pac-item .subnet{font-family:monospace;font-weight:600;color:var(--text-hi);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
-.pac-item .note{color:var(--muted);font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pac-item .act{cursor:pointer;color:var(--muted);opacity:.4;transition:all .12s;background:none;border:none;padding:4px;display:flex}
-.pac-item .act:hover{opacity:1}
-.pac-item .act.edit:hover{color:var(--text-hi)}
-.pac-item .act.del:hover{color:var(--red)}
-.pac-item .act svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.pac-empty{font-size:12px;color:var(--muted);text-align:center;padding:40px}
-.pac-edit-row{display:flex;gap:6px;padding:10px 14px;border-radius:8px;margin-bottom:6px;background:color-mix(in srgb,var(--accent) 8%,var(--bg2));border:1px solid var(--accent)}
-.pac-edit-row input{flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text-hi);font-size:12px;outline:none}
-.pac-edit-row input:focus{border-color:var(--accent)}
-.pac-edit-row button{padding:6px 12px;border-radius:5px;font-size:11px;cursor:pointer;border:none}
 
 /* ── Terminal floating menu ── */
 
@@ -190,9 +176,6 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
     <span id="tagline" style="font-size:9px;color:var(--muted);font-style:italic;margin-left:6px">I just wanted to code on iPad</span>
   </div>
   <div class="hdr-actions">
-    <button class="btn-icon" onclick="openPacPanel()" title="Proxy Settings">
-      <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-    </button>
     <button class="btn btn-primary btn-sm" onclick="openModal()">New</button>
   </div>
 </header>
@@ -625,92 +608,4 @@ async function doLogout(){
 loadSys();
 setInterval(loadSys,3000);
 
-/* ── PAC Proxy Settings ── */
-function copyPacUrl(){
-  const url='http://'+location.hostname+'/proxy.pac';
-  const ta=document.createElement('textarea');
-  ta.value=url;
-  ta.style.cssText='position:fixed;left:-9999px';
-  document.body.appendChild(ta);
-  ta.select();
-  document.execCommand('copy');
-  document.body.removeChild(ta);
-  alert('Copied: '+url);
-}
 
-function openPacPanel(){
-  document.getElementById('pac-page').style.display='flex';
-  loadPacPolicies();
-}
-function closePacPanel(){document.getElementById('pac-page').style.display='none'}
-
-let pacPolicies=[];
-async function loadPacPolicies(){
-  const r=await fetch('/api/pac-policies').catch(()=>null);
-  if(!r||!r.ok)return;
-  const d=await r.json();
-  pacPolicies=d.policies;
-  renderPacList();
-}
-
-function renderPacList(){
-  const el=document.getElementById('pac-list');
-  if(!pacPolicies.length){el.innerHTML='<div class="pac-empty">No proxy routes configured</div>';return;}
-  el.innerHTML=pacPolicies.map((p,i)=>`
-    <div class="pac-item" id="pac-row-${i}">
-      <span class="subnet" title="${esc(p.subnet)}">${esc(p.subnet)}</span>
-      <span class="note" title="${esc(p.note||'')}">${esc(p.note||'—')}</span>
-      <button class="act edit" onclick="editPacPolicy(${i})" title="Edit">
-        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      </button>
-      <button class="act del" onclick="delPacPolicy('${esc(p.subnet)}')" title="Delete">
-        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-      </button>
-    </div>
-  `).join('');
-}
-
-function editPacPolicy(idx){
-  const p=pacPolicies[idx];
-  const row=document.getElementById('pac-row-'+idx);
-  row.outerHTML=`
-    <div class="pac-edit-row" id="pac-row-${idx}">
-      <input id="pac-edit-subnet-${idx}" value="${esc(p.subnet)}" placeholder="Rule">
-      <input id="pac-edit-note-${idx}" value="${esc(p.note||'')}" placeholder="Note"
-             onkeydown="if(event.key==='Enter')savePacEdit(${idx},'${esc(p.subnet)}')">
-      <button style="background:var(--accent);color:#fff" onclick="savePacEdit(${idx},'${esc(p.subnet)}')">Save</button>
-      <button style="background:var(--bg3);color:var(--text)" onclick="renderPacList()">Cancel</button>
-    </div>`;
-  document.getElementById('pac-edit-subnet-'+idx).focus();
-}
-
-async function savePacEdit(idx,oldSubnet){
-  const subnet=document.getElementById('pac-edit-subnet-'+idx).value.trim();
-  const note=document.getElementById('pac-edit-note-'+idx).value.trim();
-  if(!subnet)return;
-  const r=await fetch(`/api/pac-policies?old_subnet=${encodeURIComponent(oldSubnet)}`,{
-    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({subnet,note})
-  });
-  if(!r.ok){const d=await r.json().catch(()=>({}));alert(d.detail||'Failed');return;}
-  loadPacPolicies();
-}
-
-async function addPacPolicy(){
-  const subnet=document.getElementById('pac-subnet').value.trim();
-  const note=document.getElementById('pac-note').value.trim();
-  if(!subnet)return;
-  const r=await fetch('/api/pac-policies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subnet,note})});
-  if(!r.ok){const d=await r.json().catch(()=>({}));alert(d.detail||'Failed');return;}
-  document.getElementById('pac-subnet').value='';
-  document.getElementById('pac-note').value='';
-  loadPacPolicies();
-}
-
-async function delPacPolicy(subnet){
-  if(!confirm(`Remove ${subnet}?`))return;
-  await fetch(`/api/pac-policies?subnet=${encodeURIComponent(subnet)}`,{method:'DELETE'});
-  loadPacPolicies();
-}
-</script>
-</body>
-</html>
