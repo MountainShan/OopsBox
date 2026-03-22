@@ -69,8 +69,28 @@ Then open `http://<your-ip>/` and oops, you have a platform.
 
 - Ubuntu 24.04 (probably works on other things, haven't tried, good luck)
 - Node.js 22+
+- Python 3.12+
 - An AI coding agent CLI (Claude Code, Codex, etc.)
 - An API key for said agent
+
+#### what it installs
+
+```
+System:  tmux, ttyd, nginx, jq, sshpass
+Python:  fastapi, uvicorn, paramiko, python-multipart, aiofiles
+```
+
+#### tested on
+
+| Platform | Status |
+|---|---|
+| Ubuntu 24.04 LTS (x86_64) | ✅ works |
+| Proxmox VM (4 vCPU, 8GB RAM) | ✅ works |
+| iPad Safari | ✅ works (the whole point) |
+| iPhone Safari | ✅ mostly works |
+| Chrome desktop | ✅ works |
+| Debian 12 | 🤷 probably works |
+| Other Linux | 🤷 good luck |
 
 ### how it works (roughly)
 
@@ -157,8 +177,28 @@ cd OopsBox
 
 - Ubuntu 24.04（其他的大概也行，沒試過，祝你好運）
 - Node.js 22+
+- Python 3.12+
 - 一個 AI coding agent CLI（Claude Code、Codex 等）
 - 對應的 API key
+
+#### 會裝什麼
+
+```
+系統套件：tmux, ttyd, nginx, jq, sshpass
+Python：  fastapi, uvicorn, paramiko, python-multipart, aiofiles
+```
+
+#### 測試過的平台
+
+| 平台 | 狀態 |
+|---|---|
+| Ubuntu 24.04 LTS (x86_64) | ✅ 能用 |
+| Proxmox VM (4 vCPU, 8GB RAM) | ✅ 能用 |
+| iPad Safari | ✅ 能用（重點就是這個） |
+| iPhone Safari | ✅ 大致能用 |
+| Chrome 桌面版 | ✅ 能用 |
+| Debian 12 | 🤷 大概能用 |
+| 其他 Linux | 🤷 祝你好運 |
 
 ### 大概怎麼運作的
 
