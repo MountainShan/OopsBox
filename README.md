@@ -82,31 +82,25 @@ Python:  fastapi, uvicorn, paramiko, python-multipart, aiofiles
 
 #### tested on
 
-**Server OS:**
-
-| OS | Status |
-|---|---|
-| Ubuntu 24.04 LTS (x86_64) | ✅ works |
-| Debian 12 | 🤷 probably works |
-| Other Linux | 🤷 good luck |
-
-**Client (browser):**
-
-| Device | Browser | Status |
-|---|---|---|
-| iPad | Safari | ✅ works (the whole point) |
-| iPhone | Safari | ✅ mostly works |
-| Mac / Linux / Windows | Chrome | ✅ works |
-| Mac / Linux / Windows | Firefox | ✅ works |
-
-**Hosting:**
+**Server:**
 
 | Environment | Status |
 |---|---|
+| Ubuntu 24.04 LTS (x86_64) | ✅ works |
+| Debian 12 | 🤷 probably works |
 | Proxmox VM | ✅ works |
 | Bare metal | ✅ works |
 | Docker | 🔜 planned |
 | LXC | 🤷 untested |
+
+**Client:**
+
+| Device / Browser | Status |
+|---|---|
+| iPad Safari | ✅ works (the whole point) |
+| iPhone Safari | ✅ mostly works |
+| Chrome | ✅ works |
+| Firefox | ✅ works |
 
 ### how it works (roughly)
 
@@ -206,31 +200,25 @@ Python：  fastapi, uvicorn, paramiko, python-multipart, aiofiles
 
 #### 測試過的平台
 
-**Server 作業系統：**
-
-| 作業系統 | 狀態 |
-|---|---|
-| Ubuntu 24.04 LTS (x86_64) | ✅ 能用 |
-| Debian 12 | 🤷 大概能用 |
-| 其他 Linux | 🤷 祝你好運 |
-
-**用戶端（瀏覽器）：**
-
-| 裝置 | 瀏覽器 | 狀態 |
-|---|---|---|
-| iPad | Safari | ✅ 能用（重點就是這個） |
-| iPhone | Safari | ✅ 大致能用 |
-| Mac / Linux / Windows | Chrome | ✅ 能用 |
-| Mac / Linux / Windows | Firefox | ✅ 能用 |
-
-**部署環境：**
+**Server：**
 
 | 環境 | 狀態 |
 |---|---|
+| Ubuntu 24.04 LTS (x86_64) | ✅ 能用 |
+| Debian 12 | 🤷 大概能用 |
 | Proxmox VM | ✅ 能用 |
 | 實體機 | ✅ 能用 |
 | Docker | 🔜 規劃中 |
 | LXC | 🤷 沒測過 |
+
+**Client：**
+
+| 裝置 / 瀏覽器 | 狀態 |
+|---|---|
+| iPad Safari | ✅ 能用（重點就是這個） |
+| iPhone Safari | ✅ 大致能用 |
+| Chrome | ✅ 能用 |
+| Firefox | ✅ 能用 |
 
 ### 大概怎麼運作的
 
