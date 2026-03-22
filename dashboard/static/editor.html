@@ -129,6 +129,16 @@ body.light{--bg:#f4f5f7;--bg2:#ffffff;--bg3:#eceef2;--border:#d8dbe3;--text:#3b3
       <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       Preview
     </button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" onclick="uploadFile()" title="Upload file">
+      <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+      Upload
+    </button>
+    <button class="tb-btn" id="download-btn" onclick="downloadFile()" title="Download file" style="display:none">
+      <svg viewBox="0 0 24 24"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+      Download
+    </button>
+    <input type="file" id="file-upload-input" style="display:none" onchange="handleUpload(event)" multiple>
   </div>
   <div class="editor-tabs" id="tabs"></div>
   <div class="editor-wrap" id="editor-wrap">
@@ -524,6 +534,33 @@ function renderTabs(){
     </div>`;
   }).join('');
 }
+
+// ── Upload/Download ──
+function uploadFile(){document.getElementById('file-upload-input').click()}
+async function handleUpload(e){
+  const files=e.target.files;
+  if(!files.length)return;
+  // Upload to current directory or root
+  const dir=activeFile?activeFile.split('/').slice(0,-1).join(''):'';
+  for(const file of files){
+    const form=new FormData();
+    form.append('file',file);
+    await fetch(`/api/files/${PROJECT}/upload?path=${encodeURIComponent(dir)}`,{method:'POST',body:form});
+  }
+  e.target.value='';
+  renderTree();
+}
+function downloadFile(){
+  if(!activeFile)return;
+  window.open(`/api/files/${PROJECT}/download?path=${encodeURIComponent(activeFile)}`,'_blank');
+}
+
+// Show download button when file is open
+const origOpenFile=openFile;
+openFile=async function(path,name){
+  await origOpenFile(path,name);
+  document.getElementById('download-btn').style.display=activeFile?'flex':'none';
+};
 
 if(PROJECT) renderTree();
 </script>

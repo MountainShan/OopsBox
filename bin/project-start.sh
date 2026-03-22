@@ -4,23 +4,61 @@ NAME="$1"
 WORKDIR="/home/mountain/projects/${NAME}"
 PID_DIR="/tmp/rcoder-${NAME}"
 SESSION="proj-${NAME}"
+REGISTRY="/home/mountain/projects/.project-registry.json"
 
 [ -d "$WORKDIR" ] || { echo "ERROR: project '$NAME' not found" >&2; exit 1; }
 mkdir -p "$PID_DIR"
 
 read -r CODE_PORT TTYD_PORT < <(/home/mountain/bin/get-project-ports.sh "$NAME")
-echo "[start] $NAME — code-server :${CODE_PORT}, ttyd :${TTYD_PORT}"
 
-# tmux session: window 0 = claude agent, window 1 = free shell
-if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-  tmux new-session -d -s "$SESSION" -c "$WORKDIR" -x 220 -y 50
-  tmux rename-window -t "$SESSION" "agent"
-  tmux send-keys -t "$SESSION:agent" \
-    "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh" Enter
-  tmux new-window -t "$SESSION" -n "shell" -c "$WORKDIR"
+# Detect backend from registry
+BACKEND="local"
+if [ -f "$REGISTRY" ]; then
+  BACKEND=$(jq -r --arg n "$NAME" '.[$n].backend // "local"' "$REGISTRY")
 fi
 
-# code-server removed — using lightweight web editor instead
+echo "[start] $NAME — backend:${BACKEND}, ttyd :${TTYD_PORT}"
+
+# tmux session
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+  tmux new-session -d -s "$SESSION" -c "$WORKDIR" -x 220 -y 50
+
+  if [ "$BACKEND" = "ssh" ]; then
+    # SSH backend: connect to remote server
+    SSH_HOST=$(jq -r --arg n "$NAME" '.[$n].ssh_host' "$REGISTRY")
+    SSH_PORT=$(jq -r --arg n "$NAME" '.[$n].ssh_port // 22' "$REGISTRY")
+    SSH_USER=$(jq -r --arg n "$NAME" '.[$n].ssh_user' "$REGISTRY")
+    SSH_AUTH=$(jq -r --arg n "$NAME" '.[$n].ssh_auth // "password"' "$REGISTRY")
+
+    tmux rename-window -t "$SESSION" "remote"
+
+    if [ "$SSH_AUTH" = "key" ]; then
+      tmux send-keys -t "$SESSION:remote" \
+        "ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -o KexAlgorithms=+diffie-hellman-group14-sha1 -o HostKeyAlgorithms=+ssh-rsa ${SSH_USER}@${SSH_HOST}" Enter
+    else
+      # For password auth, use sshpass if available, otherwise user types password
+      if command -v sshpass >/dev/null 2>&1; then
+        SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
+        tmux send-keys -t "$SESSION:remote" \
+          "sshpass -p '${SSH_PASS}' ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -o KexAlgorithms=+diffie-hellman-group14-sha1 -o HostKeyAlgorithms=+ssh-rsa ${SSH_USER}@${SSH_HOST}" Enter
+      else
+        tmux send-keys -t "$SESSION:remote" \
+          "ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST}" Enter
+      fi
+    fi
+    # Agent window — runs locally, works with remote via SSH
+    tmux new-window -t "$SESSION" -n "ai-agent" -c "$WORKDIR"
+    tmux send-keys -t "$SESSION:ai-agent" \
+      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh" Enter
+    tmux new-window -t "$SESSION" -n "terminal" -c "$WORKDIR"
+  else
+    # Local backend: start claude agent
+    tmux rename-window -t "$SESSION" "ai-agent"
+    tmux send-keys -t "$SESSION:ai-agent" \
+      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh" Enter
+    tmux new-window -t "$SESSION" -n "terminal" -c "$WORKDIR"
+  fi
+fi
 
 # ttyd — load theme
 THEME_CONF="/home/mountain/.config/ttyd-theme.conf"
@@ -44,15 +82,18 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
     --interface 0.0.0.0 \
     --writable \
     --base-path "/proj/${NAME}/term" \
+    --ping-interval 30 \
     -t fontSize=14 \
     -t fontFamily=monospace \
     -t 'enableSixel=true' \
     -t 'disableLeaveAlert=true' \
+    -t 'disableReconnect=false' \
+    -t 'reconnectInterval=3000' \
     ${TTYD_THEME_ARGS} \
-    tmux attach-session -t "$SESSION" \
+    tmux attach-session -t "$SESSION:terminal" \
     > "$PID_DIR/ttyd.log" 2>&1 &
   echo $! > "$PID_DIR/ttyd.pid"
 fi
 
 /home/mountain/bin/nginx-reload-ports.sh 2>/dev/null || true
-echo "[start] project '$NAME' running — code :${CODE_PORT} term :${TTYD_PORT}"
+echo "[start] project '$NAME' running — ttyd :${TTYD_PORT}"

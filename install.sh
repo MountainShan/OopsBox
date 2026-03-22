@@ -1,39 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# OopsBox — I just wanted to code on iPad.
+# Then this happened.
+
 USER=$(whoami)
 HOME_DIR=$(eval echo ~$USER)
 
-echo "=== RVCoder Installer ==="
-echo "User: $USER"
-echo "Home: $HOME_DIR"
+echo ""
+echo "  📦 OopsBox Installer"
+echo "  I just wanted to code on iPad."
 echo ""
 
 # ── System packages ──
-echo "[1/7] Installing system packages..."
+echo "[1/8] installing packages (this might take a minute)..."
 sudo apt update -qq
-sudo apt install -y tmux ttyd nginx jq python3-pip python3-venv build-essential procps
+sudo apt install -y tmux ttyd nginx jq python3-pip python3-venv build-essential procps sshpass
 
-# ── Dashboard venv ──
-echo "[2/7] Setting up dashboard..."
+# ── Dashboard ──
+echo "[2/8] setting up dashboard..."
 sudo mkdir -p /opt/dashboard/static
 sudo chown -R $USER:$USER /opt/dashboard
 python3 -m venv /opt/dashboard/venv
-/opt/dashboard/venv/bin/pip install -q fastapi "uvicorn[standard]" aiofiles
+/opt/dashboard/venv/bin/pip install -q fastapi "uvicorn[standard]" aiofiles paramiko python-multipart
 
-# Copy dashboard files
 cp dashboard/main.py /opt/dashboard/
 cp dashboard/static/* /opt/dashboard/static/
 
-# ── Bin scripts ──
-echo "[3/7] Installing scripts..."
+# ── Scripts ──
+echo "[3/8] installing scripts..."
 mkdir -p $HOME_DIR/bin $HOME_DIR/projects
-cp bin/*.sh $HOME_DIR/bin/
-chmod +x $HOME_DIR/bin/*.sh
+cp bin/* $HOME_DIR/bin/
+chmod +x $HOME_DIR/bin/*
 grep -q 'HOME/bin' ~/.bashrc || echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
 
 # ── Configs ──
-echo "[4/7] Configuring..."
+echo "[4/8] configuring tmux + terminal theme..."
 cp config/tmux.conf $HOME_DIR/.tmux.conf
 mkdir -p $HOME_DIR/.config
 cp config/ttyd-theme.conf $HOME_DIR/.config/
@@ -44,22 +46,63 @@ cp config/statusline-command.sh $HOME_DIR/.claude/
 chmod +x $HOME_DIR/.claude/statusline-command.sh
 
 # ── nginx ──
-echo "[5/7] Configuring nginx..."
-echo "# no projects" | sudo tee /etc/nginx/rcoder-ports.conf > /dev/null
-echo 'set $code_port 8100;' | sudo tee -a /etc/nginx/rcoder-ports.conf > /dev/null
-echo 'set $ttyd_port 9100;' | sudo tee -a /etc/nginx/rcoder-ports.conf > /dev/null
-sudo cp config/nginx-site.conf /etc/nginx/sites-available/rvcoder
+echo "[5/8] configuring nginx..."
+echo '# no projects
+set $code_port 8100;
+set $ttyd_port 9100;' | sudo tee /etc/nginx/rcoder-ports.conf > /dev/null
+
+# Generate nginx config
+cat > /tmp/oopsbox-nginx.conf <<'NGINX'
+map $http_upgrade $connection_upgrade {
+    default  upgrade;
+    ''       close;
+}
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location / {
+        proxy_pass         http://127.0.0.1:5000;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_read_timeout 60s;
+    }
+
+    location ~ ^/proj/(?<proj>[a-zA-Z0-9._-]+)/term(?<rest>/.*)$ {
+        include /etc/nginx/rcoder-ports.conf;
+        proxy_pass         http://127.0.0.1:$ttyd_port/proj/$proj/term$rest$is_args$args;
+        proxy_set_header   Host              $host;
+        proxy_set_header   Upgrade           $http_upgrade;
+        proxy_set_header   Connection        $connection_upgrade;
+        proxy_http_version 1.1;
+        proxy_read_timeout 86400s;
+        proxy_buffering    off;
+    }
+
+    location /system/term/ {
+        proxy_pass         http://127.0.0.1:9000/system/term/;
+        proxy_set_header   Host              $host;
+        proxy_set_header   Upgrade           $http_upgrade;
+        proxy_set_header   Connection        $connection_upgrade;
+        proxy_http_version 1.1;
+        proxy_read_timeout 86400s;
+        proxy_buffering    off;
+    }
+}
+NGINX
+sudo cp /tmp/oopsbox-nginx.conf /etc/nginx/sites-available/oopsbox
 sudo rm -f /etc/nginx/sites-enabled/default
-sudo ln -sf /etc/nginx/sites-available/rvcoder /etc/nginx/sites-enabled/rvcoder
+sudo ln -sf /etc/nginx/sites-available/oopsbox /etc/nginx/sites-enabled/oopsbox
 sudo nginx -t
 sudo systemctl enable --now nginx
 sudo nginx -s reload
 
 # ── Dashboard service ──
-echo "[6/7] Starting dashboard service..."
+echo "[6/8] starting dashboard..."
 sudo tee /etc/systemd/system/dashboard.service > /dev/null <<EOF
 [Unit]
-Description=RVCoder Dashboard
+Description=OopsBox Dashboard
 After=network.target
 
 [Service]
@@ -79,13 +122,20 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now dashboard
 
 # ── System terminal ──
-echo "[7/7] Starting system terminal..."
+echo "[7/8] starting system terminal..."
 $HOME_DIR/bin/system-term.sh start
 
-# ── Idle check cron ──
+# ── Cron ──
+echo "[8/8] setting up idle check..."
 (crontab -l 2>/dev/null | grep -v idle-check; echo "*/10 * * * * $HOME_DIR/bin/idle-check.sh >> $HOME_DIR/idle-check.log 2>&1") | crontab -
 
 echo ""
-echo "=== RVCoder installed! ==="
-echo "Dashboard: http://$(hostname -I | awk '{print $1}')"
+echo "  ╔═══════════════════════════════════════╗"
+echo "  ║  📦 OopsBox installed!                ║"
+echo "  ║                                       ║"
+echo "  ║  Dashboard: http://$(hostname -I | awk '{print $1}')/"
+echo "  ║                                       ║"
+echo "  ║  I just wanted to code on iPad.       ║"
+echo "  ║  Now there's a whole platform.        ║"
+echo "  ╚═══════════════════════════════════════╝"
 echo ""

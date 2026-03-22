@@ -5,6 +5,11 @@ venv/
 *.log
 *.pid
 .port-registry.json
+.project-registry.json
 node_modules/
 proxy.pac
 pac-policies.json
+login.html
+sw.js
+vpn-proxy.mobileconfig
+test-*.html

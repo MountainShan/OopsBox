@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Terminal</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0e1015;--bg2:#161920;--bg3:#1e2028;--border:#252830;--text:#c8ccd5;--text-hi:#e8ecf0;
+  --muted:#6b7080;--accent:#e07840;--red:#e05050}
+body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);
+  height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+
+.header{padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:6px;flex-shrink:0}
+.header .title{font-size:12px;font-weight:600;color:var(--text-hi);flex:1}
+.header button{padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s}
+.header button:hover{color:var(--text);background:var(--bg3)}
+
+
+.term-output{flex:1;overflow-y:auto;padding:8px 12px;-webkit-overflow-scrolling:touch;
+  font-family:'SF Mono',Monaco,Consolas,'Liberation Mono',monospace;font-size:13px;
+  line-height:1.5;white-space:pre-wrap;word-break:break-word}
+
+.ansi-bold{font-weight:700}
+.ansi-dim{opacity:.6}
+.ansi-italic{font-style:italic}
+.ansi-underline{text-decoration:underline}
+
+.input-area{padding:6px 10px;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0;
+  display:flex;flex-direction:column;gap:5px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+.input-shortcuts{display:flex;gap:3px}
+.ib-key{padding:4px 9px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;font-family:monospace}
+.ib-key:hover{color:var(--text);background:var(--bg3)}
+.ib-key.danger{color:var(--red)}
+.input-row{display:flex;gap:6px}
+.input-row textarea{flex:1;padding:9px 12px;border-radius:10px;border:1px solid var(--border);
+  background:var(--bg);color:var(--text-hi);font-size:14px;outline:none;resize:none;
+  font-family:-apple-system,sans-serif;min-height:40px;max-height:120px;line-height:1.4}
+.input-row textarea:focus{border-color:var(--accent)}
+.input-row textarea::placeholder{color:var(--muted)}
+.send-btn{padding:9px 16px;border-radius:10px;border:none;background:var(--accent);color:#fff;
+  font-size:13px;font-weight:600;cursor:pointer;transition:all .12s;align-self:flex-end}
+.send-btn:hover{opacity:.85}
+.send-btn:active{transform:scale(.95)}
+
+@media(max-width:480px){
+  .term-output{font-size:11px;padding:6px 8px}
+  .input-row textarea{font-size:13px;padding:8px 10px}
+  .send-btn{padding:8px 12px;font-size:12px}
+  .ib-key{padding:3px 7px;font-size:10px}
+  .tmux-tab{padding:4px 8px;font-size:10px}
+}
+@media(min-width:1025px){
+  .term-output{max-width:960px;margin:0 auto;width:100%;padding:12px 16px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title" id="title">AI Agent</div>
+  <button onclick="smaller()" style="padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:11px">A-</button>
+  <span id="font-display" style="font-size:10px;color:var(--text-hi);min-width:20px;text-align:center">13</span>
+  <button onclick="bigger()" style="padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:11px">A+</button>
+  <button onclick="scrollToBottom()">↓</button>
+  <button onclick="loadOutput()">⟳</button>
+</div>
+
+<div class="term-output" id="output"></div>
+
+<div class="input-area">
+  <div class="input-shortcuts">
+    <button class="ib-key danger" onclick="sendKey('C-c')">^C</button>
+    <button class="ib-key" onclick="sendKey('Escape')">Esc</button>
+    <button class="ib-key" onclick="sendKey('C-d')">^D</button>
+  </div>
+  <div class="input-row">
+    <textarea id="input" rows="1" placeholder="type here..."
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();doSend()}"
+              oninput="autoGrow(this)"></textarea>
+    <button class="send-btn" onclick="doSend()">Send</button>
+  </div>
+</div>
+
+<script>
+const params=new URLSearchParams(location.search);
+const PROJECT=params.get('project')||'_system';
+document.getElementById('title').textContent=PROJECT==='_system'?'System':PROJECT;
+
+let currentWindowIdx=1;
+let lastOutput='';
+let autoScroll=true;
+
+// ── 256-color ANSI palette ──
+const P=[];
+['#000','#a00','#0a0','#a50','#00a','#a0a','#0aa','#aaa',
+ '#555','#f55','#5f5','#ff5','#55f','#f5f','#5ff','#fff'].forEach(c=>P.push(c));
+for(let r=0;r<6;r++)for(let g=0;g<6;g++)for(let b=0;b<6;b++)
+  P.push('#'+(r?r*40+55:0).toString(16).padStart(2,'0')+(g?g*40+55:0).toString(16).padStart(2,'0')+(b?b*40+55:0).toString(16).padStart(2,'0'));
+for(let i=0;i<24;i++){const v=(i*10+8).toString(16).padStart(2,'0');P.push('#'+v+v+v);}
+
+function ansiToHtml(text){
+  text=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let result='',open=0;
+  const re=/\x1b\[([0-9;]*)m/g;
+  let last=0,m;
+  while((m=re.exec(text))!==null){
+    result+=text.slice(last,m.index);
+    last=m.index+m[0].length;
+    const codes=m[1].split(';').filter(Boolean);
+    if(!codes.length||codes[0]==='0'){
+      while(open>0){result+='</span>';open--;}
+      continue;
+    }
+    let styles=[],cls=[];
+    for(let i=0;i<codes.length;i++){
+      const c=parseInt(codes[i]);
+      if(c===1)cls.push('ansi-bold');
+      else if(c===2)cls.push('ansi-dim');
+      else if(c===3)cls.push('ansi-italic');
+      else if(c===4)cls.push('ansi-underline');
+      else if(c>=30&&c<=37)styles.push('color:'+P[c-30]);
+      else if(c>=40&&c<=47){}// skip background
+      else if(c>=90&&c<=97)styles.push('color:'+P[c-82]);
+      else if(c>=100&&c<=107){}// skip background
+      else if(c===38&&codes[i+1]==='5'){styles.push('color:'+P[parseInt(codes[i+2]||0)]);i+=2;}
+      else if(c===48&&codes[i+1]==='5'){i+=2;}// skip background colors
+      else if(c===38&&codes[i+1]==='2'){styles.push('color:rgb('+codes[i+2]+','+codes[i+3]+','+codes[i+4]+')');i+=4;}
+      else if(c===48&&codes[i+1]==='2'){i+=4;}// skip background colors
+      else if(c===39)styles.push('color:inherit');
+      else if(c===49){}
+    }
+    if(styles.length||cls.length){
+      result+='<span'+(cls.length?' class="'+cls.join(' ')+'"':'')+(styles.length?' style="'+styles.join(';')+'"':'')+'>'; open++;
+    }
+  }
+  result+=text.slice(last);
+  while(open>0){result+='</span>';open--;}
+  result=result.replace(/\x1b\[[0-9;]*[A-Za-z]/g,'');
+  result=result.replace(/\x1b\][^\x07]*\x07/g,'');
+  // Filter out chrome lines
+  const filtered=result.split('\n').filter(line=>{
+    const t=line.replace(/[\u00a0]/g,' ').trim();
+    // Remove separator lines (─━═╌ repeated)
+    if(t.length>10&&/^[\u2500\u2501\u2550\u254c\u2504\u2508─━═╌\-]+$/.test(t))return false;
+    // Remove empty prompt
+    if(t==='\u276f'||t==='\u276f '||/^❯\s*$/.test(t))return false;
+    // Remove status bar
+    if(t.includes('\u23f5\u23f5')||t.includes('accept edits on'))return false;
+    return true;
+  });
+  // Collapse blank lines
+  let out='';
+  let blanks=0;
+  for(const l of filtered){
+    if(!l.trim()){blanks++;if(blanks<=2)out+='\n';}
+    else{blanks=0;out+=l+'\n';}
+  }
+  return out.trim();
+}
+
+// ── Output ──
+async function loadOutput(){
+  try{
+    const wq=currentWindowIdx?'&window='+currentWindowIdx:'';
+    const r=await fetch('/api/projects/'+PROJECT+'/terminal-output?lines=500'+wq);
+    if(!r.ok)return;
+    const d=await r.json();
+    if(d.output===lastOutput)return;
+    lastOutput=d.output;
+    // Strip ANSI first, filter chrome lines, then re-apply ANSI coloring
+    const raw=d.output;
+    // Pre-filter: remove lines that are just separators/chrome (check on stripped version)
+    const stripped=raw.replace(/\x1b\[[0-9;]*[A-Za-z]/g,'').replace(/\x1b\][^\x07]*\x07/g,'');
+    const rawLines=raw.split('\n');
+    const strippedLines=stripped.split('\n');
+    const kept=[];
+    for(let i=0;i<rawLines.length;i++){
+      const t=(strippedLines[i]||'').replace(/\u00a0/g,' ').trim();
+      if(t.length>10&&!/[a-zA-Z0-9\u4e00-\u9fff]/.test(t))continue;// line with no letters/CJK = separator
+      if(/^❯?\s*$/.test(t))continue;// empty prompt
+      if(t.includes('⏵⏵')||t.includes('accept edits on'))continue;
+      if(t.includes('◐')||t.includes('◑')||t.includes('◒')||t.includes('◓'))continue;// spinner
+      if(/^[\s]*medium\s*·|^[\s]*\/effort/i.test(t))continue;// effort indicator
+      kept.push(rawLines[i]);
+    }
+    // Add spacing between sections (after ● agent, ❯ user, ⎿ tool markers)
+    const spaced=[];
+    for(let i=0;i<kept.length;i++){
+      const t=(strippedLines[rawLines.indexOf(kept[i])]||'').replace(/\u00a0/g,' ').trim();
+      // Add blank line before new message markers
+      if(i>0&&(t.startsWith('●')||t.startsWith('❯')||t.startsWith('⎿')||t.startsWith('✻')||t.startsWith('✗'))){
+        spaced.push('');
+      }
+      spaced.push(kept[i]);
+    }
+    document.getElementById('output').innerHTML=ansiToHtml(spaced.join('\n'));
+    if(autoScroll)scrollToBottom();
+  }catch(e){}
+}
+
+function scrollToBottom(){
+  const el=document.getElementById('output');
+  el.scrollTop=el.scrollHeight;
+}
+
+document.getElementById('output').addEventListener('scroll',function(){
+  autoScroll=(this.scrollHeight-this.scrollTop-this.clientHeight)<50;
+});
+
+// ── Send ──
+async function sendKey(key){
+  const wq=currentWindowIdx?'&window='+currentWindowIdx:'';
+  await fetch('/api/projects/'+PROJECT+'/send-keys?keys='+encodeURIComponent(key)+wq,{method:'POST'});
+  setTimeout(loadOutput,300);
+}
+
+async function doSend(){
+  const el=document.getElementById('input');
+  const text=el.value.trim();
+  if(!text)return;
+  el.value='';el.style.height='40px';
+  const wq=currentWindowIdx?'?window='+currentWindowIdx:'';
+  await fetch('/api/projects/'+PROJECT+'/send-text'+wq,{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})
+  });
+  setTimeout(loadOutput,500);
+}
+
+function autoGrow(el){
+  el.style.height='40px';
+  el.style.height=Math.min(el.scrollHeight,120)+'px';
+}
+
+// ── Font size ──
+let fontSize=parseInt(localStorage.getItem('oopsbox-fontsize'))||13;
+function applySize(){
+  document.getElementById('output').style.fontSize=fontSize+'px';
+  document.getElementById('font-display').textContent=fontSize;
+  localStorage.setItem('oopsbox-fontsize',fontSize);
+}
+function bigger(){fontSize++;applySize();}
+function smaller(){if(fontSize>6)fontSize--;applySize();}
+applySize();
+
+// ── Init ──
+loadOutput();
+setInterval(loadOutput,2000);
+</script>
+</body>
+</html>
