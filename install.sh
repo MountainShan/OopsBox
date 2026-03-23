@@ -39,10 +39,26 @@ else
   echo ""
 fi
 
+# ── Git config ──
+if ! git config --global user.name > /dev/null 2>&1; then
+  echo "  Set up git (used for project version control):"
+  echo ""
+  read -p "  Your name: " GIT_NAME
+  read -p "  Your email: " GIT_EMAIL
+  git config --global user.name "$GIT_NAME"
+  git config --global user.email "$GIT_EMAIL"
+  echo ""
+  echo "  ✓ Git configured"
+  echo ""
+else
+  echo "  ✓ Git already configured ($(git config --global user.name))"
+  echo ""
+fi
+
 # ── System packages ──
 echo "[1/8] installing packages (this might take a minute)..."
 sudo apt update -qq
-sudo apt install -y tmux ttyd nginx jq python3-pip python3-venv build-essential procps sshpass
+sudo apt install -y tmux ttyd nginx jq python3-pip python3-venv build-essential procps sshpass git
 
 # ── Dashboard ──
 echo "[2/8] setting up dashboard..."
