@@ -12,6 +12,24 @@ echo "  📦 OopsBox Installer"
 echo "  I just wanted to code on iPad."
 echo ""
 
+# ── Login credentials ──
+UPW_FILE="$HOME_DIR/upw.txt"
+if [ ! -f "$UPW_FILE" ]; then
+  echo "  Set up your dashboard login:"
+  echo ""
+  read -p "  Username: " OB_USER
+  read -sp "  Password: " OB_PASS
+  echo ""
+  echo "$OB_USER" > "$UPW_FILE"
+  echo "$OB_PASS" >> "$UPW_FILE"
+  chmod 600 "$UPW_FILE"
+  echo "  ✓ Credentials saved to ~/upw.txt"
+  echo ""
+else
+  echo "  ✓ Login credentials found (~/$UPW_FILE)"
+  echo ""
+fi
+
 # ── System packages ──
 echo "[1/8] installing packages (this might take a minute)..."
 sudo apt update -qq
