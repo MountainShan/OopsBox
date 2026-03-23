@@ -3,6 +3,7 @@ import subprocess
 import os
 import secrets
 import time
+import hashlib
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.staticfiles import StaticFiles
@@ -17,19 +18,43 @@ app = FastAPI(title="OopsBox")
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
-UPW_FILE = Path.home() / "upw.txt"
+AUTH_FILE = Path.home() / ".config" / "oopsbox" / "auth.json"
 SESSIONS = {}  # token → expires_at
 SESSION_TTL = 86400  # 24h
-AUTH_WHITELIST = {"/login", "/api/auth/login", "/api/auth/status",
-                  "/proxy.pac", "/static/manifest.json",
-                  "/static/icon-192.png", "/static/icon-512.png", "/favicon.ico"}
 
-def load_credentials():
-    if UPW_FILE.exists():
-        lines = UPW_FILE.read_text().strip().split('\n')
-        if len(lines) >= 2:
-            return lines[0].strip(), lines[1].strip()
-    return "admin", "admin"
+def hash_password(password: str, salt: str = None) -> tuple:
+    if not salt:
+        salt = secrets.token_hex(16)
+    hashed = hashlib.sha256((salt + password).encode()).hexdigest()
+    return hashed, salt
+
+def load_auth() -> dict:
+    if AUTH_FILE.exists():
+        return json.loads(AUTH_FILE.read_text())
+    return None
+
+def save_auth(username: str, password: str):
+    AUTH_FILE.parent.mkdir(parents=True, exist_ok=True)
+    hashed, salt = hash_password(password)
+    data = {"username": username, "password_hash": hashed, "salt": salt}
+    AUTH_FILE.write_text(json.dumps(data, indent=2))
+    os.chmod(str(AUTH_FILE), 0o600)
+
+def verify_password(username: str, password: str) -> bool:
+    auth = load_auth()
+    if not auth:
+        return False
+    if username != auth.get("username"):
+        return False
+    hashed, _ = hash_password(password, auth.get("salt", ""))
+    return hashed == auth.get("password_hash")
+
+# Auto-migrate from ~/upw.txt if auth.json doesn't exist
+_upw = Path.home() / "upw.txt"
+if not AUTH_FILE.exists() and _upw.exists():
+    lines = _upw.read_text().strip().split('\n')
+    if len(lines) >= 2:
+        save_auth(lines[0].strip(), lines[1].strip())
 
 def verify_session(token: str) -> bool:
     if not token or token not in SESSIONS:
@@ -45,8 +70,7 @@ class LoginReq(BaseModel):
 
 @app.post("/api/auth/login")
 async def api_login(body: LoginReq):
-    user, pw = load_credentials()
-    if body.username == user and body.password == pw:
+    if verify_password(body.username, body.password):
         token = secrets.token_hex(32)
         SESSIONS[token] = time.time() + SESSION_TTL
         resp = JSONResponse({"ok": True})

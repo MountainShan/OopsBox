@@ -13,20 +13,29 @@ echo "  I just wanted to code on iPad."
 echo ""
 
 # ── Login credentials ──
-UPW_FILE="$HOME_DIR/upw.txt"
-if [ ! -f "$UPW_FILE" ]; then
+AUTH_FILE="$HOME_DIR/.config/oopsbox/auth.json"
+if [ ! -f "$AUTH_FILE" ]; then
   echo "  Set up your dashboard login:"
   echo ""
   read -p "  Username: " OB_USER
   read -sp "  Password: " OB_PASS
   echo ""
-  echo "$OB_USER" > "$UPW_FILE"
-  echo "$OB_PASS" >> "$UPW_FILE"
-  chmod 600 "$UPW_FILE"
-  echo "  ✓ Credentials saved to ~/upw.txt"
+  mkdir -p "$HOME_DIR/.config/oopsbox"
+  SALT=$(python3 -c "import secrets;print(secrets.token_hex(16))")
+  HASH=$(python3 -c "import hashlib;print(hashlib.sha256(('$SALT'+'$OB_PASS').encode()).hexdigest())")
+  cat > "$AUTH_FILE" <<AUTHEOF
+{
+  "username": "$OB_USER",
+  "password_hash": "$HASH",
+  "salt": "$SALT"
+}
+AUTHEOF
+  chmod 600 "$AUTH_FILE"
+  echo ""
+  echo "  ✓ Credentials saved (hashed)"
   echo ""
 else
-  echo "  ✓ Login credentials found (~/$UPW_FILE)"
+  echo "  ✓ Login credentials found"
   echo ""
 fi
 
