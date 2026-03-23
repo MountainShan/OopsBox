@@ -30,13 +30,17 @@ if ! tmux has-session -t "$SESSION" 2>/dev/null; then
     SSH_USER=$(jq -r --arg n "$NAME" '.[$n].ssh_user' "$REGISTRY")
     SSH_AUTH=$(jq -r --arg n "$NAME" '.[$n].ssh_auth // "password"' "$REGISTRY")
 
-    tmux rename-window -t "$SESSION" "remote"
+    # Window 1: ai-agent (first, for chat view)
+    tmux rename-window -t "$SESSION" "ai-agent"
+    tmux send-keys -t "$SESSION:ai-agent" \
+      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh" Enter
 
+    # Window 2: remote (SSH connection)
+    tmux new-window -t "$SESSION" -n "remote" -c "$WORKDIR"
     if [ "$SSH_AUTH" = "key" ]; then
       tmux send-keys -t "$SESSION:remote" \
         "ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -o KexAlgorithms=+diffie-hellman-group14-sha1 -o HostKeyAlgorithms=+ssh-rsa ${SSH_USER}@${SSH_HOST}" Enter
     else
-      # For password auth, use sshpass if available, otherwise user types password
       if command -v sshpass >/dev/null 2>&1; then
         SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
         tmux send-keys -t "$SESSION:remote" \
@@ -46,10 +50,8 @@ if ! tmux has-session -t "$SESSION" 2>/dev/null; then
           "ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST}" Enter
       fi
     fi
-    # Agent window — runs locally, works with remote via SSH
-    tmux new-window -t "$SESSION" -n "ai-agent" -c "$WORKDIR"
-    tmux send-keys -t "$SESSION:ai-agent" \
-      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh" Enter
+
+    # Window 3: local terminal
     tmux new-window -t "$SESSION" -n "terminal" -c "$WORKDIR"
   else
     # Local backend: start claude agent

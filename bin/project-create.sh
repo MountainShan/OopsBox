@@ -26,7 +26,7 @@ if [ "$BACKEND" = "ssh" ]; then
 
 ## IMPORTANT: This is a REMOTE project
 You are running on OopsBox (management host), NOT on the remote server.
-All commands targeting the remote server MUST go through SSH.
+ALL execution, testing, and development happens on the REMOTE server.
 
 ## Remote Server
 - Host: ${SSH_HOST}
@@ -34,6 +34,13 @@ All commands targeting the remote server MUST go through SSH.
 - User: ${SSH_USER}
 - Path: ${REMOTE_PATH}
 - Auth: ${SSH_AUTH}
+
+## Development Workflow
+When working on this project, always think about:
+1. **How to control the device** — use SSH commands below
+2. **How to transfer code** — use scp to upload files to the remote server
+3. **How to run code** — execute via SSH on the remote server
+4. **How to see results** — read output from SSH command results
 
 ## SSH Access
 EOF
