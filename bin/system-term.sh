@@ -25,8 +25,13 @@ case "$ACTION" in
       eval "T_12=\${${TU}_BRIGHT_BLUE}; T_13=\${${TU}_BRIGHT_MAGENTA}; T_14=\${${TU}_BRIGHT_CYAN}; T_15=\${${TU}_BRIGHT_WHITE}"
       THEME_ARGS="-t theme={\"background\":\"${T_BG}\",\"foreground\":\"${T_FG}\",\"cursor\":\"${T_CURSOR}\",\"black\":\"${T_0}\",\"red\":\"${T_1}\",\"green\":\"${T_2}\",\"yellow\":\"${T_3}\",\"blue\":\"${T_4}\",\"magenta\":\"${T_5}\",\"cyan\":\"${T_6}\",\"white\":\"${T_7}\",\"brightBlack\":\"${T_8}\",\"brightRed\":\"${T_9}\",\"brightGreen\":\"${T_10}\",\"brightYellow\":\"${T_11}\",\"brightBlue\":\"${T_12}\",\"brightMagenta\":\"${T_13}\",\"brightCyan\":\"${T_14}\",\"brightWhite\":\"${T_15}\"}"
     fi
-    # Pre-create tmux session
-    tmux has-session -t system 2>/dev/null || tmux new-session -d -s system -c "$HOME"
+    # Pre-create tmux session with ai-agent + terminal windows
+    if ! tmux has-session -t system 2>/dev/null; then
+      tmux new-session -d -s system -c "$HOME" -n "ai-agent"
+      tmux send-keys -t "system:ai-agent" \
+        "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh" Enter
+      tmux new-window -t system -n "terminal" -c "$HOME"
+    fi
     ttyd \
       --port "$PORT" \
       --interface 0.0.0.0 \
@@ -40,7 +45,7 @@ case "$ACTION" in
       -t 'disableReconnect=false' \
       -t 'reconnectInterval=3000' \
       ${THEME_ARGS} \
-      tmux new-session -A -s system \
+      tmux attach-session -t "system:terminal" \
       > /tmp/rcoder-system-term.log 2>&1 &
     echo $! > "$PID_FILE"
     echo "[system-term] started on :$PORT"

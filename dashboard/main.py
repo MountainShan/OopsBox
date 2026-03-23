@@ -1,10 +1,12 @@
 import json
 import subprocess
 import os
+import secrets
+import time
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, field_validator
 from typing import Optional
 import re
@@ -12,6 +14,69 @@ import paramiko
 import io
 
 app = FastAPI(title="OopsBox")
+
+# ── Auth ─────────────────────────────────────────────────────────────────────
+
+UPW_FILE = Path.home() / "upw.txt"
+SESSIONS = {}  # token → expires_at
+SESSION_TTL = 86400  # 24h
+AUTH_WHITELIST = {"/login", "/api/auth/login", "/api/auth/status",
+                  "/proxy.pac", "/static/manifest.json",
+                  "/static/icon-192.png", "/static/icon-512.png", "/favicon.ico"}
+
+def load_credentials():
+    if UPW_FILE.exists():
+        lines = UPW_FILE.read_text().strip().split('\n')
+        if len(lines) >= 2:
+            return lines[0].strip(), lines[1].strip()
+    return "admin", "admin"
+
+def verify_session(token: str) -> bool:
+    if not token or token not in SESSIONS:
+        return False
+    if time.time() > SESSIONS[token]:
+        del SESSIONS[token]
+        return False
+    return True
+
+class LoginReq(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/auth/login")
+async def api_login(body: LoginReq):
+    user, pw = load_credentials()
+    if body.username == user and body.password == pw:
+        token = secrets.token_hex(32)
+        SESSIONS[token] = time.time() + SESSION_TTL
+        resp = JSONResponse({"ok": True})
+        resp.set_cookie("oopsbox_session", token, max_age=SESSION_TTL, httponly=True, samesite="lax")
+        return resp
+    raise HTTPException(401, "wrong username or password")
+
+@app.get("/api/auth/status")
+async def api_auth_status(request: Request):
+    token = request.cookies.get("oopsbox_session", "")
+    return {"authenticated": verify_session(token)}
+
+@app.post("/api/auth/logout")
+async def api_logout(request: Request):
+    token = request.cookies.get("oopsbox_session", "")
+    SESSIONS.pop(token, None)
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie("oopsbox_session")
+    return resp
+
+@app.get("/api/auth/verify")
+async def api_verify(request: Request):
+    token = request.cookies.get("oopsbox_session", "")
+    if verify_session(token):
+        return JSONResponse({"ok": True}, status_code=200)
+    return JSONResponse({"ok": False}, status_code=401)
+
+@app.get("/login")
+async def login_page():
+    return FileResponse("/opt/dashboard/static/login.html")
 
 PROJECTS_DIR = Path("/home/mountain/projects")
 BIN_DIR      = Path("/home/mountain/bin")
@@ -323,6 +388,7 @@ async def send_text(name: str, body: SendTextReq, window: Optional[int] = None):
         raise HTTPException(500, r.stderr)
     run(["tmux", "send-keys", "-t", target, "Enter"])
     return {"sent": body.text, "session": session}
+
 
 
 THEME_CONF = Path("/home/mountain/.config/ttyd-theme.conf")

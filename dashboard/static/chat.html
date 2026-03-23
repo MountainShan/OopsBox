@@ -28,8 +28,9 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .ansi-italic{font-style:italic}
 .ansi-underline{text-decoration:underline}
 
-.input-area{padding:6px 10px;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0;
-  display:flex;flex-direction:column;gap:5px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+.input-area{padding:6px 10px;border-top:1px solid var(--border);background:var(--bg2);
+  display:flex;flex-direction:column;gap:5px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));
+  flex-shrink:0}
 .input-shortcuts{display:flex;gap:3px}
 .ib-key{padding:4px 9px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;
   border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;font-family:monospace}
@@ -62,9 +63,12 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 
 <div class="header">
   <div class="title" id="title">AI Agent</div>
-  <button onclick="smaller()" style="padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:11px">A-</button>
-  <span id="font-display" style="font-size:10px;color:var(--text-hi);min-width:20px;text-align:center">13</span>
-  <button onclick="bigger()" style="padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:11px">A+</button>
+  <button onclick="smaller()">A-</button>
+  <span id="font-display" style="font-size:10px;color:var(--text-hi);min-width:16px;text-align:center">13</span>
+  <button onclick="bigger()">A+</button>
+  <button onclick="zoomOut()">-</button>
+  <span id="zoom-display" style="font-size:10px;color:var(--text-hi);min-width:24px;text-align:center">100%</span>
+  <button onclick="zoomIn()">+</button>
   <button onclick="scrollToBottom()">↓</button>
   <button onclick="loadOutput()">⟳</button>
 </div>
@@ -166,8 +170,11 @@ function ansiToHtml(text){
 async function loadOutput(){
   try{
     const wq=currentWindowIdx?'&window='+currentWindowIdx:'';
-    const r=await fetch('/api/projects/'+PROJECT+'/terminal-output?lines=500'+wq);
-    if(!r.ok)return;
+    const r=await fetch('/api/projects/'+PROJECT+'/terminal-output?lines=500'+wq,{credentials:'include'});
+    if(!r.ok){
+      if(r.status===401||r.status===302)document.getElementById('output').innerHTML='<div style="color:var(--red);padding:20px">Session expired. Please refresh the page.</div>';
+      return;
+    }
     const d=await r.json();
     if(d.output===lastOutput)return;
     lastOutput=d.output;
@@ -214,7 +221,7 @@ document.getElementById('output').addEventListener('scroll',function(){
 // ── Send ──
 async function sendKey(key){
   const wq=currentWindowIdx?'&window='+currentWindowIdx:'';
-  await fetch('/api/projects/'+PROJECT+'/send-keys?keys='+encodeURIComponent(key)+wq,{method:'POST'});
+  await fetch('/api/projects/'+PROJECT+'/send-keys?keys='+encodeURIComponent(key)+wq,{method:'POST',credentials:'include'});
   setTimeout(loadOutput,300);
 }
 
@@ -225,7 +232,7 @@ async function doSend(){
   el.value='';el.style.height='40px';
   const wq=currentWindowIdx?'?window='+currentWindowIdx:'';
   await fetch('/api/projects/'+PROJECT+'/send-text'+wq,{
-    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text}),credentials:'include'
   });
   setTimeout(loadOutput,500);
 }
@@ -245,6 +252,31 @@ function applySize(){
 function bigger(){fontSize++;applySize();}
 function smaller(){if(fontSize>6)fontSize--;applySize();}
 applySize();
+
+// ── Zoom / Scale ──
+let zoomLevel=parseInt(localStorage.getItem('oopsbox-zoom'))||100;
+function applyZoom(){
+  const scale=zoomLevel/100;
+  const el=document.getElementById('output');
+  el.style.transform=`scale(${scale})`;
+  el.style.transformOrigin='top left';
+  el.style.width=(100/scale)+'%';
+  document.getElementById('zoom-display').textContent=zoomLevel+'%';
+  localStorage.setItem('oopsbox-zoom',zoomLevel);
+}
+function zoomIn(){zoomLevel=Math.min(zoomLevel+10,200);applyZoom();}
+function zoomOut(){zoomLevel=Math.max(zoomLevel-10,50);applyZoom();}
+applyZoom();
+
+// ── Fix iPad scroll on keyboard ──
+document.getElementById('input').addEventListener('focus',function(){
+  // Delay to let keyboard appear, then scroll output to bottom
+  setTimeout(()=>scrollToBottom(),400);
+});
+// Prevent body from scrolling (iPad tries to scroll the iframe content)
+document.body.addEventListener('touchmove',function(e){
+  if(!e.target.closest('.term-output'))e.preventDefault();
+},{passive:false});
 
 // ── Init ──
 loadOutput();
