@@ -48,7 +48,6 @@ Think of it as a toy that accidentally became useful.
 - **SSH remote projects** — your agent runs here, executes commands over there. editor uses SFTP.
 - **System monitor** — CPU, RAM, swap, disk — because watching CPU go brrr is oddly satisfying
 - **Login auth** — hashed password storage, session tokens, HTTP-only cookies
-- **Proxy PAC** — dynamic proxy auto-config with IP subnet, domain, and URL pattern rules
 - **Idle auto-shutdown** — projects idle for 30 minutes get stopped automatically
 - **PWA support** — add to home screen for an app-like experience
 - **Self-deprecating UI** — status messages like "somehow alive" and "don't touch it."
@@ -175,7 +174,6 @@ MIT — do whatever you want with it. if it breaks, that's on you. I just wanted
 - **SSH 遠端專案** — agent 在這台跑，指令在那台執行。editor 用 SFTP。
 - **系統監控** — CPU、RAM、swap、磁碟 — 因為看 CPU 跑起來莫名療癒
 - **登入驗證** — 雜湊密碼儲存、session token、HTTP-only cookies
-- **Proxy PAC** — 動態代理自動設定，支援 IP 子網、網域、URL 規則
 - **閒置自動停止** — 閒置超過 30 分鐘的專案會自動停止
 - **PWA 支援** — 加到主畫面，像 app 一樣使用
 - **自嘲 UI** — 狀態訊息像是「不知怎麼還活著」和「別碰它。」
