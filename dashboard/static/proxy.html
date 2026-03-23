@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Proxy Settings - OopsBox</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0c10;--bg2:#12141a;--bg3:#1a1d26;--border:#1e2130;--text:#c9cdd8;--text-hi:#e8eaf0;--muted:#5c6178;--accent:#6b7280;--green:#10b981;--red:#ef4444}
+body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
+
+.header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--bg2)}
+.header .back{cursor:pointer;color:var(--muted);background:none;border:none;padding:6px;display:flex;transition:color .15s}
+.header .back:hover{color:var(--text-hi)}
+.header .back svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.header h1{font-size:18px;font-weight:700;color:var(--text-hi);flex:1}
+.header .pac-url{font-size:13px;color:var(--muted);font-family:monospace}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s}
+.btn:hover{color:var(--text);background:var(--bg3)}
+.btn-primary{background:var(--accent);color:#fff;border-color:transparent}
+.btn-primary:hover{opacity:.85}
+.btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.content{max-width:700px;margin:0 auto;padding:20px}
+
+.pac-item{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:8px;margin-bottom:8px;background:var(--bg2);border:1px solid var(--border)}
+.pac-item .subnet{font-family:monospace;font-weight:600;color:var(--text-hi);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
+.pac-item .note{color:var(--muted);font-size:14px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pac-item .act{cursor:pointer;color:var(--muted);opacity:.4;transition:all .12s;background:none;border:none;padding:6px;display:flex}
+.pac-item .act:hover{opacity:1}
+.pac-item .act.edit:hover{color:var(--text-hi)}
+.pac-item .act.del:hover{color:var(--red)}
+.pac-item .act svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pac-empty{font-size:15px;color:var(--muted);text-align:center;padding:40px}
+.pac-edit-row{display:flex;gap:8px;padding:12px 14px;border-radius:8px;margin-bottom:8px;background:color-mix(in srgb,var(--accent) 8%,var(--bg2));border:1px solid var(--accent)}
+.pac-edit-row input{flex:1;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text-hi);font-size:15px;outline:none}
+.pac-edit-row input:focus{border-color:var(--accent)}
+.pac-edit-row button{padding:8px 14px;border-radius:6px;font-size:14px;cursor:pointer;border:none}
+
+.add-section{border-top:1px solid var(--border);padding-top:16px;margin-top:16px}
+.add-section h3{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+.add-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.add-row .field{flex:2;min-width:160px}
+.add-row .field.note{flex:1;min-width:120px}
+.add-row label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+.add-row input{width:100%;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text-hi);font-size:15px;outline:none}
+.add-row input:focus{border-color:var(--accent)}
+.formats{font-size:13px;color:var(--muted);margin-top:10px}
+.formats code{background:var(--bg3);padding:2px 6px;border-radius:3px;font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <button class="back" onclick="history.back()" title="Back">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <div>
+    <h1>Proxy Routes</h1>
+    <div class="pac-url" id="pac-url"></div>
+  </div>
+  <button class="btn" onclick="copyPacUrl()">
+    <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    Copy URL
+  </button>
+</div>
+
+<div class="content">
+  <div id="pac-list"></div>
+
+  <div class="add-section">
+    <h3>Add Rule</h3>
+    <div class="add-row">
+      <div class="field">
+        <label>Rule (IP/domain/URL)</label>
+        <input id="pac-subnet" placeholder="192.168.1.0/24 or *.example.com" autocomplete="off">
+      </div>
+      <div class="field note">
+        <label>Note</label>
+        <input id="pac-note" placeholder="Description" autocomplete="off"
+               onkeydown="if(event.key==='Enter')addPacPolicy()">
+      </div>
+      <button class="btn btn-primary" onclick="addPacPolicy()" style="height:38px">Add</button>
+    </div>
+    <div class="formats">
+      Formats: <code>192.168.0.0/24</code> &middot; <code>example.com</code> &middot; <code>*.example.com</code> &middot; <code>*://example.com/*</code>
+    </div>
+  </div>
+</div>
+
+<script>
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+const pacUrl='http://'+location.hostname+'/proxy.pac';
+document.getElementById('pac-url').textContent='PAC: '+pacUrl;
+
+function copyPacUrl(){
+  navigator.clipboard.writeText(pacUrl).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=pacUrl;ta.style.cssText='position:fixed;left:-9999px';
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+  });
+  alert('Copied: '+pacUrl);
+}
+
+let pacPolicies=[];
+async function loadPacPolicies(){
+  const r=await fetch('/api/pac-policies').catch(()=>null);
+  if(!r||!r.ok)return;
+  const d=await r.json();
+  pacPolicies=d.policies;
+  renderPacList();
+}
+
+function renderPacList(){
+  const el=document.getElementById('pac-list');
+  if(!pacPolicies.length){el.innerHTML='<div class="pac-empty">No proxy routes configured</div>';return;}
+  el.innerHTML=pacPolicies.map((p,i)=>`
+    <div class="pac-item" id="pac-row-${i}">
+      <span class="subnet" title="${esc(p.subnet)}">${esc(p.subnet)}</span>
+      <span class="note" title="${esc(p.note||'')}">${esc(p.note||'—')}</span>
+      <button class="act edit" onclick="editPacPolicy(${i})" title="Edit">
+        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+      <button class="act del" onclick="delPacPolicy('${esc(p.subnet)}')" title="Delete">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+function editPacPolicy(idx){
+  const p=pacPolicies[idx];
+  document.getElementById('pac-row-'+idx).outerHTML=`
+    <div class="pac-edit-row" id="pac-row-${idx}">
+      <input id="pac-edit-subnet-${idx}" value="${esc(p.subnet)}" placeholder="Rule">
+      <input id="pac-edit-note-${idx}" value="${esc(p.note||'')}" placeholder="Note"
+             onkeydown="if(event.key==='Enter')savePacEdit(${idx},'${esc(p.subnet)}')">
+      <button style="background:var(--accent);color:#fff" onclick="savePacEdit(${idx},'${esc(p.subnet)}')">Save</button>
+      <button style="background:var(--bg3);color:var(--text)" onclick="renderPacList()">Cancel</button>
+    </div>`;
+  document.getElementById('pac-edit-subnet-'+idx).focus();
+}
+
+async function savePacEdit(idx,oldSubnet){
+  const subnet=document.getElementById('pac-edit-subnet-'+idx).value.trim();
+  const note=document.getElementById('pac-edit-note-'+idx).value.trim();
+  if(!subnet)return;
+  const r=await fetch(`/api/pac-policies?old_subnet=${encodeURIComponent(oldSubnet)}`,{
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({subnet,note})
+  });
+  if(!r.ok){const d=await r.json().catch(()=>({}));alert(d.detail||'Failed');return;}
+  loadPacPolicies();
+}
+
+async function addPacPolicy(){
+  const subnet=document.getElementById('pac-subnet').value.trim();
+  const note=document.getElementById('pac-note').value.trim();
+  if(!subnet)return;
+  const r=await fetch('/api/pac-policies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subnet,note})});
+  if(!r.ok){const d=await r.json().catch(()=>({}));alert(d.detail||'Failed');return;}
+  document.getElementById('pac-subnet').value='';
+  document.getElementById('pac-note').value='';
+  loadPacPolicies();
+}
+
+async function delPacPolicy(subnet){
+  if(!confirm('Remove '+subnet+'?'))return;
+  await fetch(`/api/pac-policies?subnet=${encodeURIComponent(subnet)}`,{method:'DELETE'});
+  loadPacPolicies();
+}
+
+loadPacPolicies();
+</script>
+</body>
+</html>

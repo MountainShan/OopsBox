@@ -32,6 +32,10 @@ case "$ACTION" in
         "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh" Enter
       tmux new-window -t system -n "terminal" -c "$HOME"
     fi
+    # Ensure terminal window exists (may have been closed)
+    if ! tmux list-windows -t system -F '#{window_name}' | grep -q '^terminal$'; then
+      tmux new-window -t system -n "terminal" -c "$HOME"
+    fi
     ttyd \
       --port "$PORT" \
       --interface 0.0.0.0 \

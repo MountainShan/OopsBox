@@ -270,6 +270,42 @@ async def create_project(body: CreateReq):
     return get_status(body.name)
 
 
+class UpdateReq(BaseModel):
+    ssh_host: Optional[str] = None
+    ssh_port: Optional[int] = None
+    ssh_user: Optional[str] = None
+    ssh_auth: Optional[str] = None
+    ssh_pass: Optional[str] = None
+    ssh_key: Optional[str] = None
+    remote_path: Optional[str] = None
+
+
+@app.put("/api/projects/{name}")
+async def update_project(name: str, body: UpdateReq):
+    if not (PROJECTS_DIR / name).exists():
+        raise HTTPException(404, f"'{name}' not found")
+    reg = load_registry()
+    meta = reg.get(name, {})
+    for field in ["ssh_host", "ssh_port", "ssh_user", "ssh_auth", "ssh_pass", "ssh_key", "remote_path"]:
+        val = getattr(body, field)
+        if val is not None:
+            meta[field] = val
+    reg[name] = meta
+    save_registry(reg)
+    return get_status(name)
+
+
+@app.get("/api/projects/{name}/settings")
+async def get_project_settings(name: str):
+    if not (PROJECTS_DIR / name).exists():
+        raise HTTPException(404, f"'{name}' not found")
+    meta = get_project_meta(name)
+    # Never expose password directly, just indicate if set
+    safe = {k: v for k, v in meta.items() if k != "ssh_pass"}
+    safe["has_password"] = bool(meta.get("ssh_pass"))
+    return safe
+
+
 @app.delete("/api/projects/{name}")
 async def delete_project(name: str):
     if not (PROJECTS_DIR / name).exists():
@@ -414,6 +450,139 @@ async def send_text(name: str, body: SendTextReq, window: Optional[int] = None):
     return {"sent": body.text, "session": session}
 
 
+@app.get("/api/projects/{name}/clipboard")
+async def get_clipboard(name: str):
+    """Read tmux copy buffer (last copied text)"""
+    session = "system" if name == "_system" else f"proj-{name}"
+    r = run(["tmux", "show-buffer", "-t", session])
+    if r.returncode != 0:
+        r = run(["tmux", "show-buffer"])
+    return {"text": r.stdout if r.returncode == 0 else ""}
+
+
+@app.post("/api/projects/{name}/mouse")
+async def toggle_mouse(name: str, on: bool = True):
+    """Toggle tmux mouse mode for a session"""
+    session = "system" if name == "_system" else f"proj-{name}"
+    val = "on" if on else "off"
+    r = run(["tmux", "set", "-t", session, "mouse", val])
+    if r.returncode != 0:
+        raise HTTPException(500, r.stderr)
+    return {"mouse": val}
+
+
+# ── PAC Proxy Policy ──────────────────────────────────────────────────────────
+
+PAC_POLICY_FILE = Path("/home/mountain/.config/pac-policies.json")
+PAC_FILE = Path("/opt/dashboard/static/proxy.pac")
+
+def load_pac_policies():
+    if PAC_POLICY_FILE.exists():
+        return json.loads(PAC_POLICY_FILE.read_text())
+    return [
+        {"subnet": "192.168.0.0/24", "note": "LaaS NAS"},
+        {"subnet": "192.168.3.0/24", "note": "LaaS Lab"},
+        {"subnet": "172.20.0.0/24", "note": "LaaS Internal"},
+    ]
+
+def save_pac_policies(policies):
+    PAC_POLICY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    PAC_POLICY_FILE.write_text(json.dumps(policies, indent=2))
+    generate_pac(policies)
+
+def generate_pac(policies):
+    proxy = "PROXY 100.72.63.74:8888; DIRECT"
+    lines = [
+        'function FindProxyForURL(url, host) {',
+    ]
+    for p in policies:
+        rule = p['subnet']
+        note = p.get('note', '')
+        if note:
+            lines.append(f'    // {note}')
+        # IP subnet
+        if re.match(r'^\d+\.\d+\.\d+\.\d+/\d+$', rule):
+            parts = rule.split('/')
+            subnet = parts[0]
+            prefix = int(parts[1])
+            mask_int = (0xFFFFFFFF << (32 - prefix)) & 0xFFFFFFFF
+            mask = f"{(mask_int>>24)&0xFF}.{(mask_int>>16)&0xFF}.{(mask_int>>8)&0xFF}.{mask_int&0xFF}"
+            lines.append(f'    if (isInNet(host, "{subnet}", "{mask}")) return "{proxy}";')
+        # Exact domain
+        elif '/' not in rule and '*' not in rule:
+            lines.append(f'    if (dnsDomainIs(host, "{rule}") || host === "{rule}") return "{proxy}";')
+        # Wildcard domain
+        elif rule.startswith('*.'):
+            domain = rule[2:]
+            lines.append(f'    if (dnsDomainIs(host, ".{domain}") || host === "{domain}") return "{proxy}";')
+        # URL pattern
+        elif '://' in rule:
+            lines.append(f'    if (shExpMatch(url, "{rule}")) return "{proxy}";')
+
+    lines.append('    return "DIRECT";')
+    lines.append('}')
+    PAC_FILE.write_text('\n'.join(lines) + '\n')
+
+@app.get("/api/pac-policies")
+async def get_pac_policies():
+    return {"policies": load_pac_policies()}
+
+class PacPolicy(BaseModel):
+    subnet: str
+    note: str = ""
+
+@app.post("/api/pac-policies")
+async def add_pac_policy(body: PacPolicy):
+    s = body.subnet
+    valid = (
+        re.match(r'^\d+\.\d+\.\d+\.\d+/\d+$', s) or  # 192.168.0.0/24
+        re.match(r'^[\w*][\w.*-]*\.[a-zA-Z]{2,}$', s) or  # example.com, *.example.com
+        re.match(r'^[*a-z]+://.*$', s)  # *://example.com/*
+    )
+    if not valid:
+        raise HTTPException(400, "Format: 192.168.0.0/24, example.com, *.example.com, or *://example.com/*")
+    policies = load_pac_policies()
+    for p in policies:
+        if p['subnet'] == body.subnet:
+            raise HTTPException(409, "Subnet already exists")
+    policies.append({"subnet": body.subnet, "note": body.note})
+    save_pac_policies(policies)
+    return {"policies": policies}
+
+@app.put("/api/pac-policies")
+async def update_pac_policy(old_subnet: str, body: PacPolicy):
+    s = body.subnet
+    valid = (
+        re.match(r'^\d+\.\d+\.\d+\.\d+/\d+$', s) or
+        re.match(r'^[\w*][\w.*-]*\.[a-zA-Z]{2,}$', s) or
+        re.match(r'^[*a-z]+://.*$', s)
+    )
+    if not valid:
+        raise HTTPException(400, "Invalid format")
+    policies = load_pac_policies()
+    found = False
+    for p in policies:
+        if p['subnet'] == old_subnet:
+            p['subnet'] = body.subnet
+            p['note'] = body.note
+            found = True
+            break
+    if not found:
+        raise HTTPException(404, "Policy not found")
+    save_pac_policies(policies)
+    return {"policies": policies}
+
+@app.delete("/api/pac-policies")
+async def delete_pac_policy(subnet: str):
+    policies = load_pac_policies()
+    policies = [p for p in policies if p['subnet'] != subnet]
+    save_pac_policies(policies)
+    return {"policies": policies}
+
+# Initialize PAC file
+if not PAC_POLICY_FILE.exists():
+    save_pac_policies(load_pac_policies())
+
 
 THEME_CONF = Path("/home/mountain/.config/ttyd-theme.conf")
 
@@ -540,6 +709,7 @@ async def list_files(project: str, path: str = ""):
                     "type": "dir" if is_dir else "file",
                     "path": rel,
                     "size": attr.st_size if not is_dir else None,
+                    "mtime": attr.st_mtime,
                 })
             sftp.close(); ssh.close()
             return {"type": "dir", "path": path, "entries": entries}
@@ -562,11 +732,13 @@ async def list_files(project: str, path: str = ""):
     for item in sorted(target.iterdir(), key=lambda x: (x.is_file(), x.name)):
         if item.name.startswith(".") and item.name in (".git", ".code-server"):
             continue
+        st = item.stat()
         entries.append({
             "name": item.name,
             "type": "dir" if item.is_dir() else "file",
             "path": str(item.relative_to(base)),
-            "size": item.stat().st_size if item.is_file() else None,
+            "size": st.st_size if item.is_file() else None,
+            "mtime": st.st_mtime,
         })
     return {"type": "dir", "path": path, "entries": entries}
 
@@ -759,6 +931,19 @@ async def download_file(project: str, path: str):
 # ── Static frontend ───────────────────────────────────────────────────────────
 
 from fastapi.responses import Response
+
+@app.get("/proxy.pac")
+async def serve_pac():
+    content = PAC_FILE.read_text() if PAC_FILE.exists() else 'function FindProxyForURL(url,host){return "DIRECT";}'
+    return Response(
+        content=content,
+        media_type="application/x-ns-proxy-autoconfig",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+    )
 
 app.mount("/static", StaticFiles(directory="/opt/dashboard/static"), name="static")
 
