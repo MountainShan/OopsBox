@@ -10,9 +10,8 @@
   <em>I just wanted to code on iPad. Now there's a whole platform. oops.</em>
 </p>
 
-<!-- screenshots - add your own! -->
 <p align="center">
-  <img src="docs/screenshots/dashboard.jpeg" width="800" alt="Dashboard">
+  <img src="docs/screenshots/dashboard.png" width="800" alt="Dashboard">
 </p>
 
 ---
@@ -27,31 +26,31 @@ It wasn't planned. It just... happened. And it kinda works? So here you go.
 
 ### what even is this
 
-A web dashboard that lets you run AI coding agents (Claude, Codex, whatever) on a remote server and control them from your iPad, phone, or any browser. You get a terminal, a chat view for your AI agent, a code editor, and some system monitoring stuff thrown in because why not.
+A web dashboard that lets you run AI coding agents (Claude Code, Codex, whatever) on a remote server and control them from your iPad, phone, or any browser. You get a terminal, a chat view for your AI agent, a code editor, and some system monitoring stuff thrown in because why not.
 
 Think of it as a toy that accidentally became useful.
 
 ### screenshots
 
-| AI Agent | Terminal | Editor |
-|:---:|:---:|:---:|
-| ![AI Agent](docs/screenshots/agent.jpeg) | ![Terminal](docs/screenshots/terminal.jpeg) | ![Editor](docs/screenshots/editor.jpeg) |
+| AI Agent | Workspace |
+|:---:|:---:|
+| ![AI Agent](docs/screenshots/agent.png) | ![Workspace](docs/screenshots/workspace.png) |
 
-<!-- mobile screenshot -->
-<details>
-<summary>📱 iPad / Mobile</summary>
-<p align="center">
-  <img src="docs/screenshots/mobile.jpeg" width="300" alt="Mobile view">
-</p>
-</details>
+| Editor | Dashboard |
+|:---:|:---:|
+| ![Editor](docs/screenshots/editor.png) | ![Dashboard](docs/screenshots/dashboard.png) |
 
 ### the accidental feature list
 
-- **AI Agent chat** — talk to your coding agent without fighting with terminal IME on iPad
-- **Web terminal** — ttyd + tmux, for when you actually need a real shell
-- **Code editor** — syntax highlighting, Markdown preview with Mermaid, file upload/download
-- **SSH remote projects** — your agent runs here, executes commands over there
-- **System monitor** — because watching CPU go brrr is oddly satisfying
+- **AI Agent chat** — talk to your coding agent without fighting with terminal IME on iPad. auto-restart loop keeps it running.
+- **Web terminal** — ttyd + tmux, for when you actually need a real shell. per-project sessions with mouse support.
+- **Code editor** — syntax highlighting, Markdown preview with Mermaid, file upload/download, image preview
+- **SSH remote projects** — your agent runs here, executes commands over there. editor uses SFTP.
+- **System monitor** — CPU, RAM, swap, disk — because watching CPU go brrr is oddly satisfying
+- **Login auth** — hashed password storage, session tokens, HTTP-only cookies
+- **Proxy PAC** — dynamic proxy auto-config with IP subnet, domain, and URL pattern rules
+- **Idle auto-shutdown** — projects idle for 30 minutes get stopped automatically
+- **PWA support** — add to home screen for an app-like experience
 - **Self-deprecating UI** — status messages like "somehow alive" and "don't touch it."
 - **Mobile friendly** — works on phone, iPad, desktop. mostly.
 
@@ -63,12 +62,13 @@ cd OopsBox
 ./install.sh
 ```
 
+The installer will prompt you to set up login credentials and git config, then install everything.
+
 Then open `http://<your-ip>/` and oops, you have a platform.
 
 #### you'll need
 
 - Ubuntu 24.04 (probably works on other things, haven't tried, good luck)
-- Node.js 22+
 - Python 3.12+
 - An AI coding agent CLI (Claude Code, Codex, etc.)
 - An API key for said agent
@@ -76,7 +76,7 @@ Then open `http://<your-ip>/` and oops, you have a platform.
 #### what it installs
 
 ```
-System:  tmux, ttyd, nginx, jq, sshpass
+System:  tmux, ttyd, nginx, jq, sshpass, git
 Python:  fastapi, uvicorn, paramiko, python-multipart, aiofiles
 ```
 
@@ -111,7 +111,7 @@ browser → nginx → FastAPI dashboard
 
 each project gets:
   tmux session
-  ├── ai-agent window (hidden, runs your coding agent)
+  ├── ai-agent window (hidden, runs your coding agent in auto-restart loop)
   └── terminal window (visible, regular shell)
 ```
 
@@ -153,23 +153,31 @@ MIT — do whatever you want with it. if it breaks, that's on you. I just wanted
 
 ### 這到底是什麼
 
-一個網頁 dashboard，讓你在遠端 server 上跑 AI coding agent（Claude、Codex 之類的），然後用 iPad、手機或任何瀏覽器操控它。你會得到一個 terminal、一個跟 AI agent 對話的介面、一個 code editor，還有系統監控 — 反正都做了，多加一個也沒差。
+一個網頁 dashboard，讓你在遠端 server 上跑 AI coding agent（Claude Code、Codex 之類的），然後用 iPad、手機或任何瀏覽器操控它。你會得到一個 terminal、一個跟 AI agent 對話的介面、一個 code editor，還有系統監控 — 反正都做了，多加一個也沒差。
 
 就當作一個意外變得能用的玩具吧。
 
 ### 截圖
 
-| AI Agent | Terminal | Editor |
-|:---:|:---:|:---:|
-| ![AI Agent](docs/screenshots/agent.jpeg) | ![Terminal](docs/screenshots/terminal.jpeg) | ![Editor](docs/screenshots/editor.jpeg) |
+| AI Agent | Workspace |
+|:---:|:---:|
+| ![AI Agent](docs/screenshots/agent.png) | ![Workspace](docs/screenshots/workspace.png) |
+
+| Editor | Dashboard |
+|:---:|:---:|
+| ![Editor](docs/screenshots/editor.png) | ![Dashboard](docs/screenshots/dashboard.png) |
 
 ### 意外產生的功能
 
-- **AI Agent 對話** — 在 iPad 上跟你的 coding agent 講話，不用跟 terminal 的輸入法打架
-- **Web terminal** — ttyd + tmux，當你真的需要一個 shell 的時候
-- **Code editor** — 語法高亮、Markdown 預覽支援 Mermaid、檔案上傳下載
-- **SSH 遠端專案** — agent 在這台跑，指令在那台執行
-- **系統監控** — 因為看 CPU 跑起來莫名療癒
+- **AI Agent 對話** — 在 iPad 上跟你的 coding agent 講話，不用跟 terminal 的輸入法打架。自動重啟循環讓它持續運作。
+- **Web terminal** — ttyd + tmux，當你真的需要一個 shell 的時候。每個專案獨立 session，支援滑鼠。
+- **Code editor** — 語法高亮、Markdown 預覽支援 Mermaid、檔案上傳下載、圖片預覽
+- **SSH 遠端專案** — agent 在這台跑，指令在那台執行。editor 用 SFTP。
+- **系統監控** — CPU、RAM、swap、磁碟 — 因為看 CPU 跑起來莫名療癒
+- **登入驗證** — 雜湊密碼儲存、session token、HTTP-only cookies
+- **Proxy PAC** — 動態代理自動設定，支援 IP 子網、網域、URL 規則
+- **閒置自動停止** — 閒置超過 30 分鐘的專案會自動停止
+- **PWA 支援** — 加到主畫面，像 app 一樣使用
 - **自嘲 UI** — 狀態訊息像是「不知怎麼還活著」和「別碰它。」
 - **手機也能用** — 手機、iPad、桌機都行。大概。
 
@@ -181,12 +189,13 @@ cd OopsBox
 ./install.sh
 ```
 
+安裝程式會提示你設定登入帳密和 git 設定，然後自動安裝所有東西。
+
 然後打開 `http://<你的IP>/`，oops，你有一個平台了。
 
 #### 你需要
 
 - Ubuntu 24.04（其他的大概也行，沒試過，祝你好運）
-- Node.js 22+
 - Python 3.12+
 - 一個 AI coding agent CLI（Claude Code、Codex 等）
 - 對應的 API key
@@ -194,7 +203,7 @@ cd OopsBox
 #### 會裝什麼
 
 ```
-系統套件：tmux, ttyd, nginx, jq, sshpass
+系統套件：tmux, ttyd, nginx, jq, sshpass, git
 Python：  fastapi, uvicorn, paramiko, python-multipart, aiofiles
 ```
 
@@ -229,7 +238,7 @@ Python：  fastapi, uvicorn, paramiko, python-multipart, aiofiles
 
 每個專案會有：
   tmux session
-  ├── ai-agent 視窗（隱藏的，跑你的 coding agent）
+  ├── ai-agent 視窗（隱藏的，用自動重啟循環跑你的 coding agent）
   └── terminal 視窗（看得到的，一般 shell）
 ```
 
