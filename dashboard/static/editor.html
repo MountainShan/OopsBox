@@ -8,19 +8,22 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/material-darker.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0a0c10;--bg2:#12141a;--bg3:#1a1d26;--border:#1e2130;--text:#c9cdd8;--text-hi:#e8eaf0;--muted:#5c6178;--accent:#6b7280;--green:#10b981;--split-pos:40%}
+:root{--bg:#0a0c10;--bg2:#12141a;--bg3:#1a1d26;--border:#1e2130;--text:#c9cdd8;--text-hi:#e8eaf0;--muted:#5c6178;--accent:#6b7280;--green:#10b981}
 body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;font-size:clamp(12px,2.2vw,14px)}
 
-/* ── Split layout (left/right) — desktop ── */
-#workspace{display:flex;flex-direction:row;height:100vh;overflow:hidden}
-#file-manager{flex:0 0 var(--split-pos);display:flex;flex-direction:column;overflow:hidden;min-width:120px;border-right:1px solid var(--border)}
-#split-handle{width:6px;cursor:col-resize;background:var(--border);flex-shrink:0;position:relative;z-index:10;transition:background .15s}
-#split-handle::before{content:'';position:absolute;top:0;bottom:0;left:-8px;width:22px;cursor:col-resize}
-#split-handle:hover,#split-handle.active{background:var(--accent)}
-#terminal-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:200px}
+/* ── Tab layout ── */
+#workspace{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#file-manager{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#file-manager.hidden{display:none}
+#split-handle{display:none}
+#terminal-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#terminal-panel.hidden{display:none}
 
-/* ── Mobile tab bar (hidden on desktop) ── */
-.mob-tabs{display:none}
+/* ── Tab bar ── */
+.ws-tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.ws-tab{flex:1;padding:clamp(8px,1.5vw,10px) 0;text-align:center;font-size:clamp(12px,2vw,14px);font-weight:600;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s}
+.ws-tab.on{color:var(--text-hi);border-bottom:2px solid var(--accent)}
+.ws-tab svg{width:clamp(16px,2.5vw,18px);height:clamp(16px,2.5vw,18px);vertical-align:middle;margin-right:4px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ── File manager toolbar ── */
 .fm-toolbar{display:flex;align-items:center;gap:clamp(4px,1vw,6px);padding:clamp(5px,1.2vw,8px) clamp(8px,1.5vw,12px);background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
@@ -86,35 +89,19 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .image-body{flex:1;overflow:auto;padding:clamp(10px,2vw,20px);text-align:center;background:var(--bg);-webkit-overflow-scrolling:touch}
 .image-body img{max-width:100%;max-height:80vh;border-radius:6px;border:1px solid var(--border)}
 
-/* ══════════════════════════════════════════
-   Mobile: < 768px — stacked with tab bar
-   ══════════════════════════════════════════ */
-@media(max-width:767px){
-  #workspace{flex-direction:column!important;height:100vh!important}
-  #file-manager{flex:1 1 0%!important;width:100%!important;max-width:100%!important;border-right:none!important;min-width:0!important;min-height:0!important}
-  #file-manager.mob-hidden{display:none!important}
-  #split-handle{display:none!important}
-  #terminal-panel{flex:1 1 0%!important;width:100%!important;max-width:100%!important;min-width:0!important;min-height:0!important}
-  #terminal-panel.mob-hidden{display:none!important}
-  .mob-tabs{display:flex;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
-  .mob-tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s}
-  .mob-tab.on{color:var(--text-hi);background:var(--bg3)}
-  .mob-tab svg{width:18px;height:18px;vertical-align:middle;margin-right:4px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  /* Hide size/mtime columns on phone */
+/* ── Phone: hide size/mtime columns ── */
+@media(max-width:480px){
   .fm-table{table-layout:auto!important}
   #col-size,#col-mtime{width:0!important}
   .fm-col-size,.fm-col-mtime{display:none}
   .col-resize{display:none}
   .fm-col-icon{width:32px;font-size:16px}
   .fm-col-name{width:auto!important}
-  /* Modal full screen on mobile */
   .modal-overlay{padding:0}
   .modal-inner{border-radius:0;border:none}
 }
-
-/* ── iPad tweaks: 768-1024px ── */
-@media(min-width:768px) and (max-width:1024px){
-  :root{--split-pos:35%}
+/* ── Tablet: hide mtime column ── */
+@media(min-width:481px) and (max-width:768px){
   .fm-col-mtime{display:none}
 }
 
@@ -157,6 +144,18 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 <body>
 
 <div id="workspace">
+  <!-- Tab bar -->
+  <div class="ws-tabs">
+    <button class="ws-tab on" id="ws-tab-files" onclick="wsSwitch('files')">
+      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      Files
+    </button>
+    <button class="ws-tab" id="ws-tab-term" onclick="wsSwitch('term')">
+      <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      Terminal
+    </button>
+  </div>
+
   <!-- File Manager -->
   <div id="file-manager">
     <div class="fm-toolbar">
@@ -186,11 +185,8 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
     </div>
   </div>
 
-  <!-- Split handle -->
-  <div id="split-handle"></div>
-
   <!-- Terminal -->
-  <div id="terminal-panel">
+  <div id="terminal-panel" class="hidden">
     <div class="term-bar">
       <button class="tb-btn" id="mouse-toggle" onclick="toggleMouse()">
         <svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6"/><line x1="12" y1="7" x2="12" y2="11"/></svg>
@@ -206,17 +202,6 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
     <iframe class="term-frame" id="term-iframe" src="" allow="clipboard-read;clipboard-write"></iframe>
   </div>
 
-  <!-- Mobile tab bar -->
-  <div class="mob-tabs" id="mob-tabs">
-    <button class="mob-tab on" id="mob-tab-files" onclick="mobSwitch('files')">
-      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-      Files
-    </button>
-    <button class="mob-tab" id="mob-tab-term" onclick="mobSwitch('term')">
-      <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-      Terminal
-    </button>
-  </div>
 </div>
 
 <!-- Editor Modal -->
@@ -617,109 +602,22 @@ document.addEventListener('keydown',e=>{
   }
 });
 
-// ── Split resize (horizontal) ──
-(function(){
-  const handle=document.getElementById('split-handle');
-  const ws=document.getElementById('workspace');
-  let dragging=false,startX,startW;
-  const overlay=document.createElement('div');
-  overlay.style.cssText='position:fixed;inset:0;z-index:9999;cursor:col-resize;display:none';
-  document.body.appendChild(overlay);
-  function start(x){dragging=true;startX=x;startW=document.getElementById('file-manager').offsetWidth;overlay.style.display='block';handle.classList.add('active')}
-  function move(x){if(!dragging)return;const totalW=ws.offsetWidth;const newW=Math.max(120,Math.min(startW+(x-startX),totalW-200));ws.style.setProperty('--split-pos',((newW/totalW)*100)+'%')}
-  function end(){if(!dragging)return;dragging=false;overlay.style.display='none';handle.classList.remove('active')}
-  handle.addEventListener('mousedown',e=>{start(e.clientX);e.preventDefault()});
-  document.addEventListener('mousemove',e=>move(e.clientX));
-  document.addEventListener('mouseup',end);
-  handle.addEventListener('touchstart',e=>{start(e.touches[0].clientX);e.preventDefault()},{passive:false});
-  document.addEventListener('touchmove',e=>{if(dragging)move(e.touches[0].clientX)},{passive:true});
-  document.addEventListener('touchend',end);
-})();
-
-// ── Column resize ──
-(function(){
-  const table=document.getElementById('fm-table');
-  const cols=table.querySelectorAll('colgroup col');
-  let dragging=false,startX,startW,activeCol;
-  const overlay=document.createElement('div');
-  overlay.style.cssText='position:fixed;inset:0;z-index:9999;cursor:col-resize;display:none';
-  document.body.appendChild(overlay);
-
-  table.querySelectorAll('.col-resize').forEach(handle=>{
-    handle.addEventListener('mousedown',e=>{startResize(e.clientX,handle);e.preventDefault();e.stopPropagation()});
-    handle.addEventListener('touchstart',e=>{startResize(e.touches[0].clientX,handle);e.preventDefault();e.stopPropagation()},{passive:false});
-  });
-
-  function startResize(x,handle){
-    const colIdx=parseInt(handle.dataset.col);
-    activeCol=cols[colIdx];
-    const th=handle.parentElement;
-    startX=x;startW=th.offsetWidth;
-    dragging=true;overlay.style.display='block';handle.classList.add('active');
-  }
-  document.addEventListener('mousemove',e=>{if(dragging)doResize(e.clientX)});
-  document.addEventListener('touchmove',e=>{if(dragging)doResize(e.touches[0].clientX)},{passive:true});
-  function doResize(x){
-    if(!dragging||!activeCol)return;
-    const newW=Math.max(40,startW+(x-startX));
-    activeCol.style.width=newW+'px';
-  }
-  function endResize(){if(!dragging)return;dragging=false;overlay.style.display='none';table.querySelectorAll('.col-resize.active').forEach(h=>h.classList.remove('active'));activeCol=null}
-  document.addEventListener('mouseup',endResize);
-  document.addEventListener('touchend',endResize);
-})();
-
-// ── Mobile layout ──
-function isMobile(){return window.innerWidth<768}
-function applyMobileLayout(){
-  const ws=document.getElementById('workspace');
-  const fm=document.getElementById('file-manager');
-  const sh=document.getElementById('split-handle');
-  const tp=document.getElementById('terminal-panel');
-  if(isMobile()){
-    ws.style.cssText='display:flex;flex-direction:column;height:100vh;overflow:hidden';
-    fm.style.cssText='display:flex;flex-direction:column;flex:1;width:100%;min-width:0;overflow:hidden';
-    sh.style.display='none';
-    tp.style.cssText='display:flex;flex-direction:column;flex:1;width:100%;min-width:0;overflow:hidden';
-    document.getElementById('mob-tabs').style.display='flex';
-    // Apply current tab state
-    if(tp.classList.contains('mob-hidden')){
-      tp.style.display='none';
-    }
-    if(fm.classList.contains('mob-hidden')){
-      fm.style.display='none';
-    }
-  }else{
-    ws.style.cssText='';
-    fm.style.cssText='';
-    sh.style.cssText='';
-    tp.style.cssText='';
-    fm.classList.remove('mob-hidden');
-    tp.classList.remove('mob-hidden');
-    document.getElementById('mob-tabs').style.display='none';
-  }
-}
-function mobSwitch(tab){
+// ── Tab switching ──
+function wsSwitch(tab){
   const fm=document.getElementById('file-manager');
   const tp=document.getElementById('terminal-panel');
-  const tFiles=document.getElementById('mob-tab-files');
-  const tTerm=document.getElementById('mob-tab-term');
+  const tFiles=document.getElementById('ws-tab-files');
+  const tTerm=document.getElementById('ws-tab-term');
   if(tab==='files'){
-    fm.classList.remove('mob-hidden');fm.style.display='flex';
-    tp.classList.add('mob-hidden');tp.style.display='none';
+    fm.classList.remove('hidden');
+    tp.classList.add('hidden');
     tFiles.classList.add('on');tTerm.classList.remove('on');
   }else{
-    fm.classList.add('mob-hidden');fm.style.display='none';
-    tp.classList.remove('mob-hidden');tp.style.display='flex';
+    fm.classList.add('hidden');
+    tp.classList.remove('hidden');
     tFiles.classList.remove('on');tTerm.classList.add('on');
   }
 }
-window.addEventListener('resize',applyMobileLayout);
-// Init
-if(isMobile()){
-  document.getElementById('terminal-panel').classList.add('mob-hidden');
-}
-applyMobileLayout();
 
 // ── Init ──
 if(PROJECT)loadDir('');

@@ -30,12 +30,21 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 
 .input-area{padding:6px 10px;border-top:1px solid var(--border);background:var(--bg2);
   display:flex;flex-direction:column;gap:5px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));
-  flex-shrink:0}
-.input-shortcuts{display:flex;gap:3px}
+  flex-shrink:0;transition:all .2s}
+.input-area.collapsed .input-shortcuts,.input-area.collapsed .input-row{display:none}
+.input-area.collapsed{padding:3px 10px;gap:0}
+.input-toggle{padding:2px 8px;border-radius:4px;font-size:13px;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;margin-right:auto}
+.input-toggle:hover{color:var(--text);background:var(--bg3)}
+.input-shortcuts{display:flex;gap:3px;flex-wrap:wrap}
 .ib-key{padding:4px 9px;border-radius:5px;font-size:15px;font-weight:600;cursor:pointer;
   border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;font-family:monospace}
 .ib-key:hover{color:var(--text);background:var(--bg3)}
 .ib-key.danger{color:var(--red)}
+.ib-sep{width:1px;height:20px;background:var(--border);align-self:center;margin:0 2px}
+.ib-cmd{padding:4px 9px;border-radius:5px;font-size:13px;font-weight:500;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--accent);transition:all .12s}
+.ib-cmd:hover{color:var(--text-hi);background:var(--bg3)}
 .input-row{display:flex;gap:6px}
 .input-row textarea{flex:1;padding:9px 12px;border-radius:10px;border:1px solid var(--border);
   background:var(--bg);color:var(--text-hi);font-size:16px;outline:none;resize:none;
@@ -75,11 +84,22 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 
 <div class="term-output" id="output"></div>
 
-<div class="input-area">
+<div class="input-area" id="input-area">
+  <button class="input-toggle" id="input-toggle" onclick="toggleInput()">&#9660; Input</button>
   <div class="input-shortcuts">
     <button class="ib-key danger" onclick="sendKey('C-c')">^C</button>
     <button class="ib-key" onclick="sendKey('Escape')">Esc</button>
     <button class="ib-key" onclick="sendKey('C-d')">^D</button>
+    <button class="ib-key" onclick="sendKey('Tab')">Tab</button>
+    <div class="ib-sep"></div>
+    <button class="ib-cmd" onclick="sendSlash('/compact')">compact</button>
+    <button class="ib-cmd" onclick="sendSlash('/clear')">clear</button>
+    <button class="ib-cmd" onclick="sendSlash('/model')">model</button>
+    <button class="ib-cmd" onclick="sendSlash('/cost')">cost</button>
+    <button class="ib-cmd" onclick="sendSlash('/status')">status</button>
+    <button class="ib-cmd" onclick="sendSlash('/context')">context</button>
+    <div class="ib-sep"></div>
+    <button class="ib-key" onclick="sendShiftTab()" title="Toggle permission mode (Shift+Tab)">⇧Tab</button>
   </div>
   <div class="input-row">
     <textarea id="input" rows="1" placeholder="type here..."
@@ -225,6 +245,21 @@ async function sendKey(key){
   setTimeout(loadOutput,300);
 }
 
+async function sendSlash(cmd){
+  const wq=currentWindowIdx?'?window='+currentWindowIdx:'';
+  await fetch('/api/projects/'+PROJECT+'/send-text'+wq,{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:cmd}),credentials:'include'
+  });
+  setTimeout(loadOutput,500);
+}
+
+async function sendShiftTab(){
+  // Shift+Tab sends escape sequence: ESC [ Z
+  const wq=currentWindowIdx?'&window='+currentWindowIdx:'';
+  await fetch('/api/projects/'+PROJECT+'/send-keys?keys=BTab'+wq,{method:'POST',credentials:'include'});
+  setTimeout(loadOutput,300);
+}
+
 async function doSend(){
   const el=document.getElementById('input');
   const text=el.value.trim();
@@ -240,6 +275,14 @@ async function doSend(){
 function autoGrow(el){
   el.style.height='40px';
   el.style.height=Math.min(el.scrollHeight,120)+'px';
+}
+
+// ── Toggle input area ──
+function toggleInput(){
+  const area=document.getElementById('input-area');
+  const btn=document.getElementById('input-toggle');
+  area.classList.toggle('collapsed');
+  btn.innerHTML=area.classList.contains('collapsed')?'&#9650; Input':'&#9660; Input';
 }
 
 // ── Font size ──
@@ -279,8 +322,11 @@ document.body.addEventListener('touchmove',function(e){
 },{passive:false});
 
 // ── Init ──
+let loading=false;
+const _origLoad=loadOutput;
+loadOutput=async function(){if(loading)return;loading=true;try{await _origLoad()}finally{loading=false}};
 loadOutput();
-setInterval(loadOutput,2000);
+setInterval(loadOutput,500);
 </script>
 </body>
 </html>

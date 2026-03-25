@@ -278,6 +278,7 @@ class UpdateReq(BaseModel):
     ssh_pass: Optional[str] = None
     ssh_key: Optional[str] = None
     remote_path: Optional[str] = None
+    skip_permissions: Optional[bool] = None
 
 
 @app.put("/api/projects/{name}")
@@ -286,7 +287,7 @@ async def update_project(name: str, body: UpdateReq):
         raise HTTPException(404, f"'{name}' not found")
     reg = load_registry()
     meta = reg.get(name, {})
-    for field in ["ssh_host", "ssh_port", "ssh_user", "ssh_auth", "ssh_pass", "ssh_key", "remote_path"]:
+    for field in ["ssh_host", "ssh_port", "ssh_user", "ssh_auth", "ssh_pass", "ssh_key", "remote_path", "skip_permissions"]:
         val = getattr(body, field)
         if val is not None:
             meta[field] = val
@@ -347,7 +348,7 @@ async def project_status(name: str):
 
 @app.post("/api/projects/{name}/send-keys")
 async def send_keys(name: str, keys: str = "C-c", window: Optional[int] = None):
-    allowed = {"C-c", "C-z", "C-d", "C-\\", "Tab", "Up", "Down", "Enter", "Escape"}
+    allowed = {"C-c", "C-z", "C-d", "C-\\", "Tab", "BTab", "Up", "Down", "Enter", "Escape"}
     if keys not in allowed:
         raise HTTPException(400, f"keys must be one of: {allowed}")
     session = "system" if name == "_system" else f"proj-{name}"
@@ -813,6 +814,118 @@ async def download_file(project: str, path: str):
     if not target.is_file():
         raise HTTPException(404, "file not found")
     return FileResponse(str(target), filename=filename)
+
+
+# ── Channel API ───────────────────────────────────────────────────────────────
+
+CHANNEL_REGISTRY = Path("/home/mountain/projects/.channel-registry.json")
+
+def load_channels() -> dict:
+    if CHANNEL_REGISTRY.exists():
+        return json.loads(CHANNEL_REGISTRY.read_text())
+    return {}
+
+def save_channels(reg: dict):
+    CHANNEL_REGISTRY.parent.mkdir(parents=True, exist_ok=True)
+    CHANNEL_REGISTRY.write_text(json.dumps(reg, indent=2))
+    os.chmod(str(CHANNEL_REGISTRY), 0o600)
+
+def get_channel_status(name: str) -> dict:
+    meta = load_channels().get(name, {})
+    session = f"chan-{name}"
+    r = run(["tmux", "has-session", "-t", session])
+    status = "running" if r.returncode == 0 else "idle"
+    return {"name": name, "status": status, "workdir": meta.get("workdir", "/home/mountain"),
+            "skip_permissions": meta.get("skip_permissions", False)}
+
+
+@app.get("/api/channels")
+async def list_channels():
+    reg = load_channels()
+    return {"channels": [get_channel_status(n) for n in reg]}
+
+
+class ChannelCreateReq(BaseModel):
+    name: str
+    workdir: str = "/home/mountain"
+    skip_permissions: bool = False
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
+        if not re.match(r'^[a-zA-Z0-9._-]{2,40}$', v):
+            raise ValueError("2-40 chars: letters, numbers, dots, underscores, hyphens")
+        return v
+
+
+@app.post("/api/channels", status_code=201)
+async def create_channel(body: ChannelCreateReq):
+    reg = load_channels()
+    if body.name in reg:
+        raise HTTPException(409, f"Channel '{body.name}' already exists")
+    reg[body.name] = {
+        "workdir": body.workdir or "/home/mountain",
+        "skip_permissions": body.skip_permissions,
+    }
+    save_channels(reg)
+    return get_channel_status(body.name)
+
+
+class ChannelUpdateReq(BaseModel):
+    workdir: Optional[str] = None
+    skip_permissions: Optional[bool] = None
+
+
+@app.put("/api/channels/{name}")
+async def update_channel(name: str, body: ChannelUpdateReq):
+    reg = load_channels()
+    if name not in reg:
+        raise HTTPException(404, f"Channel '{name}' not found")
+    if body.workdir is not None:
+        reg[name]["workdir"] = body.workdir
+    if body.skip_permissions is not None:
+        reg[name]["skip_permissions"] = body.skip_permissions
+    save_channels(reg)
+    return get_channel_status(name)
+
+
+@app.delete("/api/channels/{name}")
+async def delete_channel(name: str):
+    reg = load_channels()
+    if name not in reg:
+        raise HTTPException(404, f"Channel '{name}' not found")
+    # Stop if running
+    run([str(BIN_DIR / "channel-stop.sh"), name])
+    del reg[name]
+    save_channels(reg)
+    return {"deleted": name}
+
+
+@app.post("/api/channels/{name}/start")
+async def start_channel(name: str):
+    reg = load_channels()
+    if name not in reg:
+        raise HTTPException(404, f"Channel '{name}' not found")
+    r = run([str(BIN_DIR / "channel-start.sh"), name])
+    if r.returncode != 0:
+        raise HTTPException(500, r.stderr)
+    return get_channel_status(name)
+
+
+@app.post("/api/channels/{name}/stop")
+async def stop_channel(name: str):
+    reg = load_channels()
+    if name not in reg:
+        raise HTTPException(404, f"Channel '{name}' not found")
+    run([str(BIN_DIR / "channel-stop.sh"), name])
+    return get_channel_status(name)
+
+
+@app.get("/api/channels/{name}/log")
+async def channel_log(name: str, lines: int = 50):
+    session = f"chan-{name}"
+    r = run(["tmux", "capture-pane", "-t", session, "-p", "-S", f"-{lines}"])
+    return {"output": r.stdout if r.returncode == 0 else ""}
 
 
 # ── Static frontend ───────────────────────────────────────────────────────────

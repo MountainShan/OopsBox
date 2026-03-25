@@ -17,11 +17,16 @@ if [ -f "$REGISTRY" ]; then
   BACKEND=$(jq -r --arg n "$NAME" '.[$n].backend // "local"' "$REGISTRY")
 fi
 
-echo "[start] $NAME — backend:${BACKEND}, ttyd :${TTYD_PORT}"
+SKIP_PERMS="false"
+if [ -f "$REGISTRY" ]; then
+  SKIP_PERMS=$(jq -r --arg n "$NAME" '.[$n].skip_permissions // false' "$REGISTRY")
+fi
+
+echo "[start] $NAME — backend:${BACKEND}, skip_perms:${SKIP_PERMS}, ttyd :${TTYD_PORT}"
 
 # tmux session
 if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-  tmux new-session -d -s "$SESSION" -c "$WORKDIR" -x 220 -y 50
+  tmux new-session -d -s "$SESSION" -c "$WORKDIR"
 
   if [ "$BACKEND" = "ssh" ]; then
     # SSH backend: connect to remote server
@@ -33,7 +38,7 @@ if ! tmux has-session -t "$SESSION" 2>/dev/null; then
     # Window 1: ai-agent (first, for chat view)
     tmux rename-window -t "$SESSION" "ai-agent"
     tmux send-keys -t "$SESSION:ai-agent" \
-      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh" Enter
+      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter
 
     # Window 2: remote (SSH connection)
     tmux new-window -t "$SESSION" -n "remote" -c "$WORKDIR"
@@ -57,7 +62,7 @@ if ! tmux has-session -t "$SESSION" 2>/dev/null; then
     # Local backend: start claude agent
     tmux rename-window -t "$SESSION" "ai-agent"
     tmux send-keys -t "$SESSION:ai-agent" \
-      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh" Enter
+      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter
     tmux new-window -t "$SESSION" -n "terminal" -c "$WORKDIR"
   fi
 fi
