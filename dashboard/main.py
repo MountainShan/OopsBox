@@ -819,6 +819,7 @@ async def download_file(project: str, path: str):
 # ── Channel API ───────────────────────────────────────────────────────────────
 
 CHANNEL_REGISTRY = Path("/home/mountain/projects/.channel-registry.json")
+CHANNELS_DIR = Path("/home/mountain/channels")
 
 def load_channels() -> dict:
     if CHANNEL_REGISTRY.exists():
@@ -849,6 +850,7 @@ class ChannelCreateReq(BaseModel):
     name: str
     workdir: str = "/home/mountain"
     skip_permissions: bool = False
+    telegram_token: str = ""
 
     @field_validator("name")
     @classmethod
@@ -863,9 +865,14 @@ async def create_channel(body: ChannelCreateReq):
     reg = load_channels()
     if body.name in reg:
         raise HTTPException(409, f"Channel '{body.name}' already exists")
+    # Create channel directory
+    chan_dir = CHANNELS_DIR / body.name
+    chan_dir.mkdir(parents=True, exist_ok=True)
+    workdir = body.workdir if body.workdir and body.workdir != "/home/mountain" else str(chan_dir)
     reg[body.name] = {
-        "workdir": body.workdir or "/home/mountain",
+        "workdir": workdir,
         "skip_permissions": body.skip_permissions,
+        "telegram_token": body.telegram_token,
     }
     save_channels(reg)
     return get_channel_status(body.name)

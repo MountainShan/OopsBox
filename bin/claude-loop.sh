@@ -5,7 +5,7 @@ set -euo pipefail
 SESSION_NAME="${1:-}"
 SKIP_PERMS="${2:-false}"
 
-FLAGS=""
+FLAGS="--trust-project"
 if [ -n "$SESSION_NAME" ]; then
   FLAGS="$FLAGS -n $SESSION_NAME"
 fi

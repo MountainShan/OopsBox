@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start/stop system terminal on port 9000
-set -euo pipefail
+set -uo pipefail
 ACTION="${1:-start}"
 PID_FILE="/tmp/rcoder-system-term.pid"
 PORT=9000

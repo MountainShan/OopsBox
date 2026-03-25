@@ -323,9 +323,14 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
       <input id="chan-name" placeholder="my-bot" autocapitalize="none" autocorrect="off" spellcheck="false">
     </div>
     <div class="field">
-      <label>Working directory</label>
-      <input id="chan-workdir" placeholder="/home/mountain" value="/home/mountain" autocapitalize="none" autocorrect="off">
-      <div style="font-size:11px;color:var(--muted);margin-top:3px">Claude will work in this directory</div>
+      <label>Working directory <span style="font-size:11px;color:var(--muted)">(optional)</span></label>
+      <input id="chan-workdir" placeholder="auto: ~/channels/{name}" autocapitalize="none" autocorrect="off">
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">Leave empty to use ~/channels/{name}</div>
+    </div>
+    <div class="field">
+      <label>Telegram Bot Token</label>
+      <input id="chan-token" placeholder="123456:ABC-DEF..." autocapitalize="none" autocorrect="off" spellcheck="false" style="font-family:monospace">
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">Get from <a href="https://t.me/BotFather" target="_blank" style="color:var(--accent)">@BotFather</a> on Telegram</div>
     </div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
@@ -337,10 +342,6 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
     <div class="ma">
       <button class="btn btn-ghost" onclick="closeChanModal()">Cancel</button>
       <button class="btn btn-primary" id="chan-btn" onclick="doCreateChan()">Create</button>
-    </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-      After creating, start the channel and configure Telegram inside Claude:<br>
-      <code>/telegram:configure &lt;BOT_TOKEN&gt;</code>
     </div>
   </div>
 </div>
@@ -772,10 +773,15 @@ async function doCreateChan(){
     err.textContent='2-40 chars: letters, numbers, dots, underscores, hyphens';
     err.style.display='block';return;
   }
+  const token=document.getElementById('chan-token').value.trim();
+  if(!token){
+    err.textContent='Telegram Bot Token is required';err.style.display='block';return;
+  }
   const body={
     name,
-    workdir:document.getElementById('chan-workdir').value.trim()||'/home/mountain',
-    skip_permissions:document.getElementById('chan-skip-perms').checked
+    workdir:document.getElementById('chan-workdir').value.trim()||'',
+    skip_permissions:document.getElementById('chan-skip-perms').checked,
+    telegram_token:token
   };
   const btn=document.getElementById('chan-btn');
   btn.innerHTML='Creating...';btn.disabled=true;
