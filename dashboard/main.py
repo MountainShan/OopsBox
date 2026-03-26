@@ -1062,6 +1062,44 @@ async def download_file(project: str, path: str):
 
 CHANNEL_REGISTRY = Path("/home/mountain/projects/.channel-registry.json")
 CHANNELS_DIR = Path("/home/mountain/channels")
+CHANNEL_KEY_FILE = Path.home() / ".config" / "oopsbox" / "channel.key"
+
+
+def _get_channel_key() -> str:
+    """Get or create the channel encryption key."""
+    if CHANNEL_KEY_FILE.exists():
+        return CHANNEL_KEY_FILE.read_text().strip()
+    CHANNEL_KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    import secrets
+    key = secrets.token_hex(32)
+    CHANNEL_KEY_FILE.write_text(key)
+    os.chmod(str(CHANNEL_KEY_FILE), 0o600)
+    return key
+
+
+def _encrypt_token(token: str) -> str:
+    """Encrypt a token with AES-256-CBC via openssl."""
+    if not token:
+        return ""
+    key = _get_channel_key()
+    r = subprocess.run(
+        ["openssl", "enc", "-aes-256-cbc", "-a", "-A", "-salt", "-pbkdf2", "-pass", f"pass:{key}"],
+        input=token, capture_output=True, text=True,
+    )
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def _decrypt_token(encrypted: str) -> str:
+    """Decrypt a token encrypted with _encrypt_token."""
+    if not encrypted:
+        return ""
+    key = _get_channel_key()
+    r = subprocess.run(
+        ["openssl", "enc", "-aes-256-cbc", "-a", "-A", "-d", "-salt", "-pbkdf2", "-pass", f"pass:{key}"],
+        input=encrypted, capture_output=True, text=True,
+    )
+    return r.stdout.strip() if r.returncode == 0 else ""
+
 
 def load_channels() -> dict:
     if CHANNEL_REGISTRY.exists():
@@ -1116,7 +1154,7 @@ async def create_channel(body: ChannelCreateReq):
     reg[body.name] = {
         "workdir": workdir,
         "skip_permissions": body.skip_permissions,
-        "telegram_token": body.telegram_token,
+        "telegram_token_enc": _encrypt_token(body.telegram_token),
     }
     save_channels(reg)
     return get_channel_status(body.name)

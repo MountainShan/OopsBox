@@ -7,7 +7,19 @@ REGISTRY="/home/mountain/projects/.channel-registry.json"
 [ -f "$REGISTRY" ] || { echo "ERROR: channel registry not found" >&2; exit 1; }
 
 WORKDIR=$(jq -r --arg n "$NAME" '.[$n].workdir // "/home/mountain/channels/'"$NAME"'"' "$REGISTRY")
-TG_TOKEN=$(jq -r --arg n "$NAME" '.[$n].telegram_token // ""' "$REGISTRY")
+
+# Decrypt Telegram token
+KEY_FILE="$HOME/.config/oopsbox/channel.key"
+TG_TOKEN_ENC=$(jq -r --arg n "$NAME" '.[$n].telegram_token_enc // ""' "$REGISTRY")
+TG_TOKEN=""
+if [ -n "$TG_TOKEN_ENC" ] && [ "$TG_TOKEN_ENC" != "null" ] && [ -f "$KEY_FILE" ]; then
+  KEY=$(cat "$KEY_FILE")
+  TG_TOKEN=$(echo "$TG_TOKEN_ENC" | openssl enc -aes-256-cbc -a -A -d -salt -pbkdf2 -pass "pass:$KEY" 2>/dev/null || echo "")
+fi
+# Fallback: try legacy plaintext field
+if [ -z "$TG_TOKEN" ]; then
+  TG_TOKEN=$(jq -r --arg n "$NAME" '.[$n].telegram_token // ""' "$REGISTRY")
+fi
 
 # Ensure workdir exists and is pre-trusted
 mkdir -p "$WORKDIR/.claude"
