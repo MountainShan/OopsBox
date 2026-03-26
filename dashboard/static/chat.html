@@ -238,6 +238,7 @@ document.getElementById('messages').addEventListener('scroll',function(){
 // ── Poll JSONL messages ──
 let polling=false;
 let initialLoad=true;
+let currentSessionFile='';
 async function pollMessages(){
   if(polling)return;polling=true;
   try{
@@ -245,13 +246,27 @@ async function pollMessages(){
     const r=await fetch(url,{credentials:'include'});
     if(!r.ok){polling=false;return;}
     const d=await r.json();
-    if(initialLoad){
+    // Detect session file change (new Claude session started)
+    if(currentSessionFile&&d.session_file&&d.session_file!==currentSessionFile){
+      // Session switched — reset and reload all
+      messages=d.messages.slice(-MAX_DISPLAY);
+      lastMsgCount=d.total;
+      currentSessionFile=d.session_file;
+      render();
+      setTimeout(scrollToBottom,50);
+    }else if(initialLoad){
       // On first load, only keep last MAX_DISPLAY messages
       messages=d.messages.slice(-MAX_DISPLAY);
       lastMsgCount=d.total;
+      currentSessionFile=d.session_file||'';
       initialLoad=false;
       render();
       setTimeout(scrollToBottom,50);
+    }else if(d.total<lastMsgCount){
+      // Total decreased — session was reset, reload all
+      lastMsgCount=0;
+      polling=false;
+      return pollMessages();
     }else if(d.messages&&d.messages.length){
       messages.push(...d.messages);
       // Trim to prevent unbounded growth
@@ -259,6 +274,7 @@ async function pollMessages(){
         messages=messages.slice(-MAX_DISPLAY);
       }
       lastMsgCount=d.total;
+      currentSessionFile=d.session_file||currentSessionFile;
       render();
     }
   }catch(e){}
