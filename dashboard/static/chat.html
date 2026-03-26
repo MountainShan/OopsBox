@@ -98,14 +98,6 @@ pre code .hljs-operator{color:#c9cdd8}
 .send-btn:hover{opacity:.85}
 .send-btn:active{transform:scale(.95)}
 
-/* Test menu */
-.test-menu{display:none;position:absolute;top:28px;right:8px;background:var(--bg2);border:1px solid var(--border);
-  border-radius:6px;padding:6px;z-index:99;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.5)}
-.test-menu.show{display:block}
-.test-menu button{display:block;width:100%;text-align:left;padding:5px 10px;border:none;background:transparent;
-  color:var(--text);font-size:12px;border-radius:4px;cursor:pointer;margin-bottom:2px}
-.test-menu button:hover{background:var(--bg3);color:var(--text-hi)}
-.test-menu .tm-title{font-size:10px;color:var(--muted);padding:2px 10px;text-transform:uppercase;letter-spacing:.5px}
 </style>
 </head>
 <body>
@@ -115,7 +107,6 @@ pre code .hljs-operator{color:#c9cdd8}
   <span class="state" id="state-display"></span>
   <button onclick="refreshAndScroll()">&#8635;</button>
   <button onclick="scrollToBottom()">&#8595;</button>
-  <button onclick="showTestMenu()" id="test-btn">Test</button>
 </div>
 
 <div class="messages" id="messages">
@@ -124,14 +115,6 @@ pre code .hljs-operator{color:#c9cdd8}
 
 <div class="prompt-area" id="prompt-area"></div>
 
-<div class="test-menu" id="test-menu">
-  <div class="tm-title">Test Interactive UI</div>
-  <button onclick="testYesNo()">Yes / No</button>
-  <button onclick="testNumbered()">Numbered choices</button>
-  <button onclick="testCheckbox()">Checkbox multi-select</button>
-  <button onclick="testThinking()">Thinking state</button>
-  <button onclick="testClear()">Clear test</button>
-</div>
 
 <div class="input-area">
   <div class="input-shortcuts">
@@ -460,116 +443,6 @@ document.getElementById('input').addEventListener('focus',function(){
 document.body.addEventListener('touchmove',function(e){
   if(!e.target.closest('.messages'))e.preventDefault();
 },{passive:false});
-
-// ── Test UI ──
-let testMode=false;
-function showTestMenu(){
-  const m=document.getElementById('test-menu');
-  m.classList.toggle('show');
-}
-// Close test menu when clicking outside
-document.addEventListener('click',e=>{
-  if(!e.target.closest('#test-menu')&&!e.target.closest('#test-btn')){
-    document.getElementById('test-menu').classList.remove('show');
-  }
-});
-
-function testYesNo(){
-  testMode=true;
-  document.getElementById('test-menu').classList.remove('show');
-  const d={state:'waiting_choice',choices:[
-    {num:'1',text:'Yes'},
-    {num:'2',text:'No, and exit'}
-  ],raw:[]};
-  renderPrompt(d);
-  document.getElementById('state-display').textContent='TEST: yes/no';
-  document.getElementById('state-display').style.color='var(--accent)';
-}
-
-function testNumbered(){
-  testMode=true;
-  document.getElementById('test-menu').classList.remove('show');
-  const d={state:'waiting_choice',choices:[
-    {num:'1',text:'Allow this tool for this session'},
-    {num:'2',text:'Allow this tool permanently'},
-    {num:'3',text:'Deny this tool'},
-    {num:'4',text:'Skip and continue'}
-  ],raw:[]};
-  renderPrompt(d);
-  document.getElementById('state-display').textContent='TEST: numbered choices';
-  document.getElementById('state-display').style.color='var(--accent)';
-}
-
-function testCheckbox(){
-  testMode=true;
-  document.getElementById('test-menu').classList.remove('show');
-  const d={state:'waiting_choice',choices:[
-    {checked:true,text:'Bash(command="npm test")'},
-    {checked:false,text:'Edit(file_path="/src/app.ts")'},
-    {checked:true,text:'Read(file_path="/src/utils.ts")'},
-    {checked:false,text:'Write(file_path="/src/new.ts")'}
-  ],raw:['  [x] Bash(command="npm test")','❯ [ ] Edit(file_path="/src/app.ts")','  [x] Read(file_path="/src/utils.ts")','  [ ] Write(file_path="/src/new.ts")']};
-  renderPrompt(d);
-  document.getElementById('state-display').textContent='TEST: checkbox';
-  document.getElementById('state-display').style.color='var(--accent)';
-}
-
-function testThinking(){
-  testMode=true;
-  document.getElementById('test-menu').classList.remove('show');
-  const d={state:'thinking',choices:[],raw:[]};
-  renderPrompt(d);
-  document.getElementById('state-display').textContent='TEST: thinking';
-  document.getElementById('state-display').style.color='var(--accent)';
-}
-
-function testClear(){
-  testMode=false;
-  document.getElementById('test-menu').classList.remove('show');
-  document.getElementById('prompt-area').classList.remove('show');
-  document.getElementById('prompt-area').innerHTML='';
-  document.getElementById('state-display').textContent='';
-  document.getElementById('state-display').style.color='';
-}
-
-// Override selectChoice/selectCheckbox/confirmChoice in test mode to show feedback instead of sending keys
-const _origSelectChoice=selectChoice;
-selectChoice=async function(num){
-  if(testMode){
-    document.getElementById('state-display').textContent=`TEST: selected option ${num}`;
-    document.getElementById('state-display').style.color='lime';
-    setTimeout(()=>{testClear();},1500);
-    return;
-  }
-  return _origSelectChoice(num);
-};
-
-const _origConfirmChoice=confirmChoice;
-confirmChoice=async function(){
-  if(testMode){
-    document.getElementById('state-display').textContent='TEST: confirmed selection';
-    document.getElementById('state-display').style.color='lime';
-    setTimeout(()=>{testClear();},1500);
-    return;
-  }
-  return _origConfirmChoice();
-};
-
-const _origSelectCheckbox=selectCheckbox;
-selectCheckbox=async function(idx){
-  if(testMode){
-    // Toggle checkbox in test mode
-    const el=document.getElementById('prompt-area');
-    const items=el.querySelectorAll('.prompt-choice span:first-child');
-    if(items[idx]){
-      items[idx].textContent=items[idx].textContent==='☑'?'☐':'☑';
-    }
-    document.getElementById('state-display').textContent=`TEST: toggled item ${idx}`;
-    document.getElementById('state-display').style.color='var(--accent)';
-    return;
-  }
-  return _origSelectCheckbox(idx);
-};
 
 // ── Init polling ──
 pollMessages();
