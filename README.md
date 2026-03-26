@@ -44,6 +44,10 @@ Think of it as a side project that ate my weekends and became sentient. It now h
 |:---:|:---:|
 | <img src="docs/screenshots/mobile_dashboard.png" width="300"> | <img src="docs/screenshots/mobile_agent.png" width="300"> |
 
+| Login |
+|:---:|
+| ![Login](docs/screenshots/login.png) |
+
 ### the accidental feature list
 
 - **AI Agent chat** — talk to your coding agent without fighting with terminal IME on iPad. auto-restart loop keeps it running even when you accidentally Ctrl+C it. interactive yes/no and checkbox prompts rendered as clickable buttons — because parsing tmux output with your eyeballs at 2am is a skill I no longer want. session persistence via `--resume` so your conversation survives reboots, crashes, and your questionable life choices.
@@ -202,6 +206,10 @@ MIT — do whatever you want with it. if it breaks, that's on you. I just wanted
 | 手機版 Dashboard | 手機版 AI Agent |
 |:---:|:---:|
 | <img src="docs/screenshots/mobile_dashboard.png" width="300"> | <img src="docs/screenshots/mobile_agent.png" width="300"> |
+
+| 登入 |
+|:---:|
+| ![Login](docs/screenshots/login.png) |
 
 ### 意外產生的功能
 
