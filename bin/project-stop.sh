@@ -11,4 +11,8 @@ for SVC in ttyd; do
     rm -f "$PIDFILE"
   fi
 done
-echo "[stop] services stopped. tmux session preserved."
+# Kill agent window in shared agents session
+if tmux list-windows -t agents -F '#{window_name}' 2>/dev/null | grep -qx "$NAME"; then
+  tmux kill-window -t "agents:$NAME" 2>/dev/null && echo "[stop] killed agent window"
+fi
+echo "[stop] project stopped."

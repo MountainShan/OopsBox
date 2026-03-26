@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 NAME="$1"
-SESSION="chan-${NAME}"
+WINDOW="chan-${NAME}"
 
-if tmux has-session -t "$SESSION" 2>/dev/null; then
-  tmux kill-session -t "$SESSION"
+if tmux list-windows -t agents -F '#{window_name}' 2>/dev/null | grep -qx "$WINDOW"; then
+  tmux send-keys -t "agents:$WINDOW" C-c 2>/dev/null
+  sleep 1
+  tmux kill-window -t "agents:$WINDOW" 2>/dev/null
   echo "[channel-stop] '$NAME' stopped"
 else
   echo "[channel-stop] '$NAME' not running"

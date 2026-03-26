@@ -24,48 +24,18 @@ fi
 
 echo "[start] $NAME — backend:${BACKEND}, skip_perms:${SKIP_PERMS}, ttyd :${TTYD_PORT}"
 
-# tmux session
-if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-  tmux new-session -d -s "$SESSION" -c "$WORKDIR"
-
-  if [ "$BACKEND" = "ssh" ]; then
-    # SSH backend: connect to remote server
-    SSH_HOST=$(jq -r --arg n "$NAME" '.[$n].ssh_host' "$REGISTRY")
-    SSH_PORT=$(jq -r --arg n "$NAME" '.[$n].ssh_port // 22' "$REGISTRY")
-    SSH_USER=$(jq -r --arg n "$NAME" '.[$n].ssh_user' "$REGISTRY")
-    SSH_AUTH=$(jq -r --arg n "$NAME" '.[$n].ssh_auth // "password"' "$REGISTRY")
-
-    # Window 1: ai-agent (first, for chat view)
-    tmux rename-window -t "$SESSION" "ai-agent"
-    tmux send-keys -t "$SESSION:ai-agent" \
-      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter
-
-    # Window 2: remote (SSH connection)
-    tmux new-window -t "$SESSION" -n "remote" -c "$WORKDIR"
-    if [ "$SSH_AUTH" = "key" ]; then
-      tmux send-keys -t "$SESSION:remote" \
-        "ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -o KexAlgorithms=+diffie-hellman-group14-sha1 -o HostKeyAlgorithms=+ssh-rsa ${SSH_USER}@${SSH_HOST}" Enter
-    else
-      if command -v sshpass >/dev/null 2>&1; then
-        SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
-        tmux send-keys -t "$SESSION:remote" \
-          "sshpass -p '${SSH_PASS}' ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -o KexAlgorithms=+diffie-hellman-group14-sha1 -o HostKeyAlgorithms=+ssh-rsa ${SSH_USER}@${SSH_HOST}" Enter
-      else
-        tmux send-keys -t "$SESSION:remote" \
-          "ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST}" Enter
-      fi
-    fi
-
-    # Window 3: local terminal
-    tmux new-window -t "$SESSION" -n "terminal" -c "$WORKDIR"
-  else
-    # Local backend: start claude agent
-    tmux rename-window -t "$SESSION" "ai-agent"
-    tmux send-keys -t "$SESSION:ai-agent" \
-      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter
-    tmux new-window -t "$SESSION" -n "terminal" -c "$WORKDIR"
-  fi
+# AI agent → shared "agents" tmux session
+if ! tmux has-session -t agents 2>/dev/null; then
+  tmux new-session -d -s agents -c "$HOME" -n "system"
 fi
+if ! tmux list-windows -t agents -F '#{window_name}' | grep -qx "$NAME"; then
+  tmux new-window -t agents -n "$NAME" -c "$WORKDIR"
+  tmux send-keys -t "agents:$NAME" \
+    "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter
+  tmux resize-window -t "agents:$NAME" -x 300 -y 80 2>/dev/null || true
+fi
+
+# No tmux needed for terminal — ttyd runs bash directly
 
 # ttyd — load theme
 THEME_CONF="/home/mountain/.config/ttyd-theme.conf"
@@ -84,6 +54,28 @@ fi
 
 if [ ! -f "$PID_DIR/ttyd.pid" ] || \
    ! kill -0 "$(cat $PID_DIR/ttyd.pid)" 2>/dev/null; then
+
+  # Build terminal command based on backend
+  if [ "$BACKEND" = "ssh" ]; then
+    SSH_HOST=$(jq -r --arg n "$NAME" '.[$n].ssh_host' "$REGISTRY")
+    SSH_PORT=$(jq -r --arg n "$NAME" '.[$n].ssh_port // 22' "$REGISTRY")
+    SSH_USER=$(jq -r --arg n "$NAME" '.[$n].ssh_user' "$REGISTRY")
+    SSH_AUTH=$(jq -r --arg n "$NAME" '.[$n].ssh_auth // "password"' "$REGISTRY")
+    SSH_OPTS="-o StrictHostKeyChecking=no -o KexAlgorithms=+diffie-hellman-group14-sha1 -o HostKeyAlgorithms=+ssh-rsa"
+    if [ "$SSH_AUTH" = "key" ]; then
+      TERM_CMD="ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}"
+    else
+      SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
+      if command -v sshpass >/dev/null 2>&1; then
+        TERM_CMD="sshpass -p '${SSH_PASS}' ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}"
+      else
+        TERM_CMD="ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}"
+      fi
+    fi
+  else
+    TERM_CMD="cd '${WORKDIR}' && exec bash -l"
+  fi
+
   ttyd \
     --port "${TTYD_PORT}" \
     --interface 0.0.0.0 \
@@ -97,7 +89,7 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
     -t 'disableReconnect=false' \
     -t 'reconnectInterval=3000' \
     ${TTYD_THEME_ARGS} \
-    tmux attach-session -t "$SESSION:terminal" \
+    bash -c "${TERM_CMD}" \
     > "$PID_DIR/ttyd.log" 2>&1 &
   echo $! > "$PID_DIR/ttyd.pid"
 fi

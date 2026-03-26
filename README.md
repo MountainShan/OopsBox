@@ -42,7 +42,7 @@ Think of it as a toy that accidentally became useful. Then accidentally grew Tel
 
 ### the accidental feature list
 
-- **AI Agent chat** — talk to your coding agent without fighting with terminal IME on iPad. auto-restart loop keeps it running. now with quick slash command buttons (/compact, /clear, /model...) because typing on iPad is pain.
+- **AI Agent chat** — talk to your coding agent without fighting with terminal IME on iPad. auto-restart loop keeps it running. now with quick slash command buttons (/compact, /clear, /model...) because typing on iPad is pain. interactive yes/no and checkbox prompts rendered as clickable UI — no more hunting for tiny tmux text. includes a test mode to preview all interactive states without a live agent.
 - **Web terminal** — ttyd + tmux, dynamically resizes to your browser window. per-project sessions. copy button because tmux mouse mode hates iPad.
 - **Workspace** — file manager + terminal in tab view. click a file, modal editor pops up. close it, back to browsing. simple like it should be.
 - **Code editor** — syntax highlighting, Markdown preview with Mermaid, file upload/download, image preview. opens as a modal because we don't need another VS Code.
@@ -111,17 +111,18 @@ browser → nginx → FastAPI dashboard
                 → ttyd terminals (per project)
                 → system terminal
 
-each project gets:
-  tmux session
-  ├── ai-agent window (hidden, runs your coding agent in auto-restart loop)
-  └── terminal window (visible via ttyd, resizes to your browser)
+all AI agents share one tmux session ("agents"):
+  agents session
+  ├── system window (system agent via claude-loop.sh)
+  ├── project-name window (per-project agent)
+  └── chan-name window (per-channel agent)
 
-each channel gets:
-  tmux session
-  └── claude window (runs claude --channels plugin:telegram@...)
+session recovery:
+  claude-loop.sh uses --resume <session-id> to persist conversations
+  session IDs are saved to /tmp/ and auto-recovered on restart
 ```
 
-The AI Agent tab reads the agent's tmux output and shows it in a nicer view with slash command buttons and an input bar that actually works on iPad. The Workspace tab has a file manager and terminal you can switch between. Click a file → modal editor opens. Done editing → close it. No tabs, no complexity, no existential crisis.
+The AI Agent tab reads the agent's JSONL session files and shows messages in a chat bubble UI with markdown rendering and syntax highlighting. Interactive prompts (yes/no, numbered choices, checkboxes) are rendered as clickable buttons. The Workspace tab has a file manager and terminal you can switch between. Click a file → modal editor opens. Done editing → close it. No tabs, no complexity, no existential crisis.
 
 ### project types
 
@@ -187,7 +188,7 @@ MIT — do whatever you want with it. if it breaks, that's on you. I just wanted
 
 ### 意外產生的功能
 
-- **AI Agent 對話** — 在 iPad 上跟你的 coding agent 講話，不用跟 terminal 的輸入法打架。自動重啟循環讓它持續運作。現在還有快捷按鈕（/compact、/clear、/model...），因為在 iPad 上打字是一種修行。
+- **AI Agent 對話** — 在 iPad 上跟你的 coding agent 講話，不用跟 terminal 的輸入法打架。自動重啟循環讓它持續運作。現在還有快捷按鈕（/compact、/clear、/model...），因為在 iPad 上打字是一種修行。互動式 yes/no 和 checkbox 提示直接渲染成可點擊的按鈕 — 不用再在 tmux 裡找小字了。內建測試模式，不用跑 agent 也能預覽所有互動狀態。
 - **Web terminal** — ttyd + tmux，會根據瀏覽器視窗大小自動調整。每個專案獨立 session。有 Copy 按鈕，因為 tmux 滑鼠模式跟 iPad 是世仇。
 - **Workspace** — 檔案管理器 + terminal 用 tab 切換。點檔案跳出編輯器，改完關掉。簡單得像它本來就該這樣。
 - **Code editor** — 語法高亮、Markdown 預覽支援 Mermaid、檔案上傳下載、圖片預覽。用 modal 打開，因為這世界不需要又一個 VS Code。
@@ -256,13 +257,18 @@ Python：  fastapi, uvicorn, paramiko, python-multipart, aiofiles
                → ttyd terminal（每個專案一個）
                → 系統 terminal
 
-每個專案會有：
-  tmux session
-  ├── ai-agent 視窗（隱藏的，用自動重啟循環跑你的 coding agent）
-  └── terminal 視窗（看得到的，一般 shell）
+所有 AI agent 共用一個 tmux session（"agents"）：
+  agents session
+  ├── system 視窗（系統 agent，透過 claude-loop.sh）
+  ├── project-name 視窗（每個專案的 agent）
+  └── chan-name 視窗（每個 channel 的 agent）
+
+Session 恢復：
+  claude-loop.sh 用 --resume <session-id> 保持對話連續性
+  Session ID 存在 /tmp/，重啟時自動恢復
 ```
 
-AI Agent 分頁讀取 agent 的 tmux 輸出，用比較好看的方式顯示，有 slash command 快捷按鈕和輸入框，在 iPad 上打字完全沒問題。Workspace 分頁有檔案管理器和 terminal 可以切換。點檔案 → modal 編輯器打開。改完 → 關掉。沒有 tab 系統，沒有複雜度，沒有存在危機。
+AI Agent 分頁讀取 agent 的 JSONL session 檔案，用聊天氣泡 UI 顯示訊息，支援 markdown 渲染和語法高亮。互動式提示（yes/no、編號選項、checkbox）直接渲染成可點擊的按鈕。Workspace 分頁有檔案管理器和 terminal 可以切換。點檔案 → modal 編輯器打開。改完 → 關掉。沒有 tab 系統，沒有複雜度，沒有存在危機。
 
 ### 專案類型
 

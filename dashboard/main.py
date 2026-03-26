@@ -347,15 +347,21 @@ async def project_status(name: str):
 
 
 @app.post("/api/projects/{name}/send-keys")
-async def send_keys(name: str, keys: str = "C-c", window: Optional[int] = None):
-    allowed = {"C-c", "C-z", "C-d", "C-\\", "Tab", "BTab", "Up", "Down", "Enter", "Escape"}
+async def send_keys(name: str, keys: str = "C-c", window: Optional[str] = None, session: Optional[str] = None):
+    allowed = {"C-c", "C-z", "C-d", "C-\\", "Tab", "BTab", "Up", "Down", "Left", "Right",
+               "Enter", "Escape", "Space",
+               "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+               "y", "n", "Y", "N"}
     if keys not in allowed:
         raise HTTPException(400, f"keys must be one of: {allowed}")
-    session = "system" if name == "_system" else f"proj-{name}"
-    if name != "_system" and not (PROJECTS_DIR / name).exists():
-        raise HTTPException(404, f"'{name}' not found")
+    if not session:
+        session = "system" if name == "_system" else f"proj-{name}"
     target = f"{session}:{window}" if window is not None else session
-    r = run(["tmux", "send-keys", "-t", target, keys])
+    # Single chars need -l flag (literal), special keys don't
+    if len(keys) == 1:
+        r = run(["tmux", "send-keys", "-t", target, "-l", keys])
+    else:
+        r = run(["tmux", "send-keys", "-t", target, keys])
     if r.returncode != 0:
         raise HTTPException(500, r.stderr)
     return {"sent": keys, "session": session}
@@ -418,7 +424,7 @@ async def tmux_new_window(name: str, body: NewWindowReq):
 
 
 @app.get("/api/projects/{name}/terminal-output")
-async def terminal_output(name: str, lines: int = 200, window: Optional[int] = None):
+async def terminal_output(name: str, lines: int = 200, window: Optional[str] = None):
     """Capture tmux pane output for chat-style display"""
     if name == "_system":
         session = "system"
@@ -439,16 +445,242 @@ class SendTextReq(BaseModel):
     text: str
 
 @app.post("/api/projects/{name}/send-text")
-async def send_text(name: str, body: SendTextReq, window: Optional[int] = None):
-    session = "system" if name == "_system" else f"proj-{name}"
-    if name != "_system" and not (PROJECTS_DIR / name).exists():
-        raise HTTPException(404, f"'{name}' not found")
+async def send_text(name: str, body: SendTextReq, window: Optional[str] = None, session: Optional[str] = None):
+    if not session:
+        session = "system" if name == "_system" else f"proj-{name}"
     target = f"{session}:{window}" if window is not None else session
-    r = run(["tmux", "send-keys", "-t", target, "-l", body.text])
-    if r.returncode != 0:
-        raise HTTPException(500, r.stderr)
+    if len(body.text) < 200:
+        r = run(["tmux", "send-keys", "-t", target, "-l", body.text])
+        if r.returncode != 0:
+            raise HTTPException(500, r.stderr)
+    else:
+        # Long text: use tmux buffer to avoid bracketed paste issues
+        tmp = Path("/tmp/oopsbox-input.txt")
+        tmp.write_text(body.text)
+        run(["tmux", "load-buffer", str(tmp)])
+        run(["tmux", "paste-buffer", "-t", target, "-d"])
     run(["tmux", "send-keys", "-t", target, "Enter"])
     return {"sent": body.text, "session": session}
+
+
+# ── JSONL Session Messages API ────────────────────────────────────────────────
+
+def _get_session_dir(name: str) -> Path:
+    if name == "_system":
+        path = str(Path.home())
+    else:
+        path = str(PROJECTS_DIR / name)
+    # Claude Code replaces non-alphanumeric chars with - in dir hash
+    import re as _re
+    hash_name = _re.sub(r'[^a-zA-Z0-9]', '-', path)
+    return Path.home() / ".claude" / "projects" / hash_name
+
+
+def _extract_text(content) -> str:
+    if isinstance(content, str):
+        if content.strip().startswith("<command-"):
+            return ""
+        return content.strip()
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "text":
+                t = item.get("text", "").strip()
+                if t:
+                    parts.append(t)
+            elif item.get("type") == "tool_use":
+                name = item.get("name", "")
+                inp = item.get("input", {})
+                desc = inp.get("description", "")
+                fp = inp.get("file_path", "")
+                cmd = inp.get("command", "")
+                pattern = inp.get("pattern", "")
+                header = f"**{name}**"
+                if fp:
+                    header += f" `{fp}`"
+                elif pattern:
+                    header += f" `{pattern}`"
+                if desc:
+                    header += f" — {desc}"
+                if cmd:
+                    parts.append(f"{header}\n```bash\n{cmd}\n```")
+                else:
+                    parts.append(header)
+            elif item.get("type") == "tool_result":
+                tc = item.get("content", "")
+                if isinstance(tc, str) and tc.strip():
+                    # Normalize line number prefixes to fixed width
+                    # e.g. "  516→\tcode" → "516 │ code"
+                    lines = tc.strip().split("\n")
+                    cleaned = []
+                    has_line_nums = any(re.match(r'\s*\d+→', l) for l in lines[:5])
+                    if has_line_nums:
+                        for line in lines:
+                            m = re.match(r'\s*(\d+)→\t?(.*)', line)
+                            if m:
+                                cleaned.append(f"{m.group(1):>4} │ {m.group(2)}")
+                            else:
+                                cleaned.append(line)
+                        output = "\n".join(cleaned)
+                    else:
+                        output = tc.strip()
+                    if len(output) > 500:
+                        output = output[:500] + "\n... (truncated)"
+                    parts.append(f"```\n{output}\n```")
+        return "\n\n".join(p for p in parts if p)
+    return ""
+
+
+# Cache for parsed JSONL messages: {file_path: (mtime, size, merged_messages)}
+_session_cache: dict = {}
+
+
+def _parse_jsonl(filepath: Path, max_lines: int = 2000) -> list:
+    messages = []
+    try:
+        # For large files, only read last N lines
+        size = filepath.stat().st_size
+        if size > 500_000:  # > 500KB, read from tail
+            import subprocess as _sp
+            r = _sp.run(["tail", "-n", str(max_lines), str(filepath)], capture_output=True, text=True)
+            lines = r.stdout.strip().split("\n") if r.returncode == 0 else []
+        else:
+            lines = filepath.open().readlines()
+        for line in lines:
+            d = json.loads(line)
+            if d.get("type") not in ("user", "assistant"):
+                continue
+            if d.get("isMeta"):
+                continue
+            msg = d.get("message", {})
+            if not isinstance(msg, dict):
+                continue
+            content = msg.get("content", "")
+            role = msg.get("role", "")
+            if isinstance(content, list) and role == "user":
+                has_user_text = any(
+                    isinstance(item, dict) and item.get("type") == "text" and item.get("text", "").strip()
+                    for item in content
+                )
+                has_tool_result = any(
+                    isinstance(item, dict) and item.get("type") == "tool_result"
+                    for item in content
+                )
+                if not has_user_text and has_tool_result:
+                    role = "tool_output"
+                elif not has_user_text:
+                    continue
+            text = _extract_text(content)
+            if not text:
+                continue
+            messages.append({"role": role, "text": text, "ts": d.get("timestamp", "")})
+    except Exception:
+        pass
+    # Merge assistant tool_use + following tool_output
+    merged = []
+    for m in messages:
+        if m["role"] == "tool_output" and merged and merged[-1]["role"] == "assistant":
+            merged[-1]["text"] += "\n\n" + m["text"]
+        else:
+            merged.append(m)
+    return merged
+
+
+@app.get("/api/projects/{name}/session-messages")
+async def session_messages(name: str, after: int = 0):
+    session_dir = _get_session_dir(name)
+    if not session_dir.exists():
+        return {"messages": [], "total": 0, "session_file": ""}
+
+    files = sorted(session_dir.glob("*.jsonl"), key=lambda f: f.stat().st_mtime, reverse=True)
+    if not files:
+        return {"messages": [], "total": 0, "session_file": ""}
+
+    # Pick the most recently modified file that's actively being used
+    # If the latest file is very small and there's a bigger recent one, prefer the bigger one
+    fp = files[0]
+    if len(files) > 1 and fp.stat().st_size < 2000:
+        # Check if the second file was modified recently (within 1 hour)
+        import time
+        if time.time() - files[1].stat().st_mtime < 3600:
+            fp = files[1]
+    st = fp.stat()
+    cache_key = str(fp)
+    cached = _session_cache.get(cache_key)
+
+    if cached and cached[0] == st.st_mtime and cached[1] == st.st_size:
+        merged = cached[2]
+    else:
+        merged = _parse_jsonl(fp)
+        _session_cache[cache_key] = (st.st_mtime, st.st_size, merged)
+
+    return {
+        "messages": merged[after:],
+        "total": len(merged),
+        "session_file": fp.name,
+    }
+
+
+@app.get("/api/projects/{name}/prompt-state")
+async def prompt_state(name: str):
+    # All AI agents live in "agents" session, window = project name or "system"
+    window = "system" if name == "_system" else name
+    r = run(["tmux", "capture-pane", "-t", f"agents:{window}", "-p", "-S", "-8"])
+    lines = r.stdout.strip().split("\n") if r.returncode == 0 else []
+
+    # Parse choices from bottom up — only take the latest group
+    choices = []
+    for line in reversed(lines):
+        stripped = line.replace("\u00a0", " ").strip()
+        if not stripped:
+            continue
+        # Skip hint lines
+        if "Esc to cancel" in stripped or "Enter to confirm" in stripped or "Tab to amend" in stripped:
+            continue
+        # Numbered choice: "❯ 1. Yes" or "  2. No, exit"
+        m = re.match(r'[❯\s]*(\d+)\.\s+(.+)', stripped)
+        if m:
+            choices.insert(0, {"num": m.group(1), "text": m.group(2).strip()})
+            continue
+        # Checkbox: "[x] Bash" or "[ ] Edit"
+        m = re.match(r'[❯\s]*\[([ xX])\]\s+(.+)', stripped)
+        if m:
+            choices.insert(0, {"checked": m.group(1).lower() == "x", "text": m.group(2).strip()})
+            continue
+        # Not a choice line — stop (don't look at older lines)
+        if choices:
+            break
+
+    # Check if tmux window exists and Claude is running
+    if r.returncode != 0:
+        return {"state": "no_session", "choices": [], "raw": []}
+
+    # Detect if Claude crashed (bash prompt visible)
+    all_text = "\n".join(lines)
+    if re.search(r'\$\s*$', all_text) and "❯" not in all_text and "claude" not in all_text.lower():
+        # Looks like bash prompt, not Claude
+        return {"state": "claude_stopped", "choices": [], "raw": lines[-5:] if lines else []}
+
+    # Detect prompt state from last non-empty line
+    last = ""
+    for line in reversed(lines):
+        s = line.replace("\u00a0", " ").strip()
+        if s:
+            last = s
+            break
+
+    if choices:
+        state = "waiting_choice"
+    elif re.match(r'^[❯›>]\s*$', last):
+        state = "waiting_text"
+    elif any(c in last for c in "◐◑◒◓") or re.search(r'Thinking|Herding|Garnishing|Cogitating|Searching|Reading', last):
+        state = "thinking"
+    else:
+        state = "idle"
+
+    return {"state": state, "choices": choices, "raw": lines[-5:] if lines else []}
 
 
 @app.get("/api/projects/{name}/clipboard")
@@ -833,9 +1065,11 @@ def save_channels(reg: dict):
 
 def get_channel_status(name: str) -> dict:
     meta = load_channels().get(name, {})
-    session = f"chan-{name}"
-    r = run(["tmux", "has-session", "-t", session])
-    status = "running" if r.returncode == 0 else "idle"
+    window = f"chan-{name}"
+    # Check if window exists in agents session
+    r = run(["tmux", "list-windows", "-t", "agents", "-F", "#{window_name}"])
+    windows = r.stdout.strip().split("\n") if r.returncode == 0 else []
+    status = "running" if window in windows else "idle"
     return {"name": name, "status": status, "workdir": meta.get("workdir", "/home/mountain"),
             "skip_permissions": meta.get("skip_permissions", False)}
 
@@ -930,8 +1164,8 @@ async def stop_channel(name: str):
 
 @app.get("/api/channels/{name}/log")
 async def channel_log(name: str, lines: int = 50):
-    session = f"chan-{name}"
-    r = run(["tmux", "capture-pane", "-t", session, "-p", "-S", f"-{lines}"])
+    window = f"chan-{name}"
+    r = run(["tmux", "capture-pane", "-t", f"agents:{window}", "-p", "-S", f"-{lines}"])
     return {"output": r.stdout if r.returncode == 0 else ""}
 
 

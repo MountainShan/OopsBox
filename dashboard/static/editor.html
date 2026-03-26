@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/material-darker.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0a0c10;--bg2:#12141a;--bg3:#1a1d26;--border:#1e2130;--text:#c9cdd8;--text-hi:#e8eaf0;--muted:#5c6178;--accent:#6b7280;--green:#10b981}
+:root{--bg:#0e1015;--bg2:#161920;--bg3:#1e2028;--border:#252830;--text:#c8ccd5;--text-hi:#e8ecf0;--muted:#6b7080;--accent:#e07840;--green:#10b981}
 body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;font-size:clamp(12px,2.2vw,14px)}
 
 /* ── Tab layout ── */
@@ -21,9 +21,9 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 
 /* ── Tab bar ── */
 .ws-tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
-.ws-tab{flex:1;padding:clamp(8px,1.5vw,10px) 0;text-align:center;font-size:clamp(12px,2vw,14px);font-weight:600;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s}
+.ws-tab{flex:1;padding:clamp(3px,.8vw,5px) 0;text-align:center;font-size:clamp(10px,1.6vw,11px);font-weight:600;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s}
 .ws-tab.on{color:var(--text-hi);border-bottom:2px solid var(--accent)}
-.ws-tab svg{width:clamp(16px,2.5vw,18px);height:clamp(16px,2.5vw,18px);vertical-align:middle;margin-right:4px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ws-tab svg{width:clamp(10px,1.8vw,12px);height:clamp(10px,1.8vw,12px);vertical-align:middle;margin-right:2px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ── File manager toolbar ── */
 .fm-toolbar{display:flex;align-items:center;gap:clamp(4px,1vw,6px);padding:clamp(5px,1.2vw,8px) clamp(8px,1.5vw,12px);background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
@@ -57,7 +57,7 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .col-resize:hover,.col-resize.active{background:var(--accent)}
 
 /* ── Terminal ── */
-.term-bar{display:flex;align-items:center;gap:clamp(4px,1vw,8px);padding:clamp(4px,1vw,6px) clamp(6px,1.2vw,10px);background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.term-bar{display:flex;align-items:center;gap:clamp(3px,.8vw,5px);padding:clamp(2px,.6vw,4px) clamp(4px,1vw,8px);background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
 .term-hint{font-size:clamp(10px,1.8vw,12px);color:var(--muted)}
 .copy-ok{font-size:clamp(10px,1.8vw,12px);color:var(--green);opacity:0;transition:opacity .3s}
 .copy-ok.show{opacity:1}
