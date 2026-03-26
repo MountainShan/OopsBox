@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Workspace</title>
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png?v=4">
+<title>OopsBox — Workspace</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/material-darker.min.css">
 <style>
@@ -20,7 +21,12 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 #terminal-panel.hidden{display:none}
 
 /* ── Tab bar ── */
-.ws-tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.ws-tabs{display:flex;align-items:center;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.ws-logo{display:flex;align-items:center;gap:5px;padding:0 clamp(6px,1.2vw,10px);text-decoration:none;flex-shrink:0}
+.ws-logo-icon{width:20px;height:20px;background:var(--accent);border-radius:5px;display:flex;align-items:center;justify-content:center;transform:rotate(-3deg)}
+.ws-logo-icon svg{width:11px;height:11px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ws-logo-text{font-size:11px;font-weight:700;color:var(--text-hi)}
+.ws-logo-text span{color:var(--accent);font-style:italic}
 .ws-tab{flex:1;padding:clamp(3px,.8vw,5px) 0;text-align:center;font-size:clamp(10px,1.6vw,11px);font-weight:600;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s}
 .ws-tab.on{color:var(--text-hi);border-bottom:2px solid var(--accent)}
 .ws-tab svg{width:clamp(10px,1.8vw,12px);height:clamp(10px,1.8vw,12px);vertical-align:middle;margin-right:2px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -149,6 +155,10 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 <div id="workspace">
   <!-- Tab bar -->
   <div class="ws-tabs">
+    <a class="ws-logo" href="/" title="Back to Dashboard">
+      <div class="ws-logo-icon"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
+      <div class="ws-logo-text"><span>Oops</span>Box</div>
+    </a>
     <button class="ws-tab on" id="ws-tab-files" onclick="wsSwitch('files')">
       <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       Files

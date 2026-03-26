@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>AI Agent</title>
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png?v=4">
+<title>OopsBox — AI Agent</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0e1015;--bg2:#161920;--bg3:#1e2028;--border:#252830;--text:#c8ccd5;--text-hi:#e8ecf0;
@@ -13,7 +14,12 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 
 .header{padding:3px 10px;background:var(--bg2);border-bottom:1px solid var(--border);
   display:flex;align-items:center;gap:6px;flex-shrink:0}
-.header .title{font-size:12px;font-weight:600;color:var(--text-hi);flex:1}
+.header .logo{display:flex;align-items:center;gap:6px;flex:1;text-decoration:none}
+.header .logo-icon{width:22px;height:22px;background:var(--accent);border-radius:5px;display:flex;align-items:center;justify-content:center;transform:rotate(-3deg);flex-shrink:0}
+.header .logo-icon svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.header .logo-text{font-size:12px;font-weight:700;color:var(--text-hi)}
+.header .logo-text span{color:var(--accent);font-style:italic}
+.header .title{font-size:11px;color:var(--muted);font-weight:500}
 .header .state{font-size:10px;color:var(--muted);font-family:monospace}
 .header button{padding:2px 7px;border-radius:3px;font-size:10px;cursor:pointer;
   border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s}
@@ -103,6 +109,10 @@ pre code .hljs-operator{color:#c9cdd8}
 <body>
 
 <div class="header">
+  <a class="logo" href="/" title="Back to Dashboard">
+    <div class="logo-icon"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
+    <div class="logo-text"><span>Oops</span>Box</div>
+  </a>
   <div class="title" id="title">AI Agent</div>
   <span class="state" id="state-display"></span>
   <button onclick="refreshAndScroll()">&#8635;</button>
