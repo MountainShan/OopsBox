@@ -23,4 +23,13 @@ fi
 # Start system terminal (ttyd)
 bash "$HOME/bin/system-term.sh" start 2>&1 || true
 
+# Auto-start all registered channels
+REGISTRY="$HOME/projects/.channel-registry.json"
+if [ -f "$REGISTRY" ]; then
+  for CHAN in $(jq -r 'keys[]' "$REGISTRY"); do
+    echo "[agents-init] starting channel: $CHAN"
+    bash "$HOME/bin/channel-start.sh" "$CHAN" 2>&1 || true
+  done
+fi
+
 echo "[agents-init] done"
