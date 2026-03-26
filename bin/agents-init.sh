@@ -2,10 +2,15 @@
 # Initialize agents tmux session + system terminal on boot
 set -uo pipefail
 
-# Use existing HOME if available; fallback for cron/systemd context where HOME may not be set
-export HOME="${HOME:-/home/mountain}"
-export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.nvm/versions/node/v22.16.0/bin:/usr/local/bin:/usr/bin:/bin"
+# Resolve HOME from process owner when not set (cron/systemd context)
+if [ -z "${HOME:-}" ]; then
+  export HOME=$(getent passwd "$(id -un)" | cut -d: -f6)
+fi
 source "$HOME/.bashrc" 2>/dev/null || true
+# Ensure common paths are available
+export PATH="$HOME/.local/bin:$HOME/.bun/bin:$PATH"
+# Add node from nvm if available
+[ -d "$HOME/.nvm" ] && export PATH="$(find "$HOME/.nvm/versions/node" -maxdepth 1 -type d | sort -V | tail -1)/bin:$PATH" 2>/dev/null
 
 # Load API key
 if [ -f "$HOME/.config/oopsbox/env" ]; then
