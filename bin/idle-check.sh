@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stop projects idle for more than IDLE_MINUTES
-IDLE_MINUTES=30
+IDLE_MINUTES=120
 
 for PID_DIR in /tmp/rcoder-*/; do
   [ -d "$PID_DIR" ] || continue
