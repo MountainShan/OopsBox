@@ -281,7 +281,10 @@ async function pollState(){
     const r=await fetch(`/api/projects/${PROJECT}/prompt-state`,{credentials:'include'});
     if(!r.ok)return;
     const d=await r.json();
+    const prevState=currentState;
     currentState=d.state;
+    // Re-render if no messages and state changed (to update hint text)
+    if(!messages.length&&currentState!==prevState) render();
     const stateEl=document.getElementById('state-display');
     if(d.state==='no_session'){
       stateEl.textContent='tmux session not found';stateEl.style.color='red';
