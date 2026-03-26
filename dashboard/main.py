@@ -879,8 +879,23 @@ async def list_files(project: str, path: str = ""):
     return {"type": "dir", "path": path, "entries": entries}
 
 
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB hard limit
+CHUNK_LINES = 1000  # lines per chunk for sliding read
+
+
+def _read_lines_chunk(text: str, offset: int, limit: int):
+    """Extract a chunk of lines from text content."""
+    lines = text.split("\n")
+    total = len(lines)
+    offset = max(0, min(offset, total))
+    end = min(offset + limit, total)
+    chunk = "\n".join(lines[offset:end])
+    return chunk, total, offset, end
+
+
 @app.get("/api/files/{project}/read")
-async def read_file(project: str, path: str):
+async def read_file(project: str, path: str, offset: int = 0, limit: int = 0):
+    """Read a file. If limit > 0, returns a sliding window of lines."""
     if _is_ssh_project(project):
         try:
             ssh, sftp = get_sftp(project)
@@ -889,32 +904,49 @@ async def read_file(project: str, path: str):
             if not target.startswith(remote_base):
                 raise HTTPException(403, "path traversal")
             stat = sftp.stat(target)
-            if stat.st_size > 2 * 1024 * 1024:
-                raise HTTPException(413, "file too large (>2MB)")
+            if stat.st_size > MAX_FILE_SIZE:
+                raise HTTPException(413, f"file too large (>{MAX_FILE_SIZE // 1024 // 1024}MB)")
             with sftp.open(target, "r") as f:
                 content = f.read().decode("utf-8", errors="replace")
             sftp.close(); ssh.close()
-            return {"path": path, "name": os.path.basename(path), "content": content}
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(500, f"SFTP read error: {str(e)}")
-    # Local
-    base = _get_base(project)
-    if not base.exists():
-        raise HTTPException(404, f"'{project}' not found")
-    target = (base / path).resolve()
-    if not str(target).startswith(str(base.resolve())):
-        raise HTTPException(403, "path traversal")
-    if not target.is_file():
-        raise HTTPException(404, "file not found")
-    if target.stat().st_size > 2 * 1024 * 1024:
-        raise HTTPException(413, "file too large (>2MB)")
-    try:
-        content = target.read_text(errors="replace")
-    except Exception:
-        raise HTTPException(400, "cannot read file")
-    return {"path": path, "name": target.name, "content": content}
+    else:
+        # Local
+        base = _get_base(project)
+        if not base.exists():
+            raise HTTPException(404, f"'{project}' not found")
+        target = (base / path).resolve()
+        if not str(target).startswith(str(base.resolve())):
+            raise HTTPException(403, "path traversal")
+        if not target.is_file():
+            raise HTTPException(404, "file not found")
+        if target.stat().st_size > MAX_FILE_SIZE:
+            raise HTTPException(413, f"file too large (>{MAX_FILE_SIZE // 1024 // 1024}MB)")
+        try:
+            content = target.read_text(errors="replace")
+        except Exception:
+            raise HTTPException(400, "cannot read file")
+
+    total_lines = content.count("\n") + 1
+    name = os.path.basename(path) if _is_ssh_project(project) else Path(path).name
+
+    # Sliding window mode
+    if limit > 0:
+        chunk, total, start, end = _read_lines_chunk(content, offset, limit)
+        return {"path": path, "name": name, "content": chunk,
+                "total_lines": total, "offset": start, "end": end, "chunked": True}
+
+    # Full file — but if too many lines, auto-chunk
+    if total_lines > CHUNK_LINES:
+        chunk, total, start, end = _read_lines_chunk(content, offset, CHUNK_LINES)
+        return {"path": path, "name": name, "content": chunk,
+                "total_lines": total, "offset": start, "end": end, "chunked": True}
+
+    return {"path": path, "name": name, "content": content,
+            "total_lines": total_lines, "chunked": False}
 
 
 class SaveReq(BaseModel):

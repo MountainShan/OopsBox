@@ -137,6 +137,8 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .small-modal-hint{font-size:10px;color:var(--muted);margin-top:4px}
 .small-modal-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:12px}
 
+.ib-nav{padding:1px 5px;border-radius:3px;font-size:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .1s}
+.ib-nav:hover{color:var(--text);background:var(--bg3)}
 .CodeMirror{height:100% !important;font-size:clamp(13px,2.5vw,15px);line-height:1.6;font-family:monospace}
 .cm-s-material-darker .CodeMirror-gutters{background:#0a0c10;border-right:1px solid #1e2130}
 </style>
@@ -228,6 +230,14 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
     <div class="editor-info">
       <span id="info-path">--</span>
       <span class="saved-indicator" id="saved-ind">Saved</span>
+      <span id="info-chunk" style="color:var(--accent)"></span>
+      <div id="chunk-nav" style="display:none;gap:3px;align-items:center">
+        <button class="ib-nav" onclick="loadChunk('first')" title="First chunk">⏮</button>
+        <button class="ib-nav" onclick="loadChunk('prev')" title="Previous chunk">◀</button>
+        <button class="ib-nav" onclick="loadChunk('next')" title="Next chunk">▶</button>
+        <button class="ib-nav" onclick="loadChunk('last')" title="Last chunk">⏭</button>
+        <button class="ib-nav" onclick="jumpToLine()" title="Go to line">⤓</button>
+      </div>
       <span style="flex:1"></span>
       <span id="info-lang">--</span>
       <span id="info-pos">Ln 1, Col 1</span>
@@ -409,6 +419,8 @@ function initEditor(){
 }
 
 // ── Open file ──
+let chunkState=null; // {path, total, offset, end}
+
 async function openFile(path,name){
   if(isImage(name||path)){
     document.getElementById('image-filename').textContent=name||path.split('/').pop();
@@ -427,6 +439,16 @@ async function openFile(path,name){
     document.getElementById('editor-modified').textContent='';
     document.getElementById('info-path').textContent=path;
     document.getElementById('info-lang').textContent=langName(d.name);
+    // Chunked file indicator
+    if(d.chunked){
+      chunkState={path,total:d.total_lines,offset:d.offset,end:d.end};
+      document.getElementById('info-chunk').textContent=`Lines ${d.offset+1}-${d.end} of ${d.total_lines}`;
+      document.getElementById('chunk-nav').style.display='flex';
+    }else{
+      chunkState=null;
+      document.getElementById('info-chunk').textContent='';
+      document.getElementById('chunk-nav').style.display='none';
+    }
     // Markdown preview button
     const isMd=/\.(md|markdown)$/i.test(path);
     document.getElementById('md-preview-btn').style.display=isMd?'flex':'none';
@@ -436,6 +458,63 @@ async function openFile(path,name){
   }catch(e){alert('Error opening file: '+e.message);}
 }
 
+async function loadChunk(direction){
+  if(!chunkState)return;
+  const CHUNK=1000;
+  let newOffset;
+  if(direction==='next') newOffset=chunkState.end;
+  else if(direction==='prev') newOffset=Math.max(0,chunkState.offset-CHUNK);
+  else if(direction==='first') newOffset=0;
+  else if(direction==='last') newOffset=Math.max(0,chunkState.total-CHUNK);
+  else return;
+  // Save current content if modified before navigating
+  if(currentFile&&currentFile.modified){
+    if(!confirm('Unsaved changes will be lost. Continue?'))return;
+  }
+  try{
+    const r=await fetch(`/api/files/${PROJECT}/read?path=${encodeURIComponent(chunkState.path)}&offset=${newOffset}&limit=${CHUNK}`,{credentials:'include'});
+    if(!r.ok)return;
+    const d=await r.json();
+    currentFile.content=d.content;
+    currentFile.modified=false;
+    currentFile.doc=CodeMirror.Doc(d.content,modeForFile(currentFile.name));
+    editor.swapDoc(currentFile.doc);
+    chunkState.offset=d.offset;
+    chunkState.end=d.end;
+    document.getElementById('info-chunk').textContent=`Lines ${d.offset+1}-${d.end} of ${d.total_lines}`;
+    document.getElementById('editor-modified').textContent='';
+  }catch(e){}
+}
+
+async function jumpToLine(){
+  if(!chunkState)return;
+  const input=prompt(`Go to line (1-${chunkState.total}):`);
+  if(!input)return;
+  const line=parseInt(input,10);
+  if(isNaN(line)||line<1||line>chunkState.total)return;
+  const CHUNK=1000;
+  const newOffset=Math.max(0,line-Math.floor(CHUNK/2));
+  if(currentFile&&currentFile.modified){
+    if(!confirm('Unsaved changes will be lost. Continue?'))return;
+  }
+  try{
+    const r=await fetch(`/api/files/${PROJECT}/read?path=${encodeURIComponent(chunkState.path)}&offset=${newOffset}&limit=${CHUNK}`,{credentials:'include'});
+    if(!r.ok)return;
+    const d=await r.json();
+    currentFile.content=d.content;
+    currentFile.modified=false;
+    currentFile.doc=CodeMirror.Doc(d.content,modeForFile(currentFile.name));
+    editor.swapDoc(currentFile.doc);
+    chunkState.offset=d.offset;
+    chunkState.end=d.end;
+    document.getElementById('info-chunk').textContent=`Lines ${d.offset+1}-${d.end} of ${d.total_lines}`;
+    document.getElementById('editor-modified').textContent='';
+    // Jump cursor to the target line within the chunk
+    const localLine=line-d.offset-1;
+    setTimeout(()=>editor.setCursor(localLine,0),50);
+  }catch(e){}
+}
+
 function closeEditor(){
   if(currentFile&&currentFile.modified){
     if(!confirm(`${currentFile.name} has unsaved changes. Close anyway?`))return;
@@ -443,6 +522,9 @@ function closeEditor(){
   document.getElementById('editor-modal').classList.remove('open');
   if(previewMode)togglePreview();
   currentFile=null;
+  chunkState=null;
+  document.getElementById('chunk-nav').style.display='none';
+  document.getElementById('info-chunk').textContent='';
 }
 
 function closeImageModal(){
