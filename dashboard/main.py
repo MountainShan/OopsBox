@@ -267,6 +267,9 @@ async def create_project(body: CreateReq):
         if r.returncode != 0:
             raise HTTPException(500, r.stderr or r.stdout)
 
+    # Auto-start the project (launches Claude session + ttyd)
+    run([str(BIN_DIR / "project-start.sh"), body.name])
+
     return get_status(body.name)
 
 
