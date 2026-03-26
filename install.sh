@@ -155,8 +155,10 @@ WorkingDirectory=/opt/dashboard
 EnvironmentFile=/etc/environment
 Environment="PATH=/opt/dashboard/venv/bin:$HOME_DIR/bin:/usr/local/bin:/usr/bin:/bin"
 ExecStart=/opt/dashboard/venv/bin/uvicorn main:app --host 127.0.0.1 --port 5000 --workers 1
-Restart=on-failure
-RestartSec=5
+Restart=always
+RestartSec=3
+StartLimitIntervalSec=60
+StartLimitBurst=10
 
 [Install]
 WantedBy=multi-user.target
