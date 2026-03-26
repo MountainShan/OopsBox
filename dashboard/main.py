@@ -676,19 +676,22 @@ async def prompt_state(name: str):
         # Looks like bash prompt, not Claude
         return {"state": "claude_stopped", "choices": [], "raw": lines[-5:] if lines else []}
 
-    # Detect prompt state from last non-empty line
-    last = ""
+    # Detect prompt state from last few non-empty lines
+    # Claude Code wraps ❯ prompt between separator lines, so check multiple lines
+    tail_lines = []
     for line in reversed(lines):
         s = line.replace("\u00a0", " ").strip()
         if s:
-            last = s
+            tail_lines.append(s)
+        if len(tail_lines) >= 5:
             break
+    tail_text = " ".join(tail_lines)
 
     if choices:
         state = "waiting_choice"
-    elif re.match(r'^[❯›>]\s*$', last):
+    elif any(re.match(r'^[❯›>]\s*$', t) for t in tail_lines):
         state = "waiting_text"
-    elif any(c in last for c in "◐◑◒◓") or re.search(r'Thinking|Herding|Garnishing|Cogitating|Searching|Reading', last):
+    elif any(c in tail_text for c in "◐◑◒◓") or re.search(r'Thinking|Herding|Garnishing|Cogitating|Searching|Reading', tail_text):
         state = "thinking"
     else:
         state = "idle"

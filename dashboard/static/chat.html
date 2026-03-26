@@ -199,7 +199,8 @@ const MAX_DISPLAY=50;
 function render(){
   const el=document.getElementById('messages');
   if(!messages.length){
-    el.innerHTML='<div class="msg-empty">Waiting for conversation...</div>';
+    const hint=currentState==='waiting_text'?'Claude is ready — type a message below to start.':'Waiting for conversation...';
+    el.innerHTML=`<div class="msg-empty">${hint}</div>`;
     return;
   }
   const visible=messages.slice(-MAX_DISPLAY);
