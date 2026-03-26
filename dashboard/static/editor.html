@@ -65,6 +65,7 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .tb-btn{display:flex;align-items:center;gap:4px;padding:clamp(4px,1vw,6px) clamp(6px,1.2vw,10px);border-radius:5px;font-size:clamp(10px,2vw,12px);font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;white-space:nowrap}
 .tb-btn:hover{color:var(--text);background:var(--bg3)}
 .tb-btn:active{transform:scale(.96)}
+.tb-btn.danger{color:#e05050;border-color:#e0505040}
 .tb-btn.primary{background:var(--accent);color:#fff;border-color:transparent}
 .tb-btn.primary:hover{opacity:.85}
 .tb-btn svg{width:clamp(12px,2.2vw,14px);height:clamp(12px,2.2vw,14px);fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -190,6 +191,14 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
   <!-- Terminal -->
   <div id="terminal-panel" class="hidden">
     <div class="term-bar">
+      <button class="tb-btn danger" onclick="sendTermKey('\x03')" title="Ctrl+C">^C</button>
+      <button class="tb-btn" onclick="sendTermKey('\x04')" title="Ctrl+D">^D</button>
+      <button class="tb-btn" onclick="sendTermKey('\x1a')" title="Ctrl+Z">^Z</button>
+      <button class="tb-btn" onclick="sendTermKey('\x0c')" title="Ctrl+L (clear)">^L</button>
+      <button class="tb-btn" onclick="sendTermKey('\t')" title="Tab (autocomplete)">Tab</button>
+      <button class="tb-btn" onclick="sendTermKey('\x1b[A')" title="Up arrow">▲</button>
+      <button class="tb-btn" onclick="sendTermKey('\x1b[B')" title="Down arrow">▼</button>
+      <div class="tb-sep"></div>
       <button class="tb-btn" id="mouse-toggle" onclick="toggleMouse()">
         <svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6"/><line x1="12" y1="7" x2="12" y2="11"/></svg>
         <span id="mouse-label">Select Mode</span>
@@ -643,6 +652,36 @@ async function createNewFile(){
   if(!r.ok){alert('Failed to create file');return;}
   hideNewFileModal();
   loadDir(currentDir);
+}
+
+// ── Terminal key injection via ttyd WebSocket ──
+let termWs=null;
+function getTermWs(){
+  if(termWs&&termWs.readyState===WebSocket.OPEN) return termWs;
+  const proto=location.protocol==='https:'?'wss:':'ws:';
+  const wsUrl=`${proto}//${location.host}/proj/${PROJECT}/term/ws`;
+  termWs=new WebSocket(wsUrl);
+  termWs.binaryType='arraybuffer';
+  termWs.onclose=()=>{termWs=null;};
+  termWs.onerror=()=>{termWs=null;};
+  return termWs;
+}
+
+function sendTermKey(key){
+  const ws=getTermWs();
+  // ttyd protocol: first byte 0 = input
+  const payload=new Uint8Array(key.length+1);
+  payload[0]=0; // input type
+  for(let i=0;i<key.length;i++) payload[i+1]=key.charCodeAt(i);
+  if(ws.readyState===WebSocket.OPEN){
+    ws.send(payload);
+  }else{
+    // Wait for connection
+    ws.addEventListener('open',()=>ws.send(payload),{once:true});
+  }
+  // Refocus terminal iframe
+  const iframe=document.getElementById('term-iframe');
+  if(iframe)iframe.focus();
 }
 
 // ── Mouse toggle & copy ──
