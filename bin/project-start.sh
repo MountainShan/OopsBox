@@ -81,7 +81,11 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
   if [ "$BACKEND" != "ssh" ] && ! tmux has-session -t "$TERM_SESSION" 2>/dev/null; then
     tmux new-session -d -s "$TERM_SESSION" -c "$WORKDIR"
   fi
+  # Set tmux to respawn shell when it exits (e.g. Ctrl+D)
+  tmux set -t "$TERM_SESSION" remain-on-exit on 2>/dev/null
+  tmux set-hook -t "$TERM_SESSION" pane-died "respawn-pane -t $TERM_SESSION" 2>/dev/null
   # ttyd uses tmux new-session -A (attach if exists, create if not)
+  # Wrapped in loop so if tmux session somehow dies, it recreates
   ttyd \
     --port "${TTYD_PORT}" \
     --interface 0.0.0.0 \
@@ -95,7 +99,7 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
     -t 'disableReconnect=false' \
     -t 'reconnectInterval=3000' \
     ${TTYD_THEME_ARGS} \
-    tmux new-session -A -s "$TERM_SESSION" -c "$WORKDIR" \
+    bash -c "while true; do tmux new-session -A -s $TERM_SESSION -c '$WORKDIR'; sleep 1; done" \
     > "$PID_DIR/ttyd.log" 2>&1 &
   echo $! > "$PID_DIR/ttyd.pid"
 fi

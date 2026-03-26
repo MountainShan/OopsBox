@@ -43,7 +43,11 @@ case "$ACTION" in
     if ! tmux has-session -t term-system 2>/dev/null; then
       tmux new-session -d -s term-system -c "$HOME"
     fi
+    # Set tmux to respawn shell when it exits (e.g. Ctrl+D)
+    tmux set -t term-system remain-on-exit on 2>/dev/null
+    tmux set-hook -t term-system pane-died "respawn-pane -t term-system" 2>/dev/null
     # ttyd uses tmux new-session -A (attach if exists, create if not)
+    # Wrapped in loop so if tmux session somehow dies, it recreates
     ttyd \
       --port "$PORT" \
       --interface 0.0.0.0 \
@@ -57,7 +61,7 @@ case "$ACTION" in
       -t 'disableReconnect=false' \
       -t 'reconnectInterval=3000' \
       ${THEME_ARGS} \
-      tmux new-session -A -s term-system \
+      bash -c 'while true; do tmux new-session -A -s term-system; sleep 1; done' \
       > /tmp/rcoder-system-term.log 2>&1 &
     echo $! > "$PID_FILE"
     echo "[system-term] started on :$PORT"
