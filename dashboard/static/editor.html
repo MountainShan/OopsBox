@@ -656,7 +656,7 @@ async function createNewFile(){
 
 // ── Terminal key injection via tmux send-keys ──
 async function sendTermKey(key){
-  const session=`term-${PROJECT}`;
+  const session=PROJECT==='_system'?'term-system':`term-${PROJECT}`;
   // Map control chars to tmux key names
   const keyMap={
     '\x03':'C-c','\x04':'C-d','\x1a':'C-z','\x0c':'C-l',

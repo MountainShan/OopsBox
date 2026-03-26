@@ -39,7 +39,11 @@ case "$ACTION" in
         "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh system" Enter
       tmux resize-window -t "agents:system" -x 300 -y 80 2>/dev/null || true
     fi
-    # ttyd runs bash directly — no tmux needed for terminal
+    # Create tmux session for system terminal
+    if ! tmux has-session -t term-system 2>/dev/null; then
+      tmux new-session -d -s term-system -c "$HOME"
+    fi
+    # ttyd attaches to tmux session for key injection support
     ttyd \
       --port "$PORT" \
       --interface 0.0.0.0 \
@@ -53,7 +57,7 @@ case "$ACTION" in
       -t 'disableReconnect=false' \
       -t 'reconnectInterval=3000' \
       ${THEME_ARGS} \
-      bash -l \
+      tmux attach -t term-system \
       > /tmp/rcoder-system-term.log 2>&1 &
     echo $! > "$PID_FILE"
     echo "[system-term] started on :$PORT"
@@ -63,5 +67,6 @@ case "$ACTION" in
       kill "$(cat $PID_FILE)" 2>/dev/null && echo "[system-term] stopped"
       rm -f "$PID_FILE"
     fi
+    tmux kill-session -t term-system 2>/dev/null
     ;;
 esac
