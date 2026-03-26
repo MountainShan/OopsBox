@@ -631,7 +631,10 @@ async def prompt_state(name: str):
     lines = r.stdout.strip().split("\n") if r.returncode == 0 else []
 
     # Parse choices from bottom up — only take the latest group
+    # Real interactive choices have ❯ marker on the selected item;
+    # plain numbered lists in Claude's text responses do not.
     choices = []
+    has_cursor = False
     for line in reversed(lines):
         stripped = line.replace("\u00a0", " ").strip()
         if not stripped:
@@ -640,18 +643,25 @@ async def prompt_state(name: str):
         if "Esc to cancel" in stripped or "Enter to confirm" in stripped or "Tab to amend" in stripped:
             continue
         # Numbered choice: "❯ 1. Yes" or "  2. No, exit"
-        m = re.match(r'[❯\s]*(\d+)\.\s+(.+)', stripped)
+        m = re.match(r'([❯\s]*?)(\d+)\.\s+(.+)', stripped)
         if m:
-            choices.insert(0, {"num": m.group(1), "text": m.group(2).strip()})
+            if "❯" in m.group(1):
+                has_cursor = True
+            choices.insert(0, {"num": m.group(2), "text": m.group(3).strip()})
             continue
         # Checkbox: "[x] Bash" or "[ ] Edit"
-        m = re.match(r'[❯\s]*\[([ xX])\]\s+(.+)', stripped)
+        m = re.match(r'([❯\s]*?)\[([ xX])\]\s+(.+)', stripped)
         if m:
-            choices.insert(0, {"checked": m.group(1).lower() == "x", "text": m.group(2).strip()})
+            if "❯" in m.group(1):
+                has_cursor = True
+            choices.insert(0, {"checked": m.group(2).lower() == "x", "text": m.group(3).strip()})
             continue
         # Not a choice line — stop (don't look at older lines)
         if choices:
             break
+    # Discard choices if no ❯ cursor found — they're just a numbered list in text
+    if not has_cursor:
+        choices = []
 
     # Check if tmux window exists and Claude is running
     if r.returncode != 0:
