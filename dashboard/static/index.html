@@ -212,7 +212,7 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
       <div class="sys-row"><span class="sys-label">📦</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-disk" style="width:0%"></div></div><span class="sys-val" id="val-disk">--</span></div>
       <button class="sys-term-btn" onclick="openSystemTerm()">
         <svg style="width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-        System Terminal
+        System
       </button>
     </div>
   </div>
@@ -872,7 +872,7 @@ async function doLogout(){
 
 function openSystemTerm(){
   if(isMobile()){
-    openOverlay('_system',null,null,'work');
+    openOverlay('_system',null,null,'chat');
   } else {
     deskCurrent={name:'_system',cp:null,tp:null};
     document.getElementById('desk-empty').style.display='none';
@@ -881,7 +881,7 @@ function openSystemTerm(){
     document.getElementById('df-chat').src=`/static/chat.html?project=_system&v=${Date.now()}`;
     document.getElementById('df-work').src=`/static/editor.html?project=_system&termUrl=${encodeURIComponent('/system/term/')}&v=${Date.now()}`;
     document.getElementById('dt-chat').style.display='';
-    deskTab('work');
+    deskTab('chat');
   }
 }
 function openCodeServer(){
