@@ -351,7 +351,7 @@ async def project_status(name: str):
 
 @app.post("/api/projects/{name}/send-keys")
 async def send_keys(name: str, keys: str = "C-c", window: Optional[str] = None, session: Optional[str] = None):
-    allowed = {"C-c", "C-z", "C-d", "C-\\", "Tab", "BTab", "Up", "Down", "Left", "Right",
+    allowed = {"C-c", "C-z", "C-d", "C-l", "C-\\", "Tab", "BTab", "Up", "Down", "Left", "Right",
                "Enter", "Escape", "Space",
                "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
                "y", "n", "Y", "N"}

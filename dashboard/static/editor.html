@@ -654,31 +654,20 @@ async function createNewFile(){
   loadDir(currentDir);
 }
 
-// ── Terminal key injection via ttyd WebSocket ──
-let termWs=null;
-function getTermWs(){
-  if(termWs&&termWs.readyState===WebSocket.OPEN) return termWs;
-  const proto=location.protocol==='https:'?'wss:':'ws:';
-  const wsUrl=`${proto}//${location.host}/proj/${PROJECT}/term/ws`;
-  termWs=new WebSocket(wsUrl);
-  termWs.binaryType='arraybuffer';
-  termWs.onclose=()=>{termWs=null;};
-  termWs.onerror=()=>{termWs=null;};
-  return termWs;
-}
-
-function sendTermKey(key){
-  const ws=getTermWs();
-  // ttyd protocol: first byte 0 = input
-  const payload=new Uint8Array(key.length+1);
-  payload[0]=0; // input type
-  for(let i=0;i<key.length;i++) payload[i+1]=key.charCodeAt(i);
-  if(ws.readyState===WebSocket.OPEN){
-    ws.send(payload);
-  }else{
-    // Wait for connection
-    ws.addEventListener('open',()=>ws.send(payload),{once:true});
-  }
+// ── Terminal key injection via tmux send-keys ──
+async function sendTermKey(key){
+  const session=`term-${PROJECT}`;
+  // Map control chars to tmux key names
+  const keyMap={
+    '\x03':'C-c','\x04':'C-d','\x1a':'C-z','\x0c':'C-l',
+    '\t':'Tab','\x1b[A':'Up','\x1b[B':'Down'
+  };
+  const tmuxKey=keyMap[key]||key;
+  try{
+    await fetch(`/api/projects/${PROJECT}/send-keys?keys=${encodeURIComponent(tmuxKey)}&session=${encodeURIComponent(session)}`,{
+      method:'POST',credentials:'include'
+    });
+  }catch(e){}
   // Refocus terminal iframe
   const iframe=document.getElementById('term-iframe');
   if(iframe)iframe.focus();

@@ -55,27 +55,32 @@ fi
 if [ ! -f "$PID_DIR/ttyd.pid" ] || \
    ! kill -0 "$(cat $PID_DIR/ttyd.pid)" 2>/dev/null; then
 
-  # Build terminal command based on backend
-  if [ "$BACKEND" = "ssh" ]; then
-    SSH_HOST=$(jq -r --arg n "$NAME" '.[$n].ssh_host' "$REGISTRY")
-    SSH_PORT=$(jq -r --arg n "$NAME" '.[$n].ssh_port // 22' "$REGISTRY")
-    SSH_USER=$(jq -r --arg n "$NAME" '.[$n].ssh_user' "$REGISTRY")
-    SSH_AUTH=$(jq -r --arg n "$NAME" '.[$n].ssh_auth // "password"' "$REGISTRY")
-    SSH_OPTS="-o StrictHostKeyChecking=no -o KexAlgorithms=+diffie-hellman-group14-sha1 -o HostKeyAlgorithms=+ssh-rsa"
-    if [ "$SSH_AUTH" = "key" ]; then
-      TERM_CMD="ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}"
-    else
-      SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
-      if command -v sshpass >/dev/null 2>&1; then
-        TERM_CMD="sshpass -p '${SSH_PASS}' ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}"
+  # Create tmux session for terminal (separate from agents session)
+  TERM_SESSION="term-${NAME}"
+  if ! tmux has-session -t "$TERM_SESSION" 2>/dev/null; then
+    if [ "$BACKEND" = "ssh" ]; then
+      SSH_HOST=$(jq -r --arg n "$NAME" '.[$n].ssh_host' "$REGISTRY")
+      SSH_PORT=$(jq -r --arg n "$NAME" '.[$n].ssh_port // 22' "$REGISTRY")
+      SSH_USER=$(jq -r --arg n "$NAME" '.[$n].ssh_user' "$REGISTRY")
+      SSH_AUTH=$(jq -r --arg n "$NAME" '.[$n].ssh_auth // "password"' "$REGISTRY")
+      SSH_OPTS="-o StrictHostKeyChecking=no -o KexAlgorithms=+diffie-hellman-group14-sha1 -o HostKeyAlgorithms=+ssh-rsa"
+      tmux new-session -d -s "$TERM_SESSION" -c "$WORKDIR"
+      if [ "$SSH_AUTH" = "key" ]; then
+        tmux send-keys -t "$TERM_SESSION" "ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}" Enter
       else
-        TERM_CMD="ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}"
+        SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
+        if command -v sshpass >/dev/null 2>&1; then
+          tmux send-keys -t "$TERM_SESSION" "sshpass -p '${SSH_PASS}' ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}" Enter
+        else
+          tmux send-keys -t "$TERM_SESSION" "ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}" Enter
+        fi
       fi
+    else
+      tmux new-session -d -s "$TERM_SESSION" -c "$WORKDIR"
     fi
-  else
-    TERM_CMD="cd '${WORKDIR}' && exec bash -l"
   fi
 
+  # ttyd attaches to the tmux session
   ttyd \
     --port "${TTYD_PORT}" \
     --interface 0.0.0.0 \
@@ -89,7 +94,7 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
     -t 'disableReconnect=false' \
     -t 'reconnectInterval=3000' \
     ${TTYD_THEME_ARGS} \
-    bash -c "${TERM_CMD}" \
+    tmux attach -t "$TERM_SESSION" \
     > "$PID_DIR/ttyd.log" 2>&1 &
   echo $! > "$PID_DIR/ttyd.pid"
 fi

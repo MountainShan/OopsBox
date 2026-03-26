@@ -15,4 +15,6 @@ done
 if tmux list-windows -t agents -F '#{window_name}' 2>/dev/null | grep -qx "$NAME"; then
   tmux kill-window -t "agents:$NAME" 2>/dev/null && echo "[stop] killed agent window"
 fi
+# Kill terminal tmux session
+tmux kill-session -t "term-${NAME}" 2>/dev/null && echo "[stop] killed terminal session"
 echo "[stop] project stopped."
