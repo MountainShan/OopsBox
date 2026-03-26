@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 NAME="$1"
-STATE_FILE="/home/mountain/projects/.port-registry.json"
+STATE_FILE="${HOME}/projects/.port-registry.json"
 [ -f "$STATE_FILE" ] || echo '{}' > "$STATE_FILE"
 
 EXISTING=$(jq -r --arg n "$NAME" '.[$n] // empty' "$STATE_FILE")

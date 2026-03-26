@@ -2,7 +2,8 @@
 # Initialize agents tmux session + system terminal on boot
 set -uo pipefail
 
-export HOME="/home/mountain"
+# Use existing HOME if available; fallback for cron/systemd context where HOME may not be set
+export HOME="${HOME:-/home/mountain}"
 export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.nvm/versions/node/v22.16.0/bin:/usr/local/bin:/usr/bin:/bin"
 source "$HOME/.bashrc" 2>/dev/null || true
 

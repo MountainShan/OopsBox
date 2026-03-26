@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-STATE="/home/mountain/projects/.port-registry.json"
+STATE="${HOME}/projects/.port-registry.json"
 OUT="/etc/nginx/rcoder-ports.conf"
 
 

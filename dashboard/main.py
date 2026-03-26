@@ -102,8 +102,9 @@ async def api_verify(request: Request):
 async def login_page():
     return FileResponse("/opt/dashboard/static/login.html")
 
-PROJECTS_DIR = Path("/home/mountain/projects")
-BIN_DIR      = Path("/home/mountain/bin")
+_HOME = Path(os.environ.get("OOPSBOX_HOME", str(Path.home())))
+PROJECTS_DIR = _HOME / "projects"
+BIN_DIR      = _HOME / "bin"
 REGISTRY_FILE = PROJECTS_DIR / ".project-registry.json"
 
 
@@ -720,7 +721,7 @@ async def toggle_mouse(name: str, on: bool = True):
     return {"mouse": val}
 
 
-THEME_CONF = Path("/home/mountain/.config/ttyd-theme.conf")
+THEME_CONF = _HOME / ".config" / "ttyd-theme.conf"
 
 @app.get("/api/terminal-theme")
 async def get_terminal_theme():
@@ -804,7 +805,7 @@ async def system_stats():
 
 def _get_base(project: str) -> Path:
     if project == "_system":
-        return Path("/home/mountain")
+        return _HOME
     return PROJECTS_DIR / project
 
 def _is_ssh_project(project: str) -> bool:
@@ -1098,8 +1099,8 @@ async def download_file(project: str, path: str):
 
 # ── Channel API ───────────────────────────────────────────────────────────────
 
-CHANNEL_REGISTRY = Path("/home/mountain/projects/.channel-registry.json")
-CHANNELS_DIR = Path("/home/mountain/channels")
+CHANNEL_REGISTRY = _HOME / "projects" / ".channel-registry.json"
+CHANNELS_DIR = _HOME / "channels"
 CHANNEL_KEY_FILE = Path.home() / ".config" / "oopsbox" / "channel.key"
 
 
@@ -1156,7 +1157,7 @@ def get_channel_status(name: str) -> dict:
     r = run(["tmux", "list-windows", "-t", "agents", "-F", "#{window_name}"])
     windows = r.stdout.strip().split("\n") if r.returncode == 0 else []
     status = "running" if window in windows else "idle"
-    return {"name": name, "status": status, "workdir": meta.get("workdir", "/home/mountain"),
+    return {"name": name, "status": status, "workdir": meta.get("workdir", str(_HOME)),
             "skip_permissions": meta.get("skip_permissions", False)}
 
 
@@ -1168,7 +1169,7 @@ async def list_channels():
 
 class ChannelCreateReq(BaseModel):
     name: str
-    workdir: str = "/home/mountain"
+    workdir: str = ""
     skip_permissions: bool = False
     telegram_token: str = ""
 
@@ -1188,7 +1189,7 @@ async def create_channel(body: ChannelCreateReq):
     # Create channel directory
     chan_dir = CHANNELS_DIR / body.name
     chan_dir.mkdir(parents=True, exist_ok=True)
-    workdir = body.workdir if body.workdir and body.workdir != "/home/mountain" else str(chan_dir)
+    workdir = body.workdir if body.workdir and body.workdir != str(_HOME) else str(chan_dir)
     reg[body.name] = {
         "workdir": workdir,
         "skip_permissions": body.skip_permissions,

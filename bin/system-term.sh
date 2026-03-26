@@ -13,7 +13,7 @@ case "$ACTION" in
     fi
     # Load theme
     THEME_ARGS=""
-    THEME_CONF="/home/mountain/.config/ttyd-theme.conf"
+    THEME_CONF="${HOME}/.config/ttyd-theme.conf"
     if [ -f "$THEME_CONF" ]; then
       source "$THEME_CONF"
       T="${TTYD_THEME:-dark}"

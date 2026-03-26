@@ -2,11 +2,11 @@
 set -euo pipefail
 NAME="$1"
 WINDOW="chan-${NAME}"
-REGISTRY="/home/mountain/projects/.channel-registry.json"
+REGISTRY="${HOME}/projects/.channel-registry.json"
 
 [ -f "$REGISTRY" ] || { echo "ERROR: channel registry not found" >&2; exit 1; }
 
-WORKDIR=$(jq -r --arg n "$NAME" '.[$n].workdir // "/home/mountain/channels/'"$NAME"'"' "$REGISTRY")
+WORKDIR=$(jq -r --arg n "$NAME" '.[$n].workdir // "'"${HOME}/channels/${NAME}"'"' "$REGISTRY")
 
 # Decrypt Telegram token
 KEY_FILE="$HOME/.config/oopsbox/channel.key"

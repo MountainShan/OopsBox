@@ -2,7 +2,7 @@
 set -euo pipefail
 NAME="$1"
 BACKEND="${2:-local}"
-WORKDIR="/home/mountain/projects/${NAME}"
+WORKDIR="${HOME}/projects/${NAME}"
 
 [ -d "$WORKDIR" ] && { echo "ERROR: project '$NAME' already exists" >&2; exit 1; }
 [[ "$NAME" =~ ^[a-zA-Z0-9._-]+$ ]] || { echo "ERROR: letters, numbers, dots, underscores, hyphens only" >&2; exit 1; }
@@ -114,4 +114,4 @@ $(pwd)
 EOF
 fi
 
-exec /home/mountain/bin/project-start.sh "$NAME"
+exec $HOME/bin/project-start.sh "$NAME"

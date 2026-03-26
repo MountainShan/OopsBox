@@ -16,6 +16,6 @@ for PID_DIR in /tmp/rcoder-*/; do
   AGE_MINS=$(( ($(date +%s) - $(stat -c %Y "$LOG")) / 60 ))
   if [ "$AGE_MINS" -gt "$IDLE_MINUTES" ]; then
     echo "[idle-check] stopping $NAME (idle ${AGE_MINS}m)"
-    /home/mountain/bin/project-stop.sh "$NAME"
+    $HOME/bin/project-stop.sh "$NAME"
   fi
 done

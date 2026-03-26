@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 NAME="$1"
-WORKDIR="/home/mountain/projects/${NAME}"
+WORKDIR="${HOME}/projects/${NAME}"
 PID_DIR="/tmp/rcoder-${NAME}"
 SESSION="proj-${NAME}"
-REGISTRY="/home/mountain/projects/.project-registry.json"
+REGISTRY="${HOME}/projects/.project-registry.json"
 
 [ -d "$WORKDIR" ] || { echo "ERROR: project '$NAME' not found" >&2; exit 1; }
 mkdir -p "$PID_DIR"
 
-read -r CODE_PORT TTYD_PORT < <(/home/mountain/bin/get-project-ports.sh "$NAME")
+read -r CODE_PORT TTYD_PORT < <($HOME/bin/get-project-ports.sh "$NAME")
 
 # Detect backend from registry
 BACKEND="local"
@@ -38,7 +38,7 @@ fi
 # No tmux needed for terminal — ttyd runs bash directly
 
 # ttyd — load theme
-THEME_CONF="/home/mountain/.config/ttyd-theme.conf"
+THEME_CONF="${HOME}/.config/ttyd-theme.conf"
 TTYD_THEME_ARGS=""
 if [ -f "$THEME_CONF" ]; then
   source "$THEME_CONF"
@@ -104,5 +104,5 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
   echo $! > "$PID_DIR/ttyd.pid"
 fi
 
-/home/mountain/bin/nginx-reload-ports.sh 2>/dev/null || true
+$HOME/bin/nginx-reload-ports.sh 2>/dev/null || true
 echo "[start] project '$NAME' running — ttyd :${TTYD_PORT}"
