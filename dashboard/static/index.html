@@ -283,6 +283,28 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
         <option value="ssh">SSH Remote</option>
       </select>
     </div>
+    <div id="isolation-fields" style="display:none">
+      <div class="field" style="display:flex;align-items:center;gap:10px">
+        <label style="flex:1;margin:0">Isolation</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);margin:0">
+          <input type="checkbox" id="isolated-check" onchange="toggleIsolation()" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
+          Run agent in container
+        </label>
+      </div>
+      <div id="resource-fields" style="display:none">
+        <div style="display:flex;gap:8px">
+          <div class="field" style="flex:1">
+            <label>Memory limit</label>
+            <input id="mem-limit" value="4g" placeholder="4g" autocapitalize="none">
+          </div>
+          <div class="field" style="flex:1">
+            <label>CPU limit</label>
+            <input id="cpu-limit" value="2.0" placeholder="2.0">
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);padding:0 2px 4px">Agent runs in a Podman/Docker container with restricted filesystem access and resource limits.</div>
+      </div>
+    </div>
     <div id="ssh-fields" style="display:none">
       <div class="field">
         <label>Host</label>
@@ -485,6 +507,12 @@ function toggleSidebar(){document.querySelector('.layout').classList.toggle('col
 function toggleSSH(){
   const ssh=document.getElementById('backend-select').value==='ssh';
   document.getElementById('ssh-fields').style.display=ssh?'block':'none';
+  document.getElementById('isolation-fields').style.display=ssh?'none':'block';
+  if(ssh){document.getElementById('isolated-check').checked=false;toggleIsolation();}
+}
+function toggleIsolation(){
+  const on=document.getElementById('isolated-check').checked;
+  document.getElementById('resource-fields').style.display=on?'block':'none';
 }
 function toggleSSHAuth(){
   const key=document.getElementById('ssh-auth-select').value==='key';
@@ -634,6 +662,13 @@ function openModal(){
   document.getElementById('modal').classList.add('open');
   document.getElementById('pname').value='';
   document.getElementById('cerr').style.display='none';
+  document.getElementById('backend-select').value='local';
+  document.getElementById('ssh-fields').style.display='none';
+  document.getElementById('isolation-fields').style.display='block';
+  document.getElementById('isolated-check').checked=false;
+  document.getElementById('resource-fields').style.display='none';
+  document.getElementById('mem-limit').value='4g';
+  document.getElementById('cpu-limit').value='2.0';
   setTimeout(()=>document.getElementById('pname').focus(),100);
 }
 function closeModal(){document.getElementById('modal').classList.remove('open')}
@@ -710,6 +745,11 @@ async function doCreate(){
   }
   const backend=document.getElementById('backend-select').value;
   const body={name,backend};
+  if(backend==='local'&&document.getElementById('isolated-check').checked){
+    body.isolated=true;
+    body.mem_limit=document.getElementById('mem-limit').value.trim()||'4g';
+    body.cpu_limit=document.getElementById('cpu-limit').value.trim()||'2.0';
+  }
   if(backend==='ssh'){
     body.ssh_host=document.getElementById('ssh-host').value.trim();
     body.ssh_port=parseInt(document.getElementById('ssh-port').value)||22;
