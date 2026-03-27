@@ -102,6 +102,10 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
           tmux send-keys -t "$TERM_SESSION" "ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}" Enter
         fi
       fi
+      # Add local shell window (user can switch with tmux hotkeys)
+      tmux new-window -t "$TERM_SESSION" -n "local" -c "$WORKDIR"
+      # Switch back to remote window as default
+      tmux select-window -t "$TERM_SESSION:0"
     fi
   fi
 
