@@ -19,8 +19,26 @@ app = FastAPI(title="OopsBox")
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
 AUTH_FILE = Path.home() / ".config" / "oopsbox" / "auth.json"
-SESSIONS = {}  # token → expires_at
+SESSION_FILE = Path.home() / ".config" / "oopsbox" / "sessions.json"
 SESSION_TTL = 86400  # 24h
+
+def _load_sessions() -> dict:
+    if SESSION_FILE.exists():
+        try:
+            data = json.loads(SESSION_FILE.read_text())
+            # Purge expired
+            now = time.time()
+            return {k: v for k, v in data.items() if v > now}
+        except Exception:
+            pass
+    return {}
+
+def _save_sessions():
+    SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SESSION_FILE.write_text(json.dumps(SESSIONS))
+    os.chmod(str(SESSION_FILE), 0o600)
+
+SESSIONS = _load_sessions()
 
 def hash_password(password: str, salt: str = None) -> tuple:
     if not salt:
@@ -61,6 +79,7 @@ def verify_session(token: str) -> bool:
         return False
     if time.time() > SESSIONS[token]:
         del SESSIONS[token]
+        _save_sessions()
         return False
     return True
 
@@ -73,6 +92,7 @@ async def api_login(body: LoginReq):
     if verify_password(body.username, body.password):
         token = secrets.token_hex(32)
         SESSIONS[token] = time.time() + SESSION_TTL
+        _save_sessions()
         resp = JSONResponse({"ok": True})
         resp.set_cookie("oopsbox_session", token, max_age=SESSION_TTL, httponly=True, samesite="lax")
         return resp
@@ -87,6 +107,7 @@ async def api_auth_status(request: Request):
 async def api_logout(request: Request):
     token = request.cookies.get("oopsbox_session", "")
     SESSIONS.pop(token, None)
+    _save_sessions()
     resp = JSONResponse({"ok": True})
     resp.delete_cookie("oopsbox_session")
     return resp
