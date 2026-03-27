@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>⚠️ Perpetually work-in-progress. Features appear faster than documentation. Use at your own risk and/or amusement.</strong>
+  <strong>⚠️ Permanently under construction. I keep saying "just one more feature" and it keeps being a lie. Nothing is stable, everything is on fire, and somehow it still works. Use at your own risk — I do, and I'm not sure that's a recommendation.</strong>
 </p>
 
 ---
