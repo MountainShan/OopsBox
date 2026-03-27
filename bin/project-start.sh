@@ -22,17 +22,27 @@ if [ -f "$REGISTRY" ]; then
   SKIP_PERMS=$(jq -r --arg n "$NAME" '.[$n].skip_permissions // false' "$REGISTRY")
 fi
 
-echo "[start] $NAME — backend:${BACKEND}, skip_perms:${SKIP_PERMS}, ttyd :${TTYD_PORT}"
+# Check isolation setting
+ISOLATED="false"
+if [ -f "$REGISTRY" ]; then
+  ISOLATED=$(jq -r --arg n "$NAME" '.[$n].isolated // false' "$REGISTRY")
+fi
+
+echo "[start] $NAME — backend:${BACKEND}, skip_perms:${SKIP_PERMS}, isolated:${ISOLATED}, ttyd :${TTYD_PORT}"
 
 # AI agent → shared "agents" tmux session
-if ! tmux has-session -t agents 2>/dev/null; then
-  tmux new-session -d -s agents -c "$HOME" -n "system"
-fi
-if ! tmux list-windows -t agents -F '#{window_name}' | grep -qx "$NAME"; then
-  tmux new-window -t agents -n "$NAME" -c "$WORKDIR"
-  tmux send-keys -t "agents:$NAME" \
-    "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter
-  tmux resize-window -t "agents:$NAME" -x 300 -y 80 2>/dev/null || true
+if [ "$ISOLATED" = "true" ] && [ "$BACKEND" = "local" ]; then
+  bash "$HOME/bin/project-start-isolated.sh" "$NAME" "$SKIP_PERMS"
+else
+  if ! tmux has-session -t agents 2>/dev/null; then
+    tmux new-session -d -s agents -c "$HOME" -n "system"
+  fi
+  if ! tmux list-windows -t agents -F '#{window_name}' | grep -qx "$NAME"; then
+    tmux new-window -t agents -n "$NAME" -c "$WORKDIR"
+    tmux send-keys -t "agents:$NAME" \
+      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter
+    tmux resize-window -t "agents:$NAME" -x 300 -y 80 2>/dev/null || true
+  fi
 fi
 
 # No tmux needed for terminal — ttyd runs bash directly

@@ -17,6 +17,14 @@ if [ -f "$HOME/.config/oopsbox/env" ]; then
   source "$HOME/.config/oopsbox/env"
 fi
 
+# Clean up stale isolation containers from previous run
+for rt in podman docker; do
+  if command -v $rt &>/dev/null; then
+    $rt rm -f $($rt ps -a --filter "name=oopsbox-agent-" -q) 2>/dev/null || true
+    break
+  fi
+done
+
 # Create agents session with system window
 if ! tmux has-session -t agents 2>/dev/null; then
   tmux new-session -d -s agents -c "$HOME" -n "system"

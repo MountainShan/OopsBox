@@ -17,4 +17,12 @@ if tmux list-windows -t agents -F '#{window_name}' 2>/dev/null | grep -qx "$NAME
 fi
 # Kill terminal tmux session
 tmux kill-session -t "term-${NAME}" 2>/dev/null && echo "[stop] killed terminal session"
+# Stop isolation container if running
+CONTAINER="oopsbox-agent-${NAME}"
+for rt in podman docker; do
+  if command -v $rt &>/dev/null && $rt ps -q --filter "name=$CONTAINER" 2>/dev/null | grep -q .; then
+    $rt stop "$CONTAINER" 2>/dev/null && $rt rm "$CONTAINER" 2>/dev/null && echo "[stop] removed container $CONTAINER"
+    break
+  fi
+done
 echo "[stop] project stopped."

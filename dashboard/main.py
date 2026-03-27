@@ -202,6 +202,9 @@ class CreateReq(BaseModel):
     ssh_pass: Optional[str] = None
     ssh_key: Optional[str] = None
     remote_path: str = ""
+    isolated: bool = False
+    mem_limit: str = "4g"
+    cpu_limit: str = "2.0"
 
     @field_validator("name")
     @classmethod
@@ -262,7 +265,12 @@ async def create_project(body: CreateReq):
     else:
         # Local backend
         reg = load_registry()
-        reg[body.name] = {"backend": "local"}
+        entry = {"backend": "local"}
+        if body.isolated:
+            entry["isolated"] = True
+            entry["mem_limit"] = body.mem_limit
+            entry["cpu_limit"] = body.cpu_limit
+        reg[body.name] = entry
         save_registry(reg)
         r = run([str(BIN_DIR / "project-create.sh"), body.name])
         if r.returncode != 0:
@@ -283,6 +291,9 @@ class UpdateReq(BaseModel):
     ssh_key: Optional[str] = None
     remote_path: Optional[str] = None
     skip_permissions: Optional[bool] = None
+    isolated: Optional[bool] = None
+    mem_limit: Optional[str] = None
+    cpu_limit: Optional[str] = None
 
 
 @app.put("/api/projects/{name}")
@@ -291,7 +302,7 @@ async def update_project(name: str, body: UpdateReq):
         raise HTTPException(404, f"'{name}' not found")
     reg = load_registry()
     meta = reg.get(name, {})
-    for field in ["ssh_host", "ssh_port", "ssh_user", "ssh_auth", "ssh_pass", "ssh_key", "remote_path", "skip_permissions"]:
+    for field in ["ssh_host", "ssh_port", "ssh_user", "ssh_auth", "ssh_pass", "ssh_key", "remote_path", "skip_permissions", "isolated", "mem_limit", "cpu_limit"]:
         val = getattr(body, field)
         if val is not None:
             meta[field] = val
