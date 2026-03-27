@@ -283,6 +283,7 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
         <option value="ssh">SSH Remote</option>
       </select>
     </div>
+    <!-- Isolation fields (hidden until feature is ready) -->
     <div id="isolation-fields" style="display:none">
       <div class="field" style="display:flex;align-items:center;gap:10px">
         <label style="flex:1;margin:0">Isolation</label>
@@ -507,8 +508,9 @@ function toggleSidebar(){document.querySelector('.layout').classList.toggle('col
 function toggleSSH(){
   const ssh=document.getElementById('backend-select').value==='ssh';
   document.getElementById('ssh-fields').style.display=ssh?'block':'none';
-  document.getElementById('isolation-fields').style.display=ssh?'none':'block';
-  if(ssh){document.getElementById('isolated-check').checked=false;toggleIsolation();}
+  // Isolation hidden until feature is ready
+  // document.getElementById('isolation-fields').style.display=ssh?'none':'block';
+  // if(ssh){document.getElementById('isolated-check').checked=false;toggleIsolation();}
 }
 function toggleIsolation(){
   const on=document.getElementById('isolated-check').checked;
@@ -664,7 +666,8 @@ function openModal(){
   document.getElementById('cerr').style.display='none';
   document.getElementById('backend-select').value='local';
   document.getElementById('ssh-fields').style.display='none';
-  document.getElementById('isolation-fields').style.display='block';
+  // Isolation hidden until feature is ready
+  document.getElementById('isolation-fields').style.display='none';
   document.getElementById('isolated-check').checked=false;
   document.getElementById('resource-fields').style.display='none';
   document.getElementById('mem-limit').value='4g';
