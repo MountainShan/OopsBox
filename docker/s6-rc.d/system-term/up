@@ -1,1 +1,1 @@
-s6-setuidgid mountain /home/mountain/bin/system-term.sh start
+s6-setuidgid oopsbox /oopsbox/bin/system-term.sh start

@@ -25,13 +25,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 # ── Claude CLI ──
 RUN npm install -g @anthropic-ai/claude-code && npm cache clean --force
 
-# ── Create user ──
-RUN useradd -m -s /bin/bash -G sudo mountain && \
-    echo "mountain ALL=(ALL) NOPASSWD: /usr/sbin/nginx, /usr/bin/tee" >> /etc/sudoers.d/oopsbox
+# ── Create user with home at /oopsbox ──
+RUN useradd -m -s /bin/bash -d /oopsbox oopsbox && \
+    echo "oopsbox ALL=(ALL) NOPASSWD: /usr/sbin/nginx, /usr/bin/tee" >> /etc/sudoers.d/oopsbox
 
 # ── Dashboard (Python app) ──
-RUN mkdir -p /opt/dashboard/static && chown -R mountain:mountain /opt/dashboard
-USER mountain
+RUN mkdir -p /opt/dashboard/static && chown -R oopsbox:oopsbox /opt/dashboard
+USER oopsbox
 RUN python3 -m venv /opt/dashboard/venv && \
     /opt/dashboard/venv/bin/pip install --no-cache-dir -q \
     fastapi "uvicorn[standard]" aiofiles paramiko python-multipart
@@ -41,19 +41,21 @@ COPY dashboard/main.py /opt/dashboard/
 COPY dashboard/static/ /opt/dashboard/static/
 
 # ── Scripts ──
-COPY bin/ /home/mountain/bin/
-RUN chmod +x /home/mountain/bin/*
+COPY bin/ /oopsbox/bin/
+RUN chmod +x /oopsbox/bin/*
 
 # ── Configs ──
-COPY config/tmux.conf /home/mountain/.tmux.conf
-COPY config/ttyd-theme.conf /home/mountain/.config/ttyd-theme.conf
-COPY config/statusline-command.sh /home/mountain/.claude/statusline-command.sh
-RUN chmod +x /home/mountain/.claude/statusline-command.sh
+COPY config/tmux.conf /oopsbox/.tmux.conf
+COPY config/ttyd-theme.conf /oopsbox/.config/ttyd-theme.conf
+COPY config/statusline-command.sh /oopsbox/.claude/statusline-command.sh
+RUN chmod +x /oopsbox/.claude/statusline-command.sh
 
-# ── Persistent directories ──
-RUN mkdir -p /home/mountain/projects /home/mountain/.config/oopsbox \
-    /home/mountain/.claude /home/mountain/channels && \
-    chown -R mountain:mountain /home/mountain
+# ── Persistent directories (volume mount points) ──
+RUN mkdir -p /oopsbox/projects /oopsbox/.config/oopsbox \
+    /oopsbox/.claude /oopsbox/channels && \
+    chown -R oopsbox:oopsbox /oopsbox
+
+VOLUME ["/oopsbox/projects", "/oopsbox/.config/oopsbox", "/oopsbox/.claude", "/oopsbox/channels"]
 
 # ── nginx config ──
 COPY docker/nginx.conf /etc/nginx/sites-available/oopsbox
@@ -68,8 +70,9 @@ COPY docker/s6-rc.d/ /etc/s6-overlay/s6-rc.d/
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# ── PATH ──
-ENV PATH="/home/mountain/bin:/opt/dashboard/venv/bin:${PATH}"
+# ── PATH + HOME ──
+ENV HOME=/oopsbox
+ENV PATH="/oopsbox/bin:/opt/dashboard/venv/bin:${PATH}"
 
 EXPOSE 80
 

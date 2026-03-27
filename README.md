@@ -79,10 +79,10 @@ docker run -d \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -e GIT_NAME="Your Name" \
   -e GIT_EMAIL="you@example.com" \
-  -v oopsbox-projects:/home/mountain/projects \
-  -v oopsbox-config:/home/mountain/.config/oopsbox \
-  -v oopsbox-claude:/home/mountain/.claude \
-  -v oopsbox-channels:/home/mountain/channels \
+  -v oopsbox-projects:/oopsbox/projects \
+  -v oopsbox-config:/oopsbox/.config/oopsbox \
+  -v oopsbox-claude:/oopsbox/.claude \
+  -v oopsbox-channels:/oopsbox/channels \
   oopsbox
 ```
 
@@ -100,10 +100,10 @@ If you skip `OOPSBOX_PASSWORD`, it generates a random one and prints it to the c
 
 | Volume | Container Path | What it stores |
 |---|---|---|
-| `oopsbox-projects` | `/home/mountain/projects` | Your project files and registries |
-| `oopsbox-config` | `/home/mountain/.config/oopsbox` | Auth, encryption keys |
-| `oopsbox-claude` | `/home/mountain/.claude` | Claude CLI sessions and settings |
-| `oopsbox-channels` | `/home/mountain/channels` | Telegram channel data |
+| `oopsbox-projects` | `/oopsbox/projects` | Your project files and registries |
+| `oopsbox-config` | `/oopsbox/.config/oopsbox` | Auth, encryption keys |
+| `oopsbox-claude` | `/oopsbox/.claude` | Claude CLI sessions and settings |
+| `oopsbox-channels` | `/oopsbox/channels` | Telegram channel data |
 
 #### Option B: Bare metal (for people who like to live dangerously)
 
@@ -286,10 +286,10 @@ docker run -d \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -e GIT_NAME="你的名字" \
   -e GIT_EMAIL="you@example.com" \
-  -v oopsbox-projects:/home/mountain/projects \
-  -v oopsbox-config:/home/mountain/.config/oopsbox \
-  -v oopsbox-claude:/home/mountain/.claude \
-  -v oopsbox-channels:/home/mountain/channels \
+  -v oopsbox-projects:/oopsbox/projects \
+  -v oopsbox-config:/oopsbox/.config/oopsbox \
+  -v oopsbox-claude:/oopsbox/.claude \
+  -v oopsbox-channels:/oopsbox/channels \
   oopsbox
 ```
 
@@ -307,10 +307,10 @@ docker run -d \
 
 | Volume | 容器路徑 | 存什麼 |
 |---|---|---|
-| `oopsbox-projects` | `/home/mountain/projects` | 你的專案檔案和 registry |
-| `oopsbox-config` | `/home/mountain/.config/oopsbox` | 認證、加密金鑰 |
-| `oopsbox-claude` | `/home/mountain/.claude` | Claude CLI session 和設定 |
-| `oopsbox-channels` | `/home/mountain/channels` | Telegram channel 資料 |
+| `oopsbox-projects` | `/oopsbox/projects` | 你的專案檔案和 registry |
+| `oopsbox-config` | `/oopsbox/.config/oopsbox` | 認證、加密金鑰 |
+| `oopsbox-claude` | `/oopsbox/.claude` | Claude CLI session 和設定 |
+| `oopsbox-channels` | `/oopsbox/channels` | Telegram channel 資料 |
 
 #### 方法 B：裸機安裝（給喜歡危險生活的人）
 
