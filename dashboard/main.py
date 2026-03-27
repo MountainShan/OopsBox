@@ -782,23 +782,32 @@ async def set_terminal_theme(theme: str):
     return {"theme": theme, "restarted": project_names()}
 
 
+_prev_cpu = None  # (total, idle) from previous call
+
 @app.get("/api/system")
 async def system_stats():
+    global _prev_cpu
     import shutil
     # CPU
     r_cpu = run(["awk", "{print $1,$2,$3}", "/proc/loadavg"])
     load = r_cpu.stdout.strip() if r_cpu.returncode == 0 else "?"
     r_ncpu = run(["nproc"])
     ncpu = int(r_ncpu.stdout.strip()) if r_ncpu.returncode == 0 else 1
-    # CPU usage from /proc/stat snapshot
-    r_stat = run(["head", "-1", "/proc/stat"])
-    cpu_pct = 0
-    if r_stat.returncode == 0:
-        parts = r_stat.stdout.split()
-        if len(parts) >= 8:
-            user, nice, system, idle = int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4])
-            total = user + nice + system + idle
-            cpu_pct = round((total - idle) / total * 100, 1) if total > 0 else 0
+    # CPU usage: delta between two /proc/stat snapshots
+    cpu_pct = 0.0
+    try:
+        with open("/proc/stat") as f:
+            parts = f.readline().split()
+        vals = [int(x) for x in parts[1:8]]
+        total = sum(vals)
+        idle = vals[3] + vals[4]  # idle + iowait
+        if _prev_cpu:
+            dt = total - _prev_cpu[0]
+            di = idle - _prev_cpu[1]
+            cpu_pct = round((dt - di) / dt * 100, 1) if dt > 0 else 0.0
+        _prev_cpu = (total, idle)
+    except Exception:
+        pass
     # RAM
     mem = {}
     with open("/proc/meminfo") as f:
