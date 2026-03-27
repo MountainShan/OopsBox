@@ -94,7 +94,7 @@ async def api_login(body: LoginReq):
         SESSIONS[token] = time.time() + SESSION_TTL
         _save_sessions()
         resp = JSONResponse({"ok": True})
-        resp.set_cookie("oopsbox_session", token, max_age=SESSION_TTL, httponly=True, samesite="lax")
+        resp.set_cookie("oopsbox_session", token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
         return resp
     raise HTTPException(401, "wrong username or password")
 
