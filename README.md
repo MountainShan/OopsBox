@@ -10,6 +10,10 @@
   <em>I just wanted to code on iPad. Now there's a whole platform. oops.</em>
 </p>
 
+<p align="center">
+  <strong>⚠️ Perpetually work-in-progress. Features appear faster than documentation. Use at your own risk and/or amusement.</strong>
+</p>
+
 ---
 
 ## English
