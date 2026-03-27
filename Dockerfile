@@ -14,7 +14,7 @@ RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
 # ── System packages ──
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tmux ttyd nginx jq python3-pip python3-venv \
-    build-essential procps sshpass git curl openssl sudo ca-certificates \
+    build-essential procps sshpass git curl openssl sudo ca-certificates sshfs \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Node.js (for Claude CLI) ──

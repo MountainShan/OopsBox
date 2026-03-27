@@ -167,6 +167,10 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
       <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
       Terminal
     </button>
+    <button class="ws-tab" id="ws-tab-local" onclick="wsSwitch('local')" style="display:none">
+      <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Local
+    </button>
   </div>
 
   <!-- File Manager -->
@@ -221,6 +225,7 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
       <span class="term-hint" id="mouse-hint"></span>
     </div>
     <iframe class="term-frame" id="term-iframe" src="" allow="clipboard-read;clipboard-write"></iframe>
+    <iframe class="term-frame" id="local-iframe" src="" allow="clipboard-read;clipboard-write" style="display:none"></iframe>
   </div>
 
 </div>
@@ -324,8 +329,17 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 const params=new URLSearchParams(location.search);
 const PROJECT=params.get('project');
 const TERM_URL=params.get('termUrl')||`/proj/${PROJECT}/term/`;
+const BACKEND=params.get('backend')||'local';
 
 document.getElementById('term-iframe').src=TERM_URL;
+
+// Show local terminal tab for SSH projects
+if(BACKEND==='ssh'){
+  document.getElementById('ws-tab-local').style.display='';
+  document.getElementById('local-iframe').src='/system/term/';
+  // Rename "Terminal" to "Remote" for clarity
+  document.getElementById('ws-tab-term').innerHTML=`<svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> Remote`;
+}
 
 // ── State ──
 let editor=null, currentDir='', currentFile=null, previewMode=false, mouseOn=true, selectedEntry=null;
@@ -728,14 +742,24 @@ function wsSwitch(tab){
   const tp=document.getElementById('terminal-panel');
   const tFiles=document.getElementById('ws-tab-files');
   const tTerm=document.getElementById('ws-tab-term');
+  const tLocal=document.getElementById('ws-tab-local');
+  const termFrame=document.getElementById('term-iframe');
+  const localFrame=document.getElementById('local-iframe');
+  tFiles.classList.remove('on');tTerm.classList.remove('on');tLocal.classList.remove('on');
   if(tab==='files'){
     fm.classList.remove('hidden');
     tp.classList.add('hidden');
-    tFiles.classList.add('on');tTerm.classList.remove('on');
-  }else{
+    tFiles.classList.add('on');
+  }else if(tab==='term'){
     fm.classList.add('hidden');
     tp.classList.remove('hidden');
-    tFiles.classList.remove('on');tTerm.classList.add('on');
+    termFrame.style.display='';localFrame.style.display='none';
+    tTerm.classList.add('on');
+  }else if(tab==='local'){
+    fm.classList.add('hidden');
+    tp.classList.remove('hidden');
+    termFrame.style.display='none';localFrame.style.display='';
+    tLocal.classList.add('on');
   }
 }
 

@@ -67,22 +67,40 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
 
   TERM_SESSION="term-${NAME}"
 
-  # For SSH projects, pre-create tmux session with SSH command
-  if [ "$BACKEND" = "ssh" ] && ! tmux has-session -t "$TERM_SESSION" 2>/dev/null; then
+  # For SSH projects, mount remote filesystem via sshfs and create terminal
+  if [ "$BACKEND" = "ssh" ]; then
     SSH_HOST=$(jq -r --arg n "$NAME" '.[$n].ssh_host' "$REGISTRY")
     SSH_PORT=$(jq -r --arg n "$NAME" '.[$n].ssh_port // 22' "$REGISTRY")
     SSH_USER=$(jq -r --arg n "$NAME" '.[$n].ssh_user' "$REGISTRY")
     SSH_AUTH=$(jq -r --arg n "$NAME" '.[$n].ssh_auth // "password"' "$REGISTRY")
     SSH_OPTS="-o StrictHostKeyChecking=no -o KexAlgorithms=+diffie-hellman-group14-sha1 -o HostKeyAlgorithms=+ssh-rsa"
-    tmux new-session -d -s "$TERM_SESSION" -c "$WORKDIR"
-    if [ "$SSH_AUTH" = "key" ]; then
-      tmux send-keys -t "$TERM_SESSION" "ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}" Enter
-    else
-      SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
-      if command -v sshpass >/dev/null 2>&1; then
-        tmux send-keys -t "$TERM_SESSION" "sshpass -p '${SSH_PASS}' ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}" Enter
+    REMOTE_PATH=$(jq -r --arg n "$NAME" '.[$n].remote_path // "/home/'"$SSH_USER"'"' "$REGISTRY")
+
+    # Mount remote filesystem via sshfs so all file operations go to remote
+    if command -v sshfs &>/dev/null && ! mountpoint -q "$WORKDIR" 2>/dev/null; then
+      SSHFS_OPTS="-o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,StrictHostKeyChecking=no,KexAlgorithms=+diffie-hellman-group14-sha1,HostKeyAlgorithms=+ssh-rsa"
+      if [ "$SSH_AUTH" = "key" ]; then
+        sshfs "${SSH_USER}@${SSH_HOST}:${REMOTE_PATH}" "$WORKDIR" -p "$SSH_PORT" $SSHFS_OPTS 2>/dev/null && \
+          echo "[start] sshfs mounted ${SSH_USER}@${SSH_HOST}:${REMOTE_PATH} → $WORKDIR"
       else
+        SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
+        echo "$SSH_PASS" | sshfs "${SSH_USER}@${SSH_HOST}:${REMOTE_PATH}" "$WORKDIR" -p "$SSH_PORT" $SSHFS_OPTS -o password_stdin 2>/dev/null && \
+          echo "[start] sshfs mounted ${SSH_USER}@${SSH_HOST}:${REMOTE_PATH} → $WORKDIR"
+      fi
+    fi
+
+    # Pre-create tmux session with SSH command (remote terminal)
+    if ! tmux has-session -t "$TERM_SESSION" 2>/dev/null; then
+      tmux new-session -d -s "$TERM_SESSION" -c "$WORKDIR"
+      if [ "$SSH_AUTH" = "key" ]; then
         tmux send-keys -t "$TERM_SESSION" "ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}" Enter
+      else
+        SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
+        if command -v sshpass >/dev/null 2>&1; then
+          tmux send-keys -t "$TERM_SESSION" "sshpass -p '${SSH_PASS}' ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}" Enter
+        else
+          tmux send-keys -t "$TERM_SESSION" "ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}" Enter
+        fi
       fi
     fi
   fi

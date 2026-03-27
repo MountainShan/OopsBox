@@ -567,6 +567,8 @@ function selectProj(name){
 let deskCurrent=null;
 function openDesktop(name,cp,tp,tab){
   const changed=!deskCurrent||deskCurrent.name!==name;
+  const proj=projects.find(x=>x.name===name);
+  const backend=proj?proj.backend:'local';
   deskCurrent={name,cp,tp};
   document.getElementById('desk-empty').style.display='none';
   document.getElementById('desk-active').style.display='flex';
@@ -574,7 +576,7 @@ function openDesktop(name,cp,tp,tab){
   document.getElementById('dt-chat').style.display='';
   if(changed){
     document.getElementById('df-chat').src=`/static/chat.html?project=${name}&v=${Date.now()}`;
-    document.getElementById('df-work').src=`/static/editor.html?project=${name}&termUrl=${encodeURIComponent('/proj/'+name+'/term/')}&v=${Date.now()}`;
+    document.getElementById('df-work').src=`/static/editor.html?project=${name}&backend=${backend}&termUrl=${encodeURIComponent('/proj/'+name+'/term/')}&v=${Date.now()}`;
   }
   deskTab(tab||'chat');
 }
@@ -591,7 +593,8 @@ function deskTab(t){
   if(t==='work'&&deskCurrent){
     const f=document.getElementById('df-work');
     if(!f.src||f.src==='about:blank'||f.src===location.href)
-      f.src=`/static/editor.html?project=${deskCurrent.name}&termUrl=${encodeURIComponent('/proj/'+deskCurrent.name+'/term/')}&v=${Date.now()}`;
+      const dp=projects.find(x=>x.name===deskCurrent.name);
+      f.src=`/static/editor.html?project=${deskCurrent.name}&backend=${dp?dp.backend:'local'}&termUrl=${encodeURIComponent('/proj/'+deskCurrent.name+'/term/')}&v=${Date.now()}`;
   }
 }
 
@@ -601,7 +604,8 @@ function openOverlay(name,cp,tp,tab){
   document.getElementById('mob-name').textContent=name==='_system'?'System':name;
   document.getElementById('mf-chat').src=`/static/chat.html?project=${name}&v=${Date.now()}`;
   const termUrl=name==='_system'?'/system/term/':`/proj/${name}/term/`;
-  document.getElementById('mf-work').src=`/static/editor.html?project=${name}&termUrl=${encodeURIComponent(termUrl)}&v=${Date.now()}`;
+  const mp=projects.find(x=>x.name===name);
+  document.getElementById('mf-work').src=`/static/editor.html?project=${name}&backend=${mp?mp.backend:'local'}&termUrl=${encodeURIComponent(termUrl)}&v=${Date.now()}`;
   document.getElementById('mob-overlay').classList.add('open');
   mobTab(tab||'chat');
 }
@@ -618,7 +622,8 @@ function mobTab(t){
   if(t==='work'&&mobCurrent){
     const f=document.getElementById('mf-work');
     if(!f.src||f.src==='about:blank'||f.src===location.href)
-      f.src=`/static/editor.html?project=${mobCurrent.name}&termUrl=${encodeURIComponent('/proj/'+mobCurrent.name+'/term/')}&v=${Date.now()}`;
+      const mbp=projects.find(x=>x.name===mobCurrent.name);
+      f.src=`/static/editor.html?project=${mobCurrent.name}&backend=${mbp?mbp.backend:'local'}&termUrl=${encodeURIComponent('/proj/'+mobCurrent.name+'/term/')}&v=${Date.now()}`;
   }
 }
 function closeOverlay(){

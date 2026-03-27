@@ -58,7 +58,7 @@ fi
 # ── System packages ──
 echo "[1/8] installing packages (this might take a minute)..."
 sudo apt update -qq
-sudo apt install -y tmux ttyd nginx jq python3-pip python3-venv build-essential procps sshpass git
+sudo apt install -y tmux ttyd nginx jq python3-pip python3-venv build-essential procps sshpass git sshfs
 
 # ── Dashboard ──
 echo "[2/8] setting up dashboard..."
