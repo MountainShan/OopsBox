@@ -8,13 +8,14 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0e1015;--bg2:#161920;--bg3:#1e2028;--border:#252830;--text:#c8ccd5;--text-hi:#e8ecf0;
-  --muted:#6b7080;--accent:#e07840;--red:#e05050;--green:#10b981}
+  --muted:#6b7080;--accent:#e07840;--red:#e05050;--green:#10b981;
+  --color-read:#3b82f6;--color-edit:#f59e0b;--color-bash:#10b981;--color-grep:#a78bfa;--color-write:#22d3ee}
 body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);
   height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
 
 .header{padding:3px 10px;background:var(--bg2);border-bottom:1px solid var(--border);
   display:flex;align-items:center;gap:6px;flex-shrink:0}
-.header .title{font-size:11px;color:var(--muted);font-weight:500}
+.header .title{font-size:12px;font-weight:600;color:var(--text-hi);flex:1}
 .header .state{font-size:10px;color:var(--muted);font-family:monospace}
 .header button{padding:2px 7px;border-radius:3px;font-size:10px;cursor:pointer;
   border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s}
@@ -27,12 +28,31 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .msg.tool{background:var(--bg);border:1px solid var(--border);font-size:11px;color:var(--muted);font-family:monospace;padding:4px 8px;margin-bottom:4px}
 .msg-empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:12px}
 
+/* Step block color coding (#4) */
+.msg.assistant .step-block{border-left:3px solid var(--border);padding-left:8px;margin:.5em 0}
+.msg.assistant .step-block.step-read{border-left-color:var(--color-read)}
+.msg.assistant .step-block.step-edit,.msg.assistant .step-block.step-update{border-left-color:var(--color-edit)}
+.msg.assistant .step-block.step-bash{border-left-color:var(--color-bash)}
+.msg.assistant .step-block.step-grep,.msg.assistant .step-block.step-search{border-left-color:var(--color-grep)}
+.msg.assistant .step-block.step-write{border-left-color:var(--color-write)}
+.msg.assistant .step-block .step-header{font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px;margin-bottom:2px}
+.msg.assistant .step-block.step-read .step-header{color:var(--color-read)}
+.msg.assistant .step-block.step-edit .step-header,.msg.assistant .step-block.step-update .step-header{color:var(--color-edit)}
+.msg.assistant .step-block.step-bash .step-header{color:var(--color-bash)}
+.msg.assistant .step-block.step-grep .step-header,.msg.assistant .step-block.step-search .step-header{color:var(--color-grep)}
+.msg.assistant .step-block.step-write .step-header{color:var(--color-write)}
+
+/* Expandable truncated output (#2) */
+.truncated-toggle{display:inline-block;font-size:11px;color:var(--accent);cursor:pointer;margin-top:4px;user-select:none}
+.truncated-toggle:hover{text-decoration:underline}
+.truncated-content{display:none;white-space:pre-wrap;font-size:12px}
+.truncated-content.expanded{display:block}
+
 /* Markdown */
 .msg.assistant h1,.msg.assistant h2,.msg.assistant h3{color:var(--text-hi);margin:.8em 0 .4em;font-weight:700}
 .msg.assistant h1{font-size:1.3em} .msg.assistant h2{font-size:1.15em} .msg.assistant h3{font-size:1.05em}
 .msg.assistant p{margin:.4em 0}
 .msg.assistant code{background:var(--bg);padding:1px 4px;border-radius:3px;font-size:.9em;font-family:monospace}
-/* Code blocks — Claude Code inspired colours */
 .msg.assistant pre,.msg.tool_output pre{background:#12141a;border:1px solid #1e2130;border-radius:6px;padding:10px 12px;overflow-x:auto;margin:.6em 0;font-size:12px;line-height:1.5}
 .msg.assistant pre code,.msg.tool_output pre code{background:none;padding:0;font-size:12px;color:#c9cdd8}
 pre code .hljs-keyword{color:#a78bfa}
@@ -53,11 +73,9 @@ pre code .hljs-meta{color:#a78bfa}
 pre code .hljs-regexp{color:#f59e0b}
 pre code .hljs-symbol{color:#10b981}
 pre code .hljs-operator{color:#c9cdd8}
-/* Code block header */
 .code-block{position:relative;margin:.6em 0}
 .code-block .code-lang{position:absolute;top:0;right:0;padding:2px 8px;font-size:9px;color:#5c6178;background:#1a1d26;border-radius:0 6px 0 4px;text-transform:uppercase;letter-spacing:.5px}
 .code-block pre{margin:0;border-radius:6px}
-/* Tool output styling */
 .msg.tool_output{background:transparent;border:none;padding:0 12px;margin-top:-6px;margin-bottom:10px}
 .msg.assistant ul,.msg.assistant ol{padding-left:20px;margin:.4em 0}
 .msg.assistant blockquote{border-left:3px solid var(--border);padding-left:10px;color:var(--muted);margin:.4em 0}
@@ -72,33 +90,61 @@ pre code .hljs-operator{color:#c9cdd8}
 .prompt-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
 .prompt-choices{display:flex;flex-direction:column;gap:3px}
 .prompt-choice{display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:5px;font-size:12px;cursor:pointer;
-  border:1px solid var(--border);background:var(--bg);color:var(--text);transition:all .12s;user-select:none}
+  border:1px solid var(--border);background:var(--bg);color:var(--text);transition:all .12s;user-select:none;min-height:44px}
 .prompt-choice:hover{background:var(--bg3);border-color:var(--accent)}
 .prompt-choice input[type="checkbox"],.prompt-choice input[type="radio"]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
 .prompt-confirm{padding:5px 14px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;
-  border:none;background:var(--accent);color:#fff;transition:all .12s;align-self:flex-end;margin-top:4px}
+  border:none;background:var(--accent);color:#fff;transition:all .12s;align-self:flex-end;margin-top:4px;min-height:44px}
 .prompt-confirm:hover{opacity:.85}
 .thinking-indicator{font-size:11px;color:var(--muted);font-style:italic;padding:4px 0}
 
-/* Input */
+/* Input area (#3 toolbar redesign) */
 .input-area{padding:4px 8px;border-top:1px solid var(--border);background:var(--bg2);
   display:flex;flex-direction:column;gap:3px;padding-bottom:calc(4px + env(safe-area-inset-bottom,0px));flex-shrink:0}
-.input-shortcuts{display:flex;gap:3px;flex-wrap:wrap}
-.ib-key{padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;
-  border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;font-family:monospace}
-.ib-key:hover{color:var(--text);background:var(--bg3)}
-.ib-key.danger{color:var(--red)}
-.input-row{display:flex;gap:6px}
+.toolbar{display:flex;gap:2px;flex-wrap:wrap;align-items:center}
+.toolbar.collapsed .tb-group{display:none}
+.tb-toggle{min-width:28px;min-height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px;
+  border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .12s;flex-shrink:0}
+.tb-toggle:hover{color:var(--text);background:var(--bg3)}
+.tb-toggle svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;transition:transform .2s}
+.toolbar.collapsed .tb-toggle svg{transform:rotate(180deg)}
+.tb-group{display:flex;gap:2px;align-items:center}
+.tb-sep{width:1px;height:16px;background:var(--border);margin:0 3px;flex-shrink:0}
+.tb-btn{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;
+  border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);
+  cursor:pointer;transition:all .12s;font-size:12px;font-weight:600;font-family:monospace;-webkit-tap-highlight-color:transparent}
+.tb-btn:hover{color:var(--text);background:var(--bg3)}
+.tb-btn:active{background:var(--bg);transform:scale(.95)}
+.tb-btn.danger{color:var(--red)}
+.tb-btn.danger:hover{background:color-mix(in srgb,var(--red) 10%,transparent)}
+.tb-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}
+
+/* File chips (#10) */
+.file-chips{display:flex;flex-wrap:wrap;gap:4px;padding:2px 0}
+.file-chip{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:11px;
+  background:color-mix(in srgb,var(--accent) 12%,transparent);border:0.5px solid color-mix(in srgb,var(--accent) 30%,transparent);color:var(--text)}
+.file-chip .chip-remove{background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 2px;line-height:1}
+.file-chip.uploading{opacity:.6}
+.file-chip.error{border-color:var(--red);background:color-mix(in srgb,var(--red) 10%,transparent)}
+
+.input-row{display:flex;gap:6px;align-items:flex-end}
 .input-row textarea{flex:1;padding:6px 10px;border-radius:8px;border:1px solid var(--border);
   background:var(--bg);color:var(--text-hi);font-size:13px;outline:none;resize:none;
-  font-family:-apple-system,sans-serif;min-height:32px;max-height:120px;line-height:1.4}
+  font-family:-apple-system,sans-serif;min-height:36px;max-height:120px;line-height:1.4}
 .input-row textarea:focus{border-color:var(--accent)}
 .input-row textarea::placeholder{color:var(--muted)}
+.attach-btn{min-width:36px;min-height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;
+  border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .12s;flex-shrink:0}
+.attach-btn:hover{color:var(--text);background:var(--bg3)}
+.attach-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}
 .send-btn{padding:6px 14px;border-radius:8px;border:none;background:var(--accent);color:#fff;
-  font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;flex-shrink:0}
+  font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;flex-shrink:0;min-height:36px}
 .send-btn:hover{opacity:.85}
 .send-btn:active{transform:scale(.95)}
+.send-btn:disabled{opacity:.4;cursor:not-allowed}
 
+.spin{display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:sp .6s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -116,33 +162,50 @@ pre code .hljs-operator{color:#c9cdd8}
 
 <div class="prompt-area" id="prompt-area"></div>
 
-
 <div class="input-area">
-  <div class="input-shortcuts">
-    <button class="ib-key danger" onclick="sendKey('C-c')">^C</button>
-    <button class="ib-key" onclick="sendKey('Escape')">Esc</button>
-    <button class="ib-key" onclick="sendKey('Enter')">&#9166;</button>
-    <button class="ib-key" onclick="sendKey('Space')">Space</button>
-    <button class="ib-key" onclick="sendKey('Up')">&#9650;</button>
-    <button class="ib-key" onclick="sendKey('Down')">&#9660;</button>
-    <button class="ib-key" onclick="sendKey('Tab')">Tab</button>
-    <button class="ib-key" onclick="sendKey('BTab')">&#8679;Tab</button>
-    <button class="ib-key" onclick="sendKey('y')">y</button>
-    <button class="ib-key" onclick="sendKey('n')">n</button>
-  </div>
-  <div id="upload-preview" style="display:none;padding:2px 8px;font-size:11px;color:var(--muted);display:none;align-items:center;gap:4px">
-    <span id="upload-name"></span>
-    <button onclick="clearUpload()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:0 2px">&times;</button>
-  </div>
-  <div class="input-row">
-    <input type="file" id="file-input" style="display:none" onchange="handleUpload(this)">
-    <button class="send-btn" onclick="document.getElementById('file-input').click()" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 8px" title="Upload file">
-      <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+  <!-- Toolbar (#3 redesigned) -->
+  <div class="toolbar" id="toolbar">
+    <button class="tb-toggle" onclick="toggleToolbar()" title="Toggle toolbar">
+      <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
-    <textarea id="input" rows="1" placeholder="Type message or use keys above..."
+    <div class="tb-group" id="tb-signals">
+      <button class="tb-btn danger" onclick="sendKey('C-c')" title="Ctrl+C">^C</button>
+      <button class="tb-btn" onclick="sendKey('C-d')" title="Ctrl+D">^D</button>
+      <button class="tb-btn" onclick="sendKey('Escape')" title="Escape">Esc</button>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-group" id="tb-nav">
+      <button class="tb-btn" onclick="sendKey('Up')" title="Up">
+        <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+      </button>
+      <button class="tb-btn" onclick="sendKey('Down')" title="Down">
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tb-btn" onclick="sendKey('Enter')" title="Enter">&#9166;</button>
+      <button class="tb-btn" onclick="sendKey('Space')" title="Space">&#9251;</button>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-group" id="tb-extra">
+      <button class="tb-btn" onclick="sendKey('Tab')" title="Tab">Tab</button>
+      <button class="tb-btn" onclick="sendKey('BTab')" title="Shift+Tab">&#8679;Tab</button>
+      <button class="tb-btn" onclick="sendKey('y')" title="Yes">y</button>
+      <button class="tb-btn" onclick="sendKey('n')" title="No">n</button>
+    </div>
+  </div>
+
+  <!-- File chips (#10) -->
+  <div class="file-chips" id="file-chips"></div>
+
+  <!-- Input row -->
+  <div class="input-row">
+    <input type="file" id="file-input" style="display:none" onchange="handleUpload(this)" multiple>
+    <button class="attach-btn" id="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file">
+      <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+    </button>
+    <textarea id="input" rows="1" placeholder="Type a message..."
               onkeydown="handleInputKey(event)"
               oninput="autoGrow(this)"></textarea>
-    <button class="send-btn" onclick="doSend()">Send</button>
+    <button class="send-btn" id="send-btn" onclick="doSend()">Send</button>
   </div>
 </div>
 
@@ -162,7 +225,6 @@ pre code .hljs-operator{color:#c9cdd8}
 <script>
 const params=new URLSearchParams(location.search);
 const PROJECT=params.get('project')||'_system';
-// All AI agents are in "agents" tmux session, window name = project name or "system"
 const WINDOW=PROJECT==='_system'?'system':PROJECT;
 document.getElementById('title').textContent=PROJECT==='_system'?'System Agent':PROJECT;
 
@@ -170,6 +232,7 @@ let messages=[];
 let lastMsgCount=0;
 let autoScroll=true;
 let currentState='idle';
+const MAX_FILE_SIZE=50*1024*1024; // 50MB
 
 const renderer=new marked.Renderer();
 renderer.code=function({text,lang}){
@@ -186,6 +249,36 @@ marked.setOptions({breaks:true,gfm:true,renderer});
 
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
+// ── Step block color coding (#4) ──
+const STEP_ICONS={Read:'📄',Edit:'✏️',Update:'✏️',Bash:'>_',Grep:'🔍',Search:'🔍',Write:'📝',Glob:'📁'};
+const STEP_CLASSES={Read:'step-read',Edit:'step-edit',Update:'step-update',Bash:'step-bash',Grep:'step-grep',Search:'step-search',Write:'step-write',Glob:'step-grep'};
+
+function colorizeSteps(html){
+  // Match **ToolName** patterns and wrap in step-block
+  return html.replace(/<p><strong>(Read|Edit|Update|Bash|Grep|Search|Write|Glob)\b(.*?)<\/strong>([\s\S]*?)(?=<p><strong>|<\/div>|$)/gi,
+    (match,tool,rest,body)=>{
+      const cls=STEP_CLASSES[tool]||'';
+      const icon=STEP_ICONS[tool]||'';
+      return `<div class="step-block ${cls}"><div class="step-header">${icon} <strong>${tool}${rest}</strong></div>${body}</div>`;
+    });
+}
+
+// ── Expandable truncated output (#2) ──
+let truncId=0;
+function makeExpandable(html){
+  return html.replace(/(\.\.\. \(truncated\))/g,()=>{
+    const id='trunc-'+(truncId++);
+    return `<span class="truncated-toggle" onclick="toggleTrunc('${id}')">Show full output</span><div class="truncated-content" id="${id}"></div>`;
+  });
+}
+function toggleTrunc(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.classList.toggle('expanded');
+  const toggle=el.previousElementSibling;
+  if(toggle)toggle.textContent=el.classList.contains('expanded')?'Collapse':'Show full output';
+}
+
 function scrollToBottom(){
   const el=document.getElementById('messages');
   el.scrollTop=el.scrollHeight;
@@ -193,17 +286,11 @@ function scrollToBottom(){
 }
 
 async function refreshAndScroll(){
-  // Force reload: reset state and wait for poll to finish
-  polling=false;
-  lastMsgCount=0;
-  initialLoad=true;
-  messages=[];
-  render();
-  await pollMessages();
-  scrollToBottom();
+  polling=false;lastMsgCount=0;initialLoad=true;messages=[];
+  render();await pollMessages();scrollToBottom();
 }
 
-// ── Render messages (only last MAX_DISPLAY) ──
+// ── Render messages ──
 const MAX_DISPLAY=50;
 function render(){
   const el=document.getElementById('messages');
@@ -221,9 +308,14 @@ function render(){
     if(m.role==='user'){
       html+=`<div class="msg user">${esc(m.text)}</div>`;
     }else if(m.role==='assistant'){
-      html+=`<div class="msg assistant">${marked.parse(m.text)}</div>`;
+      let parsed=marked.parse(m.text);
+      parsed=colorizeSteps(parsed);
+      parsed=makeExpandable(parsed);
+      html+=`<div class="msg assistant">${parsed}</div>`;
     }else if(m.role==='tool_output'){
-      html+=`<div class="msg tool_output">${marked.parse(m.text)}</div>`;
+      let parsed=marked.parse(m.text);
+      parsed=makeExpandable(parsed);
+      html+=`<div class="msg tool_output">${parsed}</div>`;
     }
   }
   el.innerHTML=html;
@@ -245,33 +337,22 @@ async function pollMessages(){
     const r=await fetch(url,{credentials:'include'});
     if(!r.ok){polling=false;return;}
     const d=await r.json();
-    // Detect session file change (new Claude session started)
     if(currentSessionFile&&d.session_file&&d.session_file!==currentSessionFile){
-      // Session switched — reset and reload all
       messages=d.messages.slice(-MAX_DISPLAY);
       lastMsgCount=d.total;
       currentSessionFile=d.session_file;
-      render();
-      setTimeout(scrollToBottom,50);
+      render();setTimeout(scrollToBottom,50);
     }else if(initialLoad){
-      // On first load, only keep last MAX_DISPLAY messages
       messages=d.messages.slice(-MAX_DISPLAY);
       lastMsgCount=d.total;
       currentSessionFile=d.session_file||'';
       initialLoad=false;
-      render();
-      setTimeout(scrollToBottom,50);
+      render();setTimeout(scrollToBottom,50);
     }else if(d.total<lastMsgCount){
-      // Total decreased — session was reset, reload all
-      lastMsgCount=0;
-      polling=false;
-      return pollMessages();
+      lastMsgCount=0;polling=false;return pollMessages();
     }else if(d.messages&&d.messages.length){
       messages.push(...d.messages);
-      // Trim to prevent unbounded growth
-      if(messages.length>MAX_DISPLAY*2){
-        messages=messages.slice(-MAX_DISPLAY);
-      }
+      if(messages.length>MAX_DISPLAY*2) messages=messages.slice(-MAX_DISPLAY);
       lastMsgCount=d.total;
       currentSessionFile=d.session_file||currentSessionFile;
       render();
@@ -298,14 +379,12 @@ async function pollState(){
     const d=await r.json();
     const prevState=currentState;
     currentState=d.state;
-    // Re-render if no messages and state changed (to update hint text)
     if(!messages.length&&currentState!==prevState) render();
     const stateEl=document.getElementById('state-display');
     if(d.state==='no_session'){
       stateEl.textContent='tmux session not found';stateEl.style.color='red';
     }else if(d.state==='claude_stopped'){
       stateEl.textContent='Claude stopped — restarting...';stateEl.style.color='red';
-      // Auto-restart claude-loop
       fetch(`/api/projects/${PROJECT}/send-text?window=${WINDOW}&session=agents`,{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({text:'claude-loop.sh '+WINDOW}),credentials:'include'
@@ -333,30 +412,21 @@ function renderPrompt(d){
   if(d.state==='waiting_choice'&&d.choices.length){
     const hasCheckbox=d.choices.some(c=>c.checked!==undefined);
     let html='<div class="prompt-title">Choose an option</div><div class="prompt-choices">';
-
     if(hasCheckbox){
-      // Checkbox mode
       html+=d.choices.map((c,i)=>{
         const icon=c.checked?'☑':'☐';
         return `<div class="prompt-choice" onclick="selectCheckbox(${i})">
-          <span>${icon}</span>
-          <span>${esc(c.text)}</span>
-        </div>`;
+          <span>${icon}</span><span>${esc(c.text)}</span></div>`;
       }).join('');
       html+=`</div><button class="prompt-confirm" onclick="confirmChoice()">Confirm</button>`;
     }else{
-      // Radio mode (numbered choices)
       html+=d.choices.map(c=>{
         return `<div class="prompt-choice" onclick="selectChoice('${c.num}')">
-          <span style="font-weight:700;color:var(--accent)">${c.num}.</span>
-          <span>${esc(c.text)}</span>
-        </div>`;
+          <span style="font-weight:700;color:var(--accent)">${c.num}.</span><span>${esc(c.text)}</span></div>`;
       }).join('');
       html+=`</div>`;
     }
-
-    el.innerHTML=html;
-    el.classList.add('show');
+    el.innerHTML=html;el.classList.add('show');
   }else if(d.state==='thinking'){
     el.innerHTML='<div class="thinking-indicator">Claude is thinking...</div>';
     el.classList.add('show');
@@ -365,20 +435,13 @@ function renderPrompt(d){
   }
 }
 
-// Checkbox: move cursor to item and toggle with Space
-async function confirmChoice(){
-  await sendKey('Enter');
-  pausePrompt(5000);
-}
+async function confirmChoice(){await sendKey('Enter');pausePrompt(5000);}
 
 async function selectCheckbox(idx){
-  // Find current cursor position from raw lines
   const state=await (await fetch(`/api/projects/${PROJECT}/prompt-state`,{credentials:'include'})).json();
   let cursorIdx=0;
   for(let i=0;i<state.choices.length;i++){
-    // The one with ❯ in the raw line
-    const rawLine=state.raw[i]||'';
-    if(rawLine.includes('❯')){cursorIdx=i;break;}
+    if((state.raw[i]||'').includes('❯')){cursorIdx=i;break;}
   }
   const diff=idx-cursorIdx;
   for(let i=0;i<Math.abs(diff);i++){
@@ -389,117 +452,145 @@ async function selectCheckbox(idx){
   setTimeout(pollState,500);
 }
 
-// ── Send keys to tmux (targets agents session) ──
+// ── Toolbar toggle (#3) ──
+function toggleToolbar(){
+  document.getElementById('toolbar').classList.toggle('collapsed');
+}
+
+// ── Send keys to tmux ──
 async function sendKey(key){
   const stateEl=document.getElementById('state-display');
   stateEl.textContent=`sending: ${key}...`;stateEl.style.color='yellow';
   try{
     const url=`/api/projects/${PROJECT}/send-keys?keys=${encodeURIComponent(key)}&window=${WINDOW}&session=agents`;
     const r=await fetch(url,{method:'POST',credentials:'include'});
-    if(r.ok){
-      stateEl.textContent=`sent: ${key} OK`;stateEl.style.color='lime';
-    }else{
-      stateEl.textContent=`FAIL: ${key} → ${r.status}`;stateEl.style.color='red';
-    }
-  }catch(e){
-    stateEl.textContent=`ERROR: ${e.message}`;stateEl.style.color='red';
-  }
+    if(r.ok){stateEl.textContent=`sent: ${key} OK`;stateEl.style.color='lime';}
+    else{stateEl.textContent=`FAIL: ${key} → ${r.status}`;stateEl.style.color='red';}
+  }catch(e){stateEl.textContent=`ERROR: ${e.message}`;stateEl.style.color='red';}
 }
 
-// ── File upload ──
-let uploadedFile=null;
+// ── File upload (#10 multi-file, spinner, size limit) ──
+let uploadedFiles=[];
 
 async function handleUpload(input){
-  const file=input.files[0];
-  if(!file)return;
+  const files=Array.from(input.files);
+  if(!files.length)return;
   const stateEl=document.getElementById('state-display');
-  stateEl.textContent='uploading...';stateEl.style.color='yellow';
-  try{
-    const form=new FormData();
-    form.append('file',file);
-    const r=await fetch('/api/chat-upload',{method:'POST',body:form,credentials:'include'});
-    if(!r.ok)throw new Error('Upload failed');
-    const d=await r.json();
-    uploadedFile=d;
-    document.getElementById('upload-preview').style.display='flex';
-    document.getElementById('upload-name').textContent=`📎 ${d.filename} (${(d.size/1024).toFixed(1)}KB)`;
-    stateEl.textContent='uploaded';stateEl.style.color='lime';
-  }catch(e){
-    stateEl.textContent=`upload error: ${e.message}`;stateEl.style.color='red';
+  const attachBtn=document.getElementById('attach-btn');
+  const sendBtn=document.getElementById('send-btn');
+
+  for(const file of files){
+    // Size check
+    if(file.size>MAX_FILE_SIZE){
+      addChip({filename:file.name,error:`Too large (${(file.size/1024/1024).toFixed(0)}MB > 50MB limit)`});
+      continue;
+    }
+    // Add uploading chip
+    const chipId='chip-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);
+    addChip({id:chipId,filename:file.name,uploading:true});
+    attachBtn.disabled=true;sendBtn.disabled=true;
+
+    try{
+      const form=new FormData();
+      form.append('file',file);
+      const r=await fetch('/api/chat-upload',{method:'POST',body:form,credentials:'include'});
+      if(!r.ok)throw new Error('Upload failed');
+      const d=await r.json();
+      updateChip(chipId,{...d,id:chipId});
+      uploadedFiles.push(d);
+      stateEl.textContent='uploaded';stateEl.style.color='lime';
+    }catch(e){
+      updateChip(chipId,{id:chipId,filename:file.name,error:e.message});
+      stateEl.textContent=`upload error: ${e.message}`;stateEl.style.color='red';
+    }
   }
+  attachBtn.disabled=false;sendBtn.disabled=false;
   input.value='';
 }
 
-function clearUpload(){
-  uploadedFile=null;
-  document.getElementById('upload-preview').style.display='none';
-  document.getElementById('upload-name').textContent='';
+function addChip(data){
+  const el=document.getElementById('file-chips');
+  const chip=document.createElement('div');
+  chip.className='file-chip'+(data.uploading?' uploading':'')+(data.error?' error':'');
+  chip.id=data.id||'';
+  if(data.uploading){
+    chip.innerHTML=`<span class="spin"></span> ${esc(data.filename)}`;
+  }else if(data.error){
+    chip.innerHTML=`📄 ${esc(data.filename)} <span style="color:var(--red);font-size:10px">${esc(data.error)}</span> <button class="chip-remove" onclick="removeChip(this)">&times;</button>`;
+  }else{
+    const kb=(data.size/1024).toFixed(1);
+    chip.innerHTML=`📄 ${esc(data.filename)} <span style="color:var(--muted)">${kb}KB</span> <button class="chip-remove" onclick="removeChip(this,'${esc(data.path)}')">&times;</button>`;
+  }
+  el.appendChild(chip);
 }
 
-// ── Send text to tmux (targets agents session) ──
+function updateChip(id,data){
+  const chip=document.getElementById(id);
+  if(!chip)return;
+  chip.className='file-chip'+(data.error?' error':'');
+  if(data.error){
+    chip.innerHTML=`📄 ${esc(data.filename)} <span style="color:var(--red);font-size:10px">${esc(data.error)}</span> <button class="chip-remove" onclick="removeChip(this)">&times;</button>`;
+  }else{
+    const kb=(data.size/1024).toFixed(1);
+    chip.innerHTML=`📄 ${esc(data.filename)} <span style="color:var(--muted)">${kb}KB</span> <button class="chip-remove" onclick="removeChip(this,'${esc(data.path)}')">&times;</button>`;
+  }
+}
+
+function removeChip(btn,path){
+  if(path) uploadedFiles=uploadedFiles.filter(f=>f.path!==path);
+  btn.closest('.file-chip').remove();
+}
+
+function clearAllChips(){
+  uploadedFiles=[];
+  document.getElementById('file-chips').innerHTML='';
+}
+
+// ── Send text to tmux ──
 async function doSend(){
   const el=document.getElementById('input');
   let text=el.value.trim();
-  // Append file reference if uploaded
-  if(uploadedFile){
-    const ref=`\n\n[Attached file: ${uploadedFile.filename} — saved at ${uploadedFile.path}. Please read this file to see its contents.]`;
-    text=text?text+ref:ref.trim();
-    clearUpload();
+  // Append file references
+  if(uploadedFiles.length){
+    const refs=uploadedFiles.map(f=>`File available at: ${f.path}`).join('\n');
+    text=text?(text+'\n\n'+refs):refs;
+    clearAllChips();
   }
   if(!text)return;
   const stateEl=document.getElementById('state-display');
   stateEl.textContent=`sending text: "${text.slice(0,20)}..."`;stateEl.style.color='yellow';
-  el.value='';el.style.height='32px';
+  el.value='';el.style.height='36px';
   pausePrompt(5000);
   try{
     const r=await fetch(`/api/projects/${PROJECT}/send-text?window=${WINDOW}&session=agents`,{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text}),credentials:'include'
     });
-    if(r.ok){
-      stateEl.textContent=`sent OK`;stateEl.style.color='lime';
-    }else{
-      stateEl.textContent=`send-text FAIL: ${r.status}`;stateEl.style.color='red';
-    }
-  }catch(e){
-    stateEl.textContent=`ERROR: ${e.message}`;stateEl.style.color='red';
-  }
+    if(r.ok){stateEl.textContent=`sent OK`;stateEl.style.color='lime';}
+    else{stateEl.textContent=`send-text FAIL: ${r.status}`;stateEl.style.color='red';}
+  }catch(e){stateEl.textContent=`ERROR: ${e.message}`;stateEl.style.color='red';}
 }
 
 // ── Keyboard handling ──
 function handleInputKey(e){
-  if(e.key==='Enter'&&!e.shiftKey){
-    e.preventDefault();
-    doSend();
-  }
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doSend();}
 }
 
-// Keyboard forwarding when input NOT focused
 document.addEventListener('keydown',e=>{
   if(document.activeElement===document.getElementById('input'))return;
-
-  const keyMap={
-    'ArrowUp':'Up','ArrowDown':'Down','ArrowLeft':'Left','ArrowRight':'Right',
-    'Enter':'Enter','Escape':'Escape',' ':'Space','Tab':'Tab',
-  };
-
+  const keyMap={'ArrowUp':'Up','ArrowDown':'Down','ArrowLeft':'Left','ArrowRight':'Right',
+    'Enter':'Enter','Escape':'Escape',' ':'Space','Tab':'Tab'};
   if(keyMap[e.key]){
     sendKey(keyMap[e.key]);
     if(e.key==='Enter'||e.key===' ')pausePrompt(3000);
     e.preventDefault();
   }else if(e.key.length===1&&!e.ctrlKey&&!e.metaKey){
-    // Single char: 1,2,3,y,n etc
-    sendKey(e.key);
-    e.preventDefault();
+    sendKey(e.key);e.preventDefault();
   }else if(e.ctrlKey&&e.key==='c'){
-    sendKey('C-c');
-    e.preventDefault();
+    sendKey('C-c');e.preventDefault();
   }
 });
 
-function autoGrow(el){
-  el.style.height='32px';
-  el.style.height=Math.min(el.scrollHeight,120)+'px';
-}
+function autoGrow(el){el.style.height='36px';el.style.height=Math.min(el.scrollHeight,120)+'px';}
 
 // ── iPad fixes ──
 document.getElementById('input').addEventListener('focus',function(){
@@ -512,8 +603,8 @@ document.body.addEventListener('touchmove',function(e){
 // ── Init polling ──
 pollMessages();
 pollState();
-setInterval(pollMessages,1500);  // JSONL changes less frequently
-setInterval(pollState,800);       // prompt detection needs to be faster
+setInterval(pollMessages,1500);
+setInterval(pollState,800);
 </script>
 </body>
 </html>
