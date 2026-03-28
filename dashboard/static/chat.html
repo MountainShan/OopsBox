@@ -97,6 +97,14 @@ pre code .hljs-operator{color:#c9cdd8}
   border:none;background:var(--accent);color:#fff;transition:all .12s;align-self:flex-end;margin-top:4px;min-height:44px}
 .prompt-confirm:hover{opacity:.85}
 .thinking-indicator{font-size:11px;color:var(--muted);font-style:italic;padding:4px 0}
+.thinking-bubble{margin-bottom:10px;padding:8px 12px;border-radius:8px;font-size:13px;
+  background:var(--bg2);border:1px solid var(--border);border-bottom-left-radius:2px;max-width:95%;
+  color:var(--muted);font-style:italic;display:flex;align-items:center;gap:8px}
+.thinking-bubble .dot-pulse{display:flex;gap:3px}
+.thinking-bubble .dot-pulse span{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:pulse 1.2s ease-in-out infinite}
+.thinking-bubble .dot-pulse span:nth-child(2){animation-delay:.2s}
+.thinking-bubble .dot-pulse span:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
 
 /* Input area (#3 toolbar redesign) */
 .input-area{padding:4px 8px;border-top:1px solid var(--border);background:var(--bg2);
@@ -319,6 +327,10 @@ function render(){
       html+=`<div class="msg tool_output">${parsed}</div>`;
     }
   }
+  // Show thinking bubble when Claude is processing
+  if(currentState==='thinking'){
+    html+=`<div class="thinking-bubble"><div class="dot-pulse"><span></span><span></span><span></span></div> Claude is thinking...</div>`;
+  }
   el.innerHTML=html;
   if(autoScroll) el.scrollTop=el.scrollHeight;
 }
@@ -380,7 +392,7 @@ async function pollState(){
     const d=await r.json();
     const prevState=currentState;
     currentState=d.state;
-    if(!messages.length&&currentState!==prevState) render();
+    if(currentState!==prevState) render();
     const stateEl=document.getElementById('state-display');
     if(d.state==='no_session'){
       stateEl.textContent='tmux session not found';stateEl.style.color='red';
