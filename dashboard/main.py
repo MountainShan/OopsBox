@@ -675,11 +675,14 @@ async def session_messages(name: str, after: int = 0):
     cache_key = str(fp)
     cached = _session_cache.get(cache_key)
 
-    if cached and cached[0] == st.st_mtime and cached[1] == st.st_size:
+    # Use mtime_ns for sub-second cache invalidation
+    mtime_ns = st.st_mtime_ns
+    fsize = st.st_size
+    if cached and cached[0] == mtime_ns and cached[1] == fsize:
         merged = cached[2]
     else:
         merged = _parse_jsonl(fp)
-        _session_cache[cache_key] = (st.st_mtime, st.st_size, merged)
+        _session_cache[cache_key] = (mtime_ns, fsize, merged)
 
     return {
         "messages": merged[after:],

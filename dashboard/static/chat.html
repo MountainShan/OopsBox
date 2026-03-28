@@ -293,6 +293,7 @@ async function refreshAndScroll(){
 // ── Render messages ──
 const MAX_DISPLAY=50;
 function render(){
+  truncId=0; // Reset so IDs stay consistent across re-renders
   const el=document.getElementById('messages');
   if(!messages.length){
     const hint=currentState==='waiting_text'?'Claude is ready — type a message below to start.':'Waiting for conversation...';
@@ -459,6 +460,7 @@ function toggleToolbar(){
 
 // ── Send keys to tmux ──
 async function sendKey(key){
+  enterFastPoll();
   const stateEl=document.getElementById('state-display');
   stateEl.textContent=`sending: ${key}...`;stateEl.style.color='yellow';
   try{
@@ -561,6 +563,7 @@ async function doSend(){
   stateEl.textContent=`sending text: "${text.slice(0,20)}..."`;stateEl.style.color='yellow';
   el.value='';el.style.height='36px';
   pausePrompt(5000);
+  enterFastPoll();
   try{
     const r=await fetch(`/api/projects/${PROJECT}/send-text?window=${WINDOW}&session=agents`,{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text}),credentials:'include'
@@ -600,11 +603,27 @@ document.body.addEventListener('touchmove',function(e){
   if(!e.target.closest('.messages'))e.preventDefault();
 },{passive:false});
 
-// ── Init polling ──
-pollMessages();
-pollState();
-setInterval(pollMessages,1500);
-setInterval(pollState,800);
+// ── Polling with fast mode after send ──
+let fastPollUntil=0;
+let pollInterval=null;
+
+function startPolling(){
+  pollMessages();
+  pollState();
+  // Adaptive polling: fast (500ms) after send, normal (1500ms) otherwise
+  pollInterval=setInterval(()=>{
+    const fast=Date.now()<fastPollUntil;
+    pollMessages();
+    if(fast) pollMessages(); // double-tap in fast mode
+  }, 800);
+  setInterval(pollState,800);
+}
+
+function enterFastPoll(){
+  fastPollUntil=Date.now()+15000; // 15s of fast polling after send
+}
+
+startPolling();
 </script>
 </body>
 </html>
