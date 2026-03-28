@@ -508,7 +508,8 @@ async function handleUpload(input){
       const form=new FormData();
       form.append('file',file);
       const r=await fetch('/api/chat-upload',{method:'POST',body:form,credentials:'include'});
-      if(!r.ok)throw new Error('Upload failed');
+      if(r.redirected||r.status===302)throw new Error('Auth expired — reload page');
+      if(!r.ok)throw new Error('Upload failed ('+r.status+')');
       const d=await r.json();
       updateChip(chipId,{...d,id:chipId});
       uploadedFiles.push(d);
