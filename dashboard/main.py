@@ -315,6 +315,7 @@ class UpdateReq(BaseModel):
     isolated: Optional[bool] = None
     mem_limit: Optional[str] = None
     cpu_limit: Optional[str] = None
+    api_key: Optional[str] = None
 
 
 @app.put("/api/projects/{name}")
@@ -327,6 +328,12 @@ async def update_project(name: str, body: UpdateReq):
         val = getattr(body, field)
         if val is not None:
             meta[field] = val
+    # Encrypt API key if provided; empty string clears it
+    if body.api_key is not None:
+        if body.api_key:
+            meta["api_key_enc"] = _encrypt_token(body.api_key)
+        else:
+            meta.pop("api_key_enc", None)
     reg[name] = meta
     save_registry(reg)
     return get_status(name)
@@ -338,8 +345,9 @@ async def get_project_settings(name: str):
         raise HTTPException(404, f"'{name}' not found")
     meta = get_project_meta(name)
     # Never expose password directly, just indicate if set
-    safe = {k: v for k, v in meta.items() if k != "ssh_pass"}
+    safe = {k: v for k, v in meta.items() if k not in ("ssh_pass", "api_key_enc")}
     safe["has_password"] = bool(meta.get("ssh_pass"))
+    safe["has_api_key"] = bool(meta.get("api_key_enc"))
     return safe
 
 

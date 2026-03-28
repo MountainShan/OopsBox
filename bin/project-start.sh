@@ -28,7 +28,22 @@ if [ -f "$REGISTRY" ]; then
   ISOLATED=$(jq -r --arg n "$NAME" '.[$n].isolated // false' "$REGISTRY")
 fi
 
-echo "[start] $NAME — backend:${BACKEND}, skip_perms:${SKIP_PERMS}, isolated:${ISOLATED}, ttyd :${TTYD_PORT}"
+# Per-project API key (encrypted in registry, overrides global key)
+PROJECT_API_KEY=""
+if [ -f "$REGISTRY" ]; then
+  API_KEY_ENC=$(jq -r --arg n "$NAME" '.[$n].api_key_enc // ""' "$REGISTRY")
+  if [ -n "$API_KEY_ENC" ] && [ "$API_KEY_ENC" != "null" ]; then
+    KEY_FILE="$HOME/.config/oopsbox/channel.key"
+    if [ -f "$KEY_FILE" ]; then
+      KEY=$(cat "$KEY_FILE")
+      PROJECT_API_KEY=$(echo "$API_KEY_ENC" | openssl enc -aes-256-cbc -a -A -d -salt -pbkdf2 -pass "pass:$KEY" 2>/dev/null || echo "")
+    fi
+  fi
+fi
+# Use per-project key if set, otherwise fall back to global (or empty for Max plan)
+AGENT_API_KEY="${PROJECT_API_KEY:-${ANTHROPIC_API_KEY:-}}"
+
+echo "[start] $NAME — backend:${BACKEND}, skip_perms:${SKIP_PERMS}, isolated:${ISOLATED}, api_key:${PROJECT_API_KEY:+set}, ttyd :${TTYD_PORT}"
 
 # AI agent → shared "agents" tmux session
 if [ "$ISOLATED" = "true" ] && [ "$BACKEND" = "local" ]; then
@@ -40,7 +55,7 @@ else
   if ! tmux list-windows -t agents -F '#{window_name}' | grep -qx "$NAME"; then
     tmux new-window -t agents -n "$NAME" -c "$WORKDIR"
     tmux send-keys -t "agents:$NAME" \
-      "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter
+      "export ANTHROPIC_API_KEY='${AGENT_API_KEY}'; claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter
     tmux resize-window -t "agents:$NAME" -x 300 -y 80 2>/dev/null || true
   fi
 fi

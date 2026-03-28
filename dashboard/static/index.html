@@ -456,6 +456,11 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
       </div>
     </div>
     <div class="field" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+      <label>API Key <span id="set-apikey-hint" style="font-size:11px;color:var(--muted)"></span></label>
+      <input id="set-api-key" type="password" placeholder="Leave blank to use subscription plan" autocapitalize="none" autocorrect="off">
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set a per-project API key to use API billing. Leave empty to use your subscription (Max/Pro). Stored encrypted.</div>
+    </div>
+    <div class="field" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
         <input type="checkbox" id="set-skip-perms" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
         <span>Skip permission prompts</span>
@@ -701,6 +706,8 @@ async function openSettings(name){
       document.getElementById('set-ssh-fields').style.display='none';
     }
     document.getElementById('set-skip-perms').checked=!!meta.skip_permissions;
+    document.getElementById('set-api-key').value='';
+    document.getElementById('set-apikey-hint').textContent=meta.has_api_key?'(API key set — using API billing)':'(not set — using subscription plan)';
   }catch(e){
     document.getElementById('set-backend').textContent='Error loading settings';
   }
@@ -717,6 +724,8 @@ async function saveSettings(){
   if(!settingsProject)return;
   const err=document.getElementById('set-err');
   const body={skip_permissions:document.getElementById('set-skip-perms').checked};
+  const apiKey=document.getElementById('set-api-key').value;
+  if(apiKey)body.api_key=apiKey;
   if(document.getElementById('set-ssh-fields').style.display!=='none'){
     body.ssh_host=document.getElementById('set-ssh-host').value.trim();
     body.ssh_port=parseInt(document.getElementById('set-ssh-port').value)||22;
