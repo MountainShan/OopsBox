@@ -515,7 +515,7 @@ async function handleUpload(input){
       uploadedFiles.push(d);
       // Auto-append file path to textarea so user can see it
       const ta=document.getElementById('input');
-      const line=`\nFile available at: ${d.path}`;
+      const line=`\nFile available at: "${d.path}"`;
       ta.value=ta.value?ta.value+line:line.trim();
       autoGrow(ta);
       stateEl.textContent='uploaded';stateEl.style.color='lime';
@@ -561,7 +561,7 @@ function removeChip(btn,path){
     uploadedFiles=uploadedFiles.filter(f=>f.path!==path);
     // Strip the path line from textarea
     const ta=document.getElementById('input');
-    ta.value=ta.value.replace(new RegExp('\\n?File available at: '+path.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'),'');
+    ta.value=ta.value.replace(new RegExp('\\n?File available at: "'+path.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'"','g'),'');
     autoGrow(ta);
   }
   btn.closest('.file-chip').remove();
