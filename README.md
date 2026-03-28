@@ -7,11 +7,13 @@
 </p>
 
 <p align="center">
-  <em>I just wanted to code on iPad. Now there's a whole platform. oops.</em>
+  <em>I just wanted to code on iPad. Now there's a whole platform. oops.</em><br>
+  <em>我只是想在 iPad 上寫 code。然後它就失控了。oops。</em>
 </p>
 
 <p align="center">
-  <strong>⚠️ Permanently under construction. I keep saying "just one more feature" and it keeps being a lie. Nothing is stable, everything is on fire, and somehow it still works. Use at your own risk — I do, and I'm not sure that's a recommendation.</strong>
+  <strong>⚠️ Permanently under construction. I keep saying "just one more feature" and it keeps being a lie. Nothing is stable, everything is on fire, and somehow it still works. Use at your own risk — I do, and I'm not sure that's a recommendation.</strong><br><br>
+  <strong>⚠️ 永久施工中。我一直說「就再加一個功能」然後每次都是謊話。沒有東西是穩定的，到處都在著火，但它不知怎麼還能跑。使用風險自負 — 我自己每天都在用，但我不確定這算不算推薦。</strong>
 </p>
 
 ---
