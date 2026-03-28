@@ -514,6 +514,20 @@ async def send_text(name: str, body: SendTextReq, window: Optional[str] = None, 
     return {"sent": body.text, "session": session}
 
 
+# ── Chat file upload (to /tmp for agent reference) ────────────────────────────
+
+@app.post("/api/chat-upload")
+async def chat_upload(file: UploadFile = File(...)):
+    import time
+    filename = file.filename or "upload"
+    # Sanitize filename
+    safe_name = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+    dest = Path("/tmp") / f"oopsbox-{int(time.time())}-{safe_name}"
+    content = await file.read()
+    dest.write_bytes(content)
+    return {"path": str(dest), "filename": filename, "size": len(content)}
+
+
 # ── JSONL Session Messages API ────────────────────────────────────────────────
 
 def _get_session_dir(name: str) -> Path:

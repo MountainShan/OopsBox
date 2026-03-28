@@ -130,7 +130,15 @@ pre code .hljs-operator{color:#c9cdd8}
     <button class="ib-key" onclick="sendKey('y')">y</button>
     <button class="ib-key" onclick="sendKey('n')">n</button>
   </div>
+  <div id="upload-preview" style="display:none;padding:2px 8px;font-size:11px;color:var(--muted);display:none;align-items:center;gap:4px">
+    <span id="upload-name"></span>
+    <button onclick="clearUpload()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:0 2px">&times;</button>
+  </div>
   <div class="input-row">
+    <input type="file" id="file-input" style="display:none" onchange="handleUpload(this)">
+    <button class="send-btn" onclick="document.getElementById('file-input').click()" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 8px" title="Upload file">
+      <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+    </button>
     <textarea id="input" rows="1" placeholder="Type message or use keys above..."
               onkeydown="handleInputKey(event)"
               oninput="autoGrow(this)"></textarea>
@@ -398,10 +406,46 @@ async function sendKey(key){
   }
 }
 
+// ── File upload ──
+let uploadedFile=null;
+
+async function handleUpload(input){
+  const file=input.files[0];
+  if(!file)return;
+  const stateEl=document.getElementById('state-display');
+  stateEl.textContent='uploading...';stateEl.style.color='yellow';
+  try{
+    const form=new FormData();
+    form.append('file',file);
+    const r=await fetch('/api/chat-upload',{method:'POST',body:form,credentials:'include'});
+    if(!r.ok)throw new Error('Upload failed');
+    const d=await r.json();
+    uploadedFile=d;
+    document.getElementById('upload-preview').style.display='flex';
+    document.getElementById('upload-name').textContent=`📎 ${d.filename} (${(d.size/1024).toFixed(1)}KB)`;
+    stateEl.textContent='uploaded';stateEl.style.color='lime';
+  }catch(e){
+    stateEl.textContent=`upload error: ${e.message}`;stateEl.style.color='red';
+  }
+  input.value='';
+}
+
+function clearUpload(){
+  uploadedFile=null;
+  document.getElementById('upload-preview').style.display='none';
+  document.getElementById('upload-name').textContent='';
+}
+
 // ── Send text to tmux (targets agents session) ──
 async function doSend(){
   const el=document.getElementById('input');
-  const text=el.value.trim();
+  let text=el.value.trim();
+  // Append file reference if uploaded
+  if(uploadedFile){
+    const ref=`\n\n[Attached file: ${uploadedFile.filename} — saved at ${uploadedFile.path}. Please read this file to see its contents.]`;
+    text=text?text+ref:ref.trim();
+    clearUpload();
+  }
   if(!text)return;
   const stateEl=document.getElementById('state-display');
   stateEl.textContent=`sending text: "${text.slice(0,20)}..."`;stateEl.style.color='yellow';
