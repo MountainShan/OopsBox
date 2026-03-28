@@ -7,7 +7,7 @@ ENV LANG=C.UTF-8
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xz-utils \
     tmux ttyd nginx jq python3-pip python3-venv \
-    build-essential procps sshpass git curl openssl sudo ca-certificates sshfs \
+    procps sshpass git curl openssl sudo ca-certificates sshfs \
     && rm -rf /var/lib/apt/lists/*
 
 # ── s6-overlay (process supervisor) ──
