@@ -103,35 +103,75 @@ map $http_upgrade $connection_upgrade {
 
 server {
     listen 80 default_server;
-    server_name _;
     client_max_body_size 50m;
+    server_name _;
+    # For HTTPS, run: setup-https.sh (adds SSL listener automatically)
 
+    # Auth verification (internal)
+    location = /api/auth/verify {
+        internal;
+        proxy_pass http://127.0.0.1:5000/api/auth/verify;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Cookie $http_cookie;
+    }
+
+    # No auth needed
+    location /login { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
+    location /api/auth/ { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; }
+    location /proxy.pac { proxy_pass http://127.0.0.1:5000; }
+    location /static/ { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
+    location /api/chat-upload { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; client_max_body_size 50m; }
+
+    # Auth required: Dashboard
     location / {
-        proxy_pass         http://127.0.0.1:5000;
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
+        auth_request /api/auth/verify;
+        error_page 401 = @login_redirect;
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
         proxy_read_timeout 60s;
     }
 
-    location ~ ^/proj/(?<proj>[a-zA-Z0-9._-]+)/term(?<rest>/.*)$ {
-        include /etc/nginx/rcoder-ports.conf;
-        proxy_pass         http://127.0.0.1:$ttyd_port/proj/$proj/term$rest$is_args$args;
-        proxy_set_header   Host              $host;
-        proxy_set_header   Upgrade           $http_upgrade;
-        proxy_set_header   Connection        $connection_upgrade;
-        proxy_http_version 1.1;
-        proxy_read_timeout 86400s;
-        proxy_buffering    off;
+    # Auth required: API (except auth endpoints)
+    location /api/ {
+        auth_request /api/auth/verify;
+        error_page 401 = @login_redirect;
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 60s;
     }
 
-    location /system/term/ {
-        proxy_pass         http://127.0.0.1:9000/system/term/;
-        proxy_set_header   Host              $host;
-        proxy_set_header   Upgrade           $http_upgrade;
-        proxy_set_header   Connection        $connection_upgrade;
+    # Auth required: Project terminals
+    location ~ ^/proj/(?<proj>[a-zA-Z0-9._-]+)/term(?<rest>/.*)$ {
+        auth_request /api/auth/verify;
+        error_page 401 = @login_redirect;
+        include /etc/nginx/rcoder-ports.conf;
+        proxy_pass http://127.0.0.1:$ttyd_port/proj/$proj/term$rest$is_args$args;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
         proxy_http_version 1.1;
         proxy_read_timeout 86400s;
-        proxy_buffering    off;
+        proxy_buffering off;
+    }
+
+    # Auth required: System terminal
+    location /system/term/ {
+        auth_request /api/auth/verify;
+        error_page 401 = @login_redirect;
+        proxy_pass http://127.0.0.1:9000/system/term/;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_http_version 1.1;
+        proxy_read_timeout 86400s;
+        proxy_buffering off;
+    }
+
+    location @login_redirect {
+        return 302 /login?next=$request_uri;
     }
 }
 NGINX
