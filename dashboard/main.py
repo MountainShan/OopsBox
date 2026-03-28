@@ -226,6 +226,7 @@ class CreateReq(BaseModel):
     isolated: bool = False
     mem_limit: str = "4g"
     cpu_limit: str = "2.0"
+    api_key: Optional[str] = None
 
     @field_validator("name")
     @classmethod
@@ -296,6 +297,12 @@ async def create_project(body: CreateReq):
         r = run([str(BIN_DIR / "project-create.sh"), body.name])
         if r.returncode != 0:
             raise HTTPException(500, r.stderr or r.stdout)
+
+    # Store encrypted API key if provided
+    if body.api_key:
+        reg = load_registry()
+        reg[body.name]["api_key_enc"] = _encrypt_token(body.api_key)
+        save_registry(reg)
 
     # Auto-start the project (launches Claude session + ttyd)
     run([str(BIN_DIR / "project-start.sh"), body.name])

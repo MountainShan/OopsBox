@@ -351,6 +351,11 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
         <input id="ssh-path" placeholder="/home/user" autocapitalize="none" autocorrect="off">
       </div>
     </div>
+    <div class="field">
+      <label>API Key <span style="font-size:11px;color:var(--muted)">(optional)</span></label>
+      <input id="create-api-key" type="password" placeholder="Leave blank to use subscription plan" autocapitalize="none" autocorrect="off">
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set to use API billing. Leave empty for subscription (Max/Pro).</div>
+    </div>
     <div class="err" id="cerr"></div>
     <div class="ma">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -676,6 +681,7 @@ function openModal(){
   document.getElementById('resource-fields').style.display='none';
   document.getElementById('mem-limit').value='4g';
   document.getElementById('cpu-limit').value='2.0';
+  document.getElementById('create-api-key').value='';
   setTimeout(()=>document.getElementById('pname').focus(),100);
 }
 function closeModal(){document.getElementById('modal').classList.remove('open')}
@@ -756,6 +762,8 @@ async function doCreate(){
   }
   const backend=document.getElementById('backend-select').value;
   const body={name,backend};
+  const createKey=document.getElementById('create-api-key').value.trim();
+  if(createKey)body.api_key=createKey;
   if(backend==='local'&&document.getElementById('isolated-check').checked){
     body.isolated=true;
     body.mem_limit=document.getElementById('mem-limit').value.trim()||'4g';
