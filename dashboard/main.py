@@ -234,6 +234,7 @@ class CreateReq(BaseModel):
     container_type: str = "docker"  # "docker" or "lxc"
     container_user: str = "root"
     container_path: str = "/root"
+    skip_permissions: bool = False
 
     @field_validator("name")
     @classmethod
@@ -335,6 +336,12 @@ async def create_project(body: CreateReq):
     if body.api_key:
         reg = load_registry()
         reg[body.name]["api_key_enc"] = _encrypt_token(body.api_key)
+        save_registry(reg)
+
+    # Store skip_permissions if set
+    if body.skip_permissions:
+        reg = load_registry()
+        reg[body.name]["skip_permissions"] = True
         save_registry(reg)
 
     # Auto-start the project (launches Claude session + ttyd)

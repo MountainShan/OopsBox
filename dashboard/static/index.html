@@ -385,6 +385,13 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
       <input id="create-api-key" type="password" placeholder="Leave blank to use subscription plan" autocapitalize="none" autocorrect="off">
       <div style="font-size:10px;color:var(--muted);margin-top:3px">Set to use API billing. Leave empty for subscription (Max/Pro).</div>
     </div>
+    <div class="field" style="padding-top:8px;border-top:1px solid var(--border)">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="create-skip-perms" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
+        <span>Skip permission prompts</span>
+      </label>
+      <div style="font-size:10px;color:var(--red);margin-top:3px;padding-left:28px">Uses <code>--dangerously-skip-permissions</code>. Claude won't ask before running commands.</div>
+    </div>
     <div class="err" id="cerr"></div>
     <div class="ma">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -721,6 +728,7 @@ function openModal(){
   document.getElementById('mem-limit').value='4g';
   document.getElementById('cpu-limit').value='2.0';
   document.getElementById('create-api-key').value='';
+  document.getElementById('create-skip-perms').checked=false;
   setTimeout(()=>document.getElementById('pname').focus(),100);
 }
 function closeModal(){document.getElementById('modal').classList.remove('open')}
@@ -831,6 +839,7 @@ async function doCreate(){
       err.style.display='block';return;
     }
   }
+  if(document.getElementById('create-skip-perms').checked) body.skip_permissions=true;
   btn.innerHTML='<span class="spin"></span> Creating...';btn.disabled=true;
   try{
     const r=await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
