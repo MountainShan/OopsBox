@@ -1,14 +1,16 @@
 {
   "name": "OopsBox",
   "short_name": "OopsBox",
-  "description": "I just wanted to code on iPad",
+  "description": "I just wanted to code on iPad. Now there's a whole platform. oops.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0a0c10",
   "theme_color": "#0a0c10",
   "orientation": "any",
+  "categories": ["developer", "productivity"],
   "icons": [
-    { "src": "/static/icon-192.png?v=5", "sizes": "192x192", "type": "image/png" },
-    { "src": "/static/icon-512.png?v=5", "sizes": "512x512", "type": "image/png" }
+    { "src": "/static/icon-192.png?v=5", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/icon-512.png?v=5", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }

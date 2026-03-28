@@ -76,9 +76,10 @@ header{padding:0 20px;height:48px;border-bottom:1px solid var(--border);display:
 .proj:active,.proj.on{background:var(--bg3);border-color:var(--accent);border-style:solid}
 .proj-top{display:flex;align-items:center;gap:6px}
 .proj-name{font-size:12px;font-weight:600;color:var(--text-hi);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.status-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;cursor:help}
 .status-dot.running{background:var(--green);box-shadow:0 0 4px color-mix(in srgb,var(--green) 40%,transparent)}
 .status-dot.idle{background:var(--muted)}
+.status-dot[title]{position:relative}
 .proj-meta{font-size:10px;color:var(--muted);margin-top:2px;padding-left:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .empty-tree{text-align:center;color:var(--muted);padding:12px 8px;font-size:11px;font-style:italic}
 .proj{-webkit-touch-callout:none}
@@ -98,9 +99,9 @@ html.light .ctx-menu{box-shadow:0 8px 24px rgba(0,0,0,.15)}
 .content-empty svg{width:40px;height:40px;stroke:var(--border);stroke-width:1.2}
 .content-bar{padding:0 8px;height:28px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;flex-shrink:0;background:var(--bg2);transition:background .2s,border-color .2s}
 .content-bar .name{font-size:13px;font-weight:600;color:var(--text-hi);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.content-tabs{display:flex;gap:2px;background:var(--bg);border-radius:5px;padding:2px;transition:background .2s}
-.ctab{padding:3px 10px;border-radius:4px;font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);transition:all .12s;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:4px}
-.ctab.on{background:var(--accent);color:#fff}
+.content-tabs{display:flex;gap:0;transition:background .2s}
+.ctab{padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);transition:all .12s;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:5px;border-bottom:2px solid transparent;min-height:28px}
+.ctab.on{color:var(--accent);border-bottom-color:var(--accent)}
 .ctab:not(.on):hover{color:var(--text)}
 .content-frame{flex:1;overflow:hidden}
 .content-frame iframe{width:100%;height:100%;border:none;background:var(--iframe-bg);transition:background .2s}
@@ -216,6 +217,10 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
       </div>
     </div>
     <div class="sidebar-footer">
+      <div class="status-legend" style="display:flex;gap:10px;padding:2px 4px 6px;font-size:10px;color:var(--muted)">
+        <span style="display:flex;align-items:center;gap:3px"><span class="status-dot running" style="width:5px;height:5px"></span>Running</span>
+        <span style="display:flex;align-items:center;gap:3px"><span class="status-dot idle" style="width:5px;height:5px"></span>Idle</span>
+      </div>
       <div class="sys-row"><span class="sys-label">🧠</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-cpu" style="width:0%"></div></div><span class="sys-val" id="val-cpu">--</span></div>
       <div class="sys-row"><span class="sys-label">🐏</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-ram" style="width:0%"></div></div><span class="sys-val" id="val-ram">--</span></div>
       <div class="sys-row"><span class="sys-label">💾</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-swap" style="width:0%"></div></div><span class="sys-val" id="val-swap">--</span></div>
@@ -490,6 +495,11 @@ if('serviceWorker' in navigator){
   caches.keys().then(ks=>ks.forEach(k=>caches.delete(k)));
 }
 
+// ── PWA service worker ──
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/static/sw.js').catch(()=>{});
+}
+
 /* ── Theme + Vibe ── */
 /* ── Text — self-deprecating, because this whole thing is an accident ── */
 const T={
@@ -559,7 +569,7 @@ function renderList(){
          oncontextmenu="showCtx(event,'${esc(p.name)}','project')"
          ontouchstart="lpStart(event,'${esc(p.name)}','project')" ontouchend="lpCancel()" ontouchmove="lpCancel()">
       <div class="proj-top">
-        <span class="status-dot ${p.status}"></span>
+        <span class="status-dot ${p.status}" title="${p.status==='running'?'Running':'Idle'}"></span>
         <div class="proj-name">${esc(p.name)}</div>
       </div>
       <div class="proj-meta">${p.backend==='ssh'?'🔗 '+p.ssh_user+'@'+p.ssh_host+' · ':'' }${p.status==='running'?tRand('running'):tRand('idle')}</div>
@@ -1020,6 +1030,89 @@ function lpStart(e,name,type){
   },500);
 }
 function lpCancel(){if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}}
+
+// ── #9 Session & state UX ──
+
+// Remember last active project
+function saveLastProject(name){
+  try{localStorage.setItem('oopsbox-last-project',name);}catch(e){}
+}
+function restoreLastProject(){
+  try{
+    const last=localStorage.getItem('oopsbox-last-project');
+    if(last&&!isMobile()){
+      // Wait for project list to load, then open
+      const check=setInterval(()=>{
+        const p=projects.find(x=>x.name===last);
+        if(p){
+          clearInterval(check);
+          if(p.status==='running') openView(last,p.code_port,p.ttyd_port);
+          else selectProj(last);
+        }
+      },500);
+      setTimeout(()=>clearInterval(check),5000);
+    }
+  }catch(e){}
+}
+// Patch openView to save
+const _origOpenView=openView;
+openView=function(name,cp,tp,tab){
+  saveLastProject(name);
+  return _origOpenView(name,cp,tp,tab);
+};
+// Patch selectProj to save
+const _origSelectProj=selectProj;
+selectProj=function(name){
+  saveLastProject(name);
+  return _origSelectProj(name);
+};
+// Restore on load
+setTimeout(restoreLastProject,800);
+
+// Auto-reconnect on iPad wake (visibility change)
+let reconnectBanner=null;
+function showReconnectBanner(){
+  if(reconnectBanner)return;
+  reconnectBanner=document.createElement('div');
+  reconnectBanner.style.cssText='position:fixed;top:0;left:0;right:0;z-index:999;background:var(--accent);color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:600;transition:opacity .3s';
+  reconnectBanner.textContent='Reconnecting...';
+  document.body.appendChild(reconnectBanner);
+}
+function hideReconnectBanner(){
+  if(reconnectBanner){
+    reconnectBanner.style.opacity='0';
+    setTimeout(()=>{reconnectBanner?.remove();reconnectBanner=null;},300);
+  }
+}
+
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden){
+    showReconnectBanner();
+    // Refresh all data
+    load();
+    loadChannels();
+    loadSys();
+    // Reload iframes to reconnect WebSockets
+    if(deskCurrent){
+      const chatFrame=document.getElementById('df-chat');
+      const workFrame=document.getElementById('df-work');
+      if(chatFrame&&chatFrame.src)chatFrame.src=chatFrame.src;
+      if(workFrame&&workFrame.src)workFrame.src=workFrame.src;
+    }
+    setTimeout(hideReconnectBanner,1500);
+  }
+});
+
+// Periodic connectivity check
+setInterval(async()=>{
+  try{
+    const r=await fetch('/api/auth/status',{credentials:'include'});
+    if(!r.ok)throw new Error();
+    hideReconnectBanner();
+  }catch(e){
+    showReconnectBanner();
+  }
+},10000);
 
 </script>
 <div class="ctx-menu" id="ctx-menu"></div>
