@@ -3,6 +3,13 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 
+# ── System packages ──
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xz-utils \
+    tmux ttyd nginx jq python3-pip python3-venv \
+    build-essential procps sshpass git curl openssl sudo ca-certificates sshfs \
+    && rm -rf /var/lib/apt/lists/*
+
 # ── s6-overlay (process supervisor) ──
 ARG S6_OVERLAY_VERSION=3.2.0.2
 ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz /tmp
@@ -10,12 +17,6 @@ ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLA
 RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
     tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz && \
     rm /tmp/s6-overlay-*.tar.xz
-
-# ── System packages ──
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    tmux ttyd nginx jq python3-pip python3-venv \
-    build-essential procps sshpass git curl openssl sudo ca-certificates sshfs \
-    && rm -rf /var/lib/apt/lists/*
 
 # ── Node.js (for Claude CLI) ──
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
