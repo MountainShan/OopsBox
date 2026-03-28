@@ -80,8 +80,18 @@ header{padding:0 20px;height:48px;border-bottom:1px solid var(--border);display:
 .status-dot.running{background:var(--green);box-shadow:0 0 4px color-mix(in srgb,var(--green) 40%,transparent)}
 .status-dot.idle{background:var(--muted)}
 .proj-meta{font-size:10px;color:var(--muted);margin-top:2px;padding-left:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.proj-actions{display:flex;gap:3px;margin-top:4px;padding-left:11px}
 .empty-tree{text-align:center;color:var(--muted);padding:12px 8px;font-size:11px;font-style:italic}
+.proj{-webkit-touch-callout:none}
+
+/* Context menu */
+.ctx-menu{display:none;position:fixed;z-index:300;min-width:150px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+html.light .ctx-menu{box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.ctx-menu.open{display:block}
+.ctx-item{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:5px;font-size:12px;color:var(--text);cursor:pointer;transition:all .1s;user-select:none}
+.ctx-item:hover{background:var(--bg3);color:var(--text-hi)}
+.ctx-item.danger{color:var(--red)}
+.ctx-item.danger:hover{background:color-mix(in srgb,var(--red) 12%,transparent)}
+.ctx-sep{height:1px;background:var(--border);margin:3px 8px}
 
 .content{flex:1;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;transition:background .2s}
 .content-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);gap:8px}
@@ -535,25 +545,14 @@ function renderList(){
   if(mainEmpty)mainEmpty.innerHTML=`<span>${tRand('emptyMain')}</span>`;
   if(!projects.length){el.innerHTML=`<div class="empty-tree">${tRand('empty')}</div>`;return;}
   el.innerHTML=projects.map(p=>`
-    <div class="proj${selected===p.name?' on':''}" onclick="selectProj('${esc(p.name)}')">
+    <div class="proj${selected===p.name?' on':''}" onclick="selectProj('${esc(p.name)}')"
+         oncontextmenu="showCtx(event,'${esc(p.name)}','project')"
+         ontouchstart="lpStart(event,'${esc(p.name)}','project')" ontouchend="lpCancel()" ontouchmove="lpCancel()">
       <div class="proj-top">
         <span class="status-dot ${p.status}"></span>
         <div class="proj-name">${esc(p.name)}</div>
       </div>
       <div class="proj-meta">${p.backend==='ssh'?'🔗 '+p.ssh_user+'@'+p.ssh_host+' · ':'' }${p.status==='running'?tRand('running'):tRand('idle')}</div>
-      <div class="proj-actions">
-        ${p.status==='running'
-          ?`<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openView('${esc(p.name)}',${p.code_port},${p.ttyd_port})">
-              Enter</button>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();act('stop','${esc(p.name)}')">
-              Stop</button>`
-          :`<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();act('start','${esc(p.name)}')">
-              Start</button>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openSettings('${esc(p.name)}')">
-              Edit</button>`}
-        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();del('${esc(p.name)}')">
-          Delete</button>
-      </div>
     </div>`).join('');
 }
 
@@ -791,19 +790,14 @@ function renderChannels(){
   const el=document.getElementById('chan-list');
   if(!channels.length){el.innerHTML='<div class="empty-tree">no channels</div>';return;}
   el.innerHTML=channels.map(c=>`
-    <div class="proj">
+    <div class="proj"
+         oncontextmenu="showCtx(event,'${esc(c.name)}','channel')"
+         ontouchstart="lpStart(event,'${esc(c.name)}','channel')" ontouchend="lpCancel()" ontouchmove="lpCancel()">
       <div class="proj-top">
         <span class="status-dot ${c.status}"></span>
         <div class="proj-name">📡 ${esc(c.name)}</div>
       </div>
-      <div class="proj-meta">${esc(c.workdir)}</div>
-      <div class="proj-actions">
-        ${c.status==='running'
-          ?`<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();viewChanLog('${esc(c.name)}')">Log</button>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();chanAct('stop','${esc(c.name)}')">Stop</button>`
-          :`<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();chanAct('start','${esc(c.name)}')">Start</button>`}
-        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();delChan('${esc(c.name)}')">Delete</button>
-      </div>
+      <div class="proj-meta">${c.status==='running'?tRand('running'):tRand('idle')}</div>
     </div>`).join('');
 }
 async function chanAct(action,name){
@@ -937,6 +931,80 @@ async function doLogout(){
 loadSys();
 setInterval(loadSys,3000);
 
+// ── Context menu ──
+let ctxTarget=null, ctxType=null;
+let longPressTimer=null;
+
+function showCtx(e,name,type){
+  e.preventDefault();
+  ctxTarget=name;ctxType=type;
+  const menu=document.getElementById('ctx-menu');
+  let html='';
+  if(type==='project'){
+    const p=projects.find(x=>x.name===name);
+    if(p&&p.status==='running'){
+      html+=`<div class="ctx-item" onclick="ctxDo('enter')">▶ Enter</div>`;
+      html+=`<div class="ctx-item" onclick="ctxDo('stop')">■ Stop</div>`;
+    }else{
+      html+=`<div class="ctx-item" onclick="ctxDo('start')">▶ Start</div>`;
+    }
+    html+=`<div class="ctx-item" onclick="ctxDo('settings')">⚙ Settings</div>`;
+    html+=`<div class="ctx-sep"></div>`;
+    html+=`<div class="ctx-item danger" onclick="ctxDo('delete')">🗑 Delete</div>`;
+  }else if(type==='channel'){
+    const c=channels.find(x=>x.name===name);
+    if(c&&c.status==='running'){
+      html+=`<div class="ctx-item" onclick="ctxDo('log')">📋 Log</div>`;
+      html+=`<div class="ctx-item" onclick="ctxDo('stop')">■ Stop</div>`;
+    }else{
+      html+=`<div class="ctx-item" onclick="ctxDo('start')">▶ Start</div>`;
+    }
+    html+=`<div class="ctx-sep"></div>`;
+    html+=`<div class="ctx-item danger" onclick="ctxDo('delete')">🗑 Delete</div>`;
+  }
+  menu.innerHTML=html;
+  // Position
+  const x=e.clientX||e.touches?.[0]?.clientX||100;
+  const y=e.clientY||e.touches?.[0]?.clientY||100;
+  menu.style.left=Math.min(x,window.innerWidth-170)+'px';
+  menu.style.top=Math.min(y,window.innerHeight-200)+'px';
+  menu.classList.add('open');
+}
+function hideCtx(){document.getElementById('ctx-menu').classList.remove('open');ctxTarget=null;}
+document.addEventListener('click',hideCtx);
+document.addEventListener('scroll',hideCtx,true);
+
+function ctxDo(action){
+  const name=ctxTarget,type=ctxType;
+  hideCtx();
+  if(!name)return;
+  if(type==='project'){
+    const p=projects.find(x=>x.name===name);
+    if(action==='enter'&&p) openView(name,p.code_port,p.ttyd_port);
+    else if(action==='start') act('start',name);
+    else if(action==='stop') act('stop',name);
+    else if(action==='settings') openSettings(name);
+    else if(action==='delete') del(name);
+  }else if(type==='channel'){
+    if(action==='start') chanAct('start',name);
+    else if(action==='stop') chanAct('stop',name);
+    else if(action==='log') viewChanLog(name);
+    else if(action==='delete') delChan(name);
+  }
+}
+
+// Long-press for iPad (no right-click)
+function lpStart(e,name,type){
+  longPressTimer=setTimeout(()=>{
+    longPressTimer=null;
+    // Fake contextmenu event with touch coords
+    const touch=e.touches?.[0]||e;
+    showCtx({preventDefault:()=>{},clientX:touch.clientX,clientY:touch.clientY},name,type);
+  },500);
+}
+function lpCancel(){if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}}
+
 </script>
+<div class="ctx-menu" id="ctx-menu"></div>
 </body>
 </html>
