@@ -296,6 +296,7 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
       <select id="backend-select" onchange="toggleSSH()" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text-hi);font-size:15px;outline:none;-webkit-appearance:none;cursor:pointer">
         <option value="local">Local</option>
         <option value="ssh">SSH Remote</option>
+        <option value="container">Docker/LXC Container</option>
       </select>
     </div>
     <!-- Isolation fields (hidden until feature is ready) -->
@@ -354,6 +355,29 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
       <div class="field">
         <label>Remote Path</label>
         <input id="ssh-path" placeholder="/home/user" autocapitalize="none" autocorrect="off">
+      </div>
+    </div>
+    <div id="container-fields" style="display:none">
+      <div class="field">
+        <label>Container Name</label>
+        <input id="ct-name" placeholder="my-container" autocapitalize="none" autocorrect="off">
+      </div>
+      <div style="display:flex;gap:8px">
+        <div class="field" style="flex:1">
+          <label>Type</label>
+          <select id="ct-type" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text-hi);font-size:15px;outline:none;-webkit-appearance:none;cursor:pointer">
+            <option value="docker">Docker</option>
+            <option value="lxc">LXC</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1">
+          <label>User</label>
+          <input id="ct-user" value="root" autocapitalize="none" autocorrect="off">
+        </div>
+      </div>
+      <div class="field">
+        <label>Working Path</label>
+        <input id="ct-path" value="/root" placeholder="/root" autocapitalize="none" autocorrect="off">
       </div>
     </div>
     <div class="field">
@@ -536,11 +560,11 @@ function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt
 function toggleSidebar(){document.querySelector('.layout').classList.toggle('collapsed')}
 
 function toggleSSH(){
-  const ssh=document.getElementById('backend-select').value==='ssh';
-  document.getElementById('ssh-fields').style.display=ssh?'block':'none';
+  const val=document.getElementById('backend-select').value;
+  document.getElementById('ssh-fields').style.display=val==='ssh'?'block':'none';
+  document.getElementById('container-fields').style.display=val==='container'?'block':'none';
   // Isolation hidden until feature is ready
-  // document.getElementById('isolation-fields').style.display=ssh?'none':'block';
-  // if(ssh){document.getElementById('isolated-check').checked=false;toggleIsolation();}
+  // document.getElementById('isolation-fields').style.display=val==='local'?'block':'none';
 }
 function toggleIsolation(){
   const on=document.getElementById('isolated-check').checked;
@@ -572,7 +596,7 @@ function renderList(){
         <span class="status-dot ${p.status}" title="${p.status==='running'?'Running':'Idle'}"></span>
         <div class="proj-name">${esc(p.name)}</div>
       </div>
-      <div class="proj-meta">${p.backend==='ssh'?'🔗 '+p.ssh_user+'@'+p.ssh_host+' · ':'' }${p.status==='running'?tRand('running'):tRand('idle')}</div>
+      <div class="proj-meta">${p.backend==='ssh'?'🔗 '+p.ssh_user+'@'+p.ssh_host+' · ':p.backend==='container'?'📦 '+p.container_name+' ('+p.container_type+') · ':''}${p.status==='running'?tRand('running'):tRand('idle')}</div>
     </div>`).join('');
 }
 
@@ -685,6 +709,11 @@ function openModal(){
   document.getElementById('cerr').style.display='none';
   document.getElementById('backend-select').value='local';
   document.getElementById('ssh-fields').style.display='none';
+  document.getElementById('container-fields').style.display='none';
+  document.getElementById('ct-name').value='';
+  document.getElementById('ct-type').value='docker';
+  document.getElementById('ct-user').value='root';
+  document.getElementById('ct-path').value='/root';
   // Isolation hidden until feature is ready
   document.getElementById('isolation-fields').style.display='none';
   document.getElementById('isolated-check').checked=false;
@@ -706,7 +735,9 @@ async function openSettings(name){
   try{
     const r=await fetch(`/api/projects/${name}/settings`);
     const meta=await r.json();
-    document.getElementById('set-backend').textContent=meta.backend==='ssh'?'SSH Remote':'Local';
+    const bt=meta.backend==='ssh'?'SSH Remote':meta.backend==='container'?`Container (${meta.container_type||'docker'})`:'Local';
+    document.getElementById('set-backend').textContent=bt;
+    document.getElementById('set-ssh-fields').style.display='none';
     if(meta.backend==='ssh'){
       document.getElementById('set-ssh-fields').style.display='block';
       document.getElementById('set-ssh-host').value=meta.ssh_host||'';
@@ -718,8 +749,6 @@ async function openSettings(name){
       document.getElementById('set-ssh-key').value=meta.ssh_key||'';
       document.getElementById('set-ssh-path').value=meta.remote_path||'';
       toggleSetAuth();
-    }else{
-      document.getElementById('set-ssh-fields').style.display='none';
     }
     document.getElementById('set-skip-perms').checked=!!meta.skip_permissions;
     document.getElementById('set-api-key').value='';
@@ -789,6 +818,16 @@ async function doCreate(){
     body.remote_path=document.getElementById('ssh-path').value.trim();
     if(!body.ssh_host||!body.ssh_user){
       err.textContent='Host and username are required';
+      err.style.display='block';return;
+    }
+  }
+  if(backend==='container'){
+    body.container_name=document.getElementById('ct-name').value.trim();
+    body.container_type=document.getElementById('ct-type').value;
+    body.container_user=document.getElementById('ct-user').value.trim()||'root';
+    body.container_path=document.getElementById('ct-path').value.trim()||'/root';
+    if(!body.container_name){
+      err.textContent='Container name is required';
       err.style.display='block';return;
     }
   }

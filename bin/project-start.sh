@@ -124,8 +124,25 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
     fi
   fi
 
+  # For container projects, terminal connects to container shell
+  if [ "$BACKEND" = "container" ] && ! tmux has-session -t "$TERM_SESSION" 2>/dev/null; then
+    CT_NAME=$(jq -r --arg n "$NAME" '.[$n].container_name' "$REGISTRY")
+    CT_TYPE=$(jq -r --arg n "$NAME" '.[$n].container_type // "docker"' "$REGISTRY")
+    CT_USER=$(jq -r --arg n "$NAME" '.[$n].container_user // "root"' "$REGISTRY")
+    CT_PATH=$(jq -r --arg n "$NAME" '.[$n].container_path // "/root"' "$REGISTRY")
+    tmux new-session -d -s "$TERM_SESSION" -c "$WORKDIR"
+    if [ "$CT_TYPE" = "lxc" ]; then
+      tmux send-keys -t "$TERM_SESSION" "lxc exec ${CT_NAME} -- su - ${CT_USER}" Enter
+    else
+      tmux send-keys -t "$TERM_SESSION" "docker exec -it -u ${CT_USER} -w ${CT_PATH} ${CT_NAME} bash" Enter
+    fi
+    # Add local shell window
+    tmux new-window -t "$TERM_SESSION" -n "local" -c "$WORKDIR"
+    tmux select-window -t "$TERM_SESSION:0"
+  fi
+
   # Pre-create tmux session for local projects so send-keys works immediately
-  if [ "$BACKEND" != "ssh" ] && ! tmux has-session -t "$TERM_SESSION" 2>/dev/null; then
+  if [ "$BACKEND" != "ssh" ] && [ "$BACKEND" != "container" ] && ! tmux has-session -t "$TERM_SESSION" 2>/dev/null; then
     tmux new-session -d -s "$TERM_SESSION" -c "$WORKDIR"
   fi
   # Set tmux to respawn shell when it exits (e.g. Ctrl+D)

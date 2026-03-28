@@ -167,6 +167,9 @@ def get_status(name: str) -> dict:
     else:
         status = json.loads(r.stdout)
     status["backend"] = meta.get("backend", "local")
+    if status["backend"] == "container":
+        status["container_name"] = meta.get("container_name", "")
+        status["container_type"] = meta.get("container_type", "docker")
     if status["backend"] == "ssh":
         status["ssh_host"] = meta.get("ssh_host", "")
         status["ssh_user"] = meta.get("ssh_user", "")
@@ -227,6 +230,10 @@ class CreateReq(BaseModel):
     mem_limit: str = "4g"
     cpu_limit: str = "2.0"
     api_key: Optional[str] = None
+    container_name: Optional[str] = None
+    container_type: str = "docker"  # "docker" or "lxc"
+    container_user: str = "root"
+    container_path: str = "/root"
 
     @field_validator("name")
     @classmethod
@@ -284,6 +291,32 @@ async def create_project(body: CreateReq):
                  reg[body.name]["remote_path"], body.ssh_auth])
         if r.returncode != 0:
             raise HTTPException(500, r.stderr or r.stdout)
+    elif body.backend == "container":
+        if not body.container_name:
+            raise HTTPException(400, "Container name is required")
+        ct = body.container_type  # docker or lxc
+        # Verify container exists
+        if ct == "lxc":
+            test_cmd = f"lxc info {body.container_name}"
+        else:
+            test_cmd = f"docker inspect {body.container_name}"
+        r = run(["bash", "-c", test_cmd])
+        if r.returncode != 0:
+            raise HTTPException(400, f"Container '{body.container_name}' not found ({ct})")
+        reg = load_registry()
+        reg[body.name] = {
+            "backend": "container",
+            "container_name": body.container_name,
+            "container_type": ct,
+            "container_user": body.container_user or "root",
+            "container_path": body.container_path or "/root",
+        }
+        save_registry(reg)
+        r = run([str(BIN_DIR / "project-create.sh"), body.name, "container",
+                 body.container_name, ct, body.container_user or "root",
+                 body.container_path or "/root"])
+        if r.returncode != 0:
+            raise HTTPException(500, r.stderr or r.stdout)
     else:
         # Local backend
         reg = load_registry()
@@ -323,6 +356,10 @@ class UpdateReq(BaseModel):
     mem_limit: Optional[str] = None
     cpu_limit: Optional[str] = None
     api_key: Optional[str] = None
+    container_name: Optional[str] = None
+    container_type: Optional[str] = None
+    container_user: Optional[str] = None
+    container_path: Optional[str] = None
 
 
 @app.put("/api/projects/{name}")
@@ -331,7 +368,7 @@ async def update_project(name: str, body: UpdateReq):
         raise HTTPException(404, f"'{name}' not found")
     reg = load_registry()
     meta = reg.get(name, {})
-    for field in ["ssh_host", "ssh_port", "ssh_user", "ssh_auth", "ssh_pass", "ssh_key", "remote_path", "skip_permissions", "isolated", "mem_limit", "cpu_limit"]:
+    for field in ["ssh_host", "ssh_port", "ssh_user", "ssh_auth", "ssh_pass", "ssh_key", "remote_path", "skip_permissions", "isolated", "mem_limit", "cpu_limit", "container_name", "container_type", "container_user", "container_path"]:
         val = getattr(body, field)
         if val is not None:
             meta[field] = val
