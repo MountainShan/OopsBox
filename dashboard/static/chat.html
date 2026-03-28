@@ -513,6 +513,11 @@ async function handleUpload(input){
       const d=await r.json();
       updateChip(chipId,{...d,id:chipId});
       uploadedFiles.push(d);
+      // Auto-append file path to textarea so user can see it
+      const ta=document.getElementById('input');
+      const line=`\nFile available at: ${d.path}`;
+      ta.value=ta.value?ta.value+line:line.trim();
+      autoGrow(ta);
       stateEl.textContent='uploaded';stateEl.style.color='lime';
     }catch(e){
       updateChip(chipId,{id:chipId,filename:file.name,error:e.message});
@@ -552,7 +557,13 @@ function updateChip(id,data){
 }
 
 function removeChip(btn,path){
-  if(path) uploadedFiles=uploadedFiles.filter(f=>f.path!==path);
+  if(path){
+    uploadedFiles=uploadedFiles.filter(f=>f.path!==path);
+    // Strip the path line from textarea
+    const ta=document.getElementById('input');
+    ta.value=ta.value.replace(new RegExp('\\n?File available at: '+path.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'),'');
+    autoGrow(ta);
+  }
   btn.closest('.file-chip').remove();
 }
 
@@ -565,16 +576,15 @@ function clearAllChips(){
 async function doSend(){
   const el=document.getElementById('input');
   let text=el.value.trim();
-  // Append file references
-  if(uploadedFiles.length){
-    const refs=uploadedFiles.map(f=>`File available at: ${f.path}`).join('\n');
-    text=text?(text+'\n\n'+refs):refs;
-    clearAllChips();
-  }
   if(!text)return;
+  // Clear chips on send (paths already in textarea)
+  if(uploadedFiles.length) clearAllChips();
   const stateEl=document.getElementById('state-display');
   stateEl.textContent=`sending text: "${text.slice(0,20)}..."`;stateEl.style.color='yellow';
   el.value='';el.style.height='36px';
+  // Optimistic render: show user message immediately
+  messages.push({role:'user',text:text,ts:''});
+  render();scrollToBottom();
   pausePrompt(5000);
   enterFastPoll();
   try{
