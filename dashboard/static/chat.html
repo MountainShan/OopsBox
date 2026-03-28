@@ -574,10 +574,14 @@ function clearAllChips(){
 }
 
 // ── Send text to tmux ──
+let sending=false;
 async function doSend(){
+  if(sending)return;
+  sending=true;
+  setTimeout(()=>{sending=false;},1000); // debounce 1s
   const el=document.getElementById('input');
   let text=el.value.trim();
-  if(!text)return;
+  if(!text){sending=false;return;}
   // Clear chips on send (paths already in textarea)
   if(uploadedFiles.length) clearAllChips();
   const stateEl=document.getElementById('state-display');
