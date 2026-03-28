@@ -84,17 +84,17 @@ pre code .hljs-operator{color:#c9cdd8}
 .msg.assistant th,.msg.assistant td{border:1px solid var(--border);padding:4px 8px}
 .msg.assistant th{background:var(--bg3)}
 
-/* Prompt area */
-.prompt-area{display:none;padding:8px 10px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0;flex-direction:column;gap:4px}
-.prompt-area.show{display:flex}
+/* Prompt area — inline at bottom of messages, not a separate fixed bar */
+.prompt-area{display:none}
+.prompt-inline{padding:8px 0;display:flex;flex-direction:column;gap:3px}
 .prompt-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
-.prompt-choices{display:flex;flex-direction:column;gap:3px}
-.prompt-choice{display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:5px;font-size:12px;cursor:pointer;
-  border:1px solid var(--border);background:var(--bg);color:var(--text);transition:all .12s;user-select:none;min-height:44px}
+.prompt-choices{display:flex;flex-wrap:wrap;gap:4px}
+.prompt-choice{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;
+  border:1px solid var(--border);background:var(--bg2);color:var(--text);transition:all .12s;user-select:none;min-height:36px}
 .prompt-choice:hover{background:var(--bg3);border-color:var(--accent)}
 .prompt-choice input[type="checkbox"],.prompt-choice input[type="radio"]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
-.prompt-confirm{padding:5px 14px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;
-  border:none;background:var(--accent);color:#fff;transition:all .12s;align-self:flex-end;margin-top:4px;min-height:44px}
+.prompt-confirm{padding:6px 14px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;
+  border:none;background:var(--accent);color:#fff;transition:all .12s;min-height:36px}
 .prompt-confirm:hover{opacity:.85}
 .thinking-indicator{font-size:11px;color:var(--muted);font-style:italic;padding:4px 0}
 .thinking-bubble{margin-bottom:10px;padding:8px 12px;border-radius:8px;font-size:13px;
@@ -167,8 +167,6 @@ pre code .hljs-operator{color:#c9cdd8}
 <div class="messages" id="messages">
   <div class="msg-empty">Loading conversation...</div>
 </div>
-
-<div class="prompt-area" id="prompt-area"></div>
 
 <div class="input-area">
   <!-- Toolbar (#3 redesigned) -->
@@ -379,10 +377,13 @@ let promptPaused=false;
 let promptPauseTimer=null;
 function pausePrompt(ms){
   promptPaused=true;
-  document.getElementById('prompt-area').classList.remove('show');
-  document.getElementById('prompt-area').innerHTML='';
+  removeInlinePrompt();
   if(promptPauseTimer)clearTimeout(promptPauseTimer);
   promptPauseTimer=setTimeout(()=>{promptPaused=false;},ms||3000);
+}
+function removeInlinePrompt(){
+  const old=document.getElementById('inline-prompt');
+  if(old)old.remove();
 }
 async function pollState(){
   if(promptPaused)return;
@@ -421,30 +422,30 @@ async function selectChoice(num){
 }
 
 function renderPrompt(d){
-  const el=document.getElementById('prompt-area');
+  const msgEl=document.getElementById('messages');
+  removeInlinePrompt();
+
   if(d.state==='waiting_choice'&&d.choices.length){
     const hasCheckbox=d.choices.some(c=>c.checked!==undefined);
-    let html='<div class="prompt-title">Choose an option</div><div class="prompt-choices">';
+    let html='<div class="prompt-inline" id="inline-prompt"><div class="prompt-title">Choose an option</div><div class="prompt-choices">';
     if(hasCheckbox){
       html+=d.choices.map((c,i)=>{
         const icon=c.checked?'☑':'☐';
         return `<div class="prompt-choice" onclick="selectCheckbox(${i})">
           <span>${icon}</span><span>${esc(c.text)}</span></div>`;
       }).join('');
-      html+=`</div><button class="prompt-confirm" onclick="confirmChoice()">Confirm</button>`;
+      html+=`</div><button class="prompt-confirm" onclick="confirmChoice()">Confirm</button></div>`;
     }else{
       html+=d.choices.map(c=>{
         return `<div class="prompt-choice" onclick="selectChoice('${c.num}')">
           <span style="font-weight:700;color:var(--accent)">${c.num}.</span><span>${esc(c.text)}</span></div>`;
       }).join('');
-      html+=`</div>`;
+      html+=`</div></div>`;
     }
-    el.innerHTML=html;el.classList.add('show');
+    msgEl.insertAdjacentHTML('beforeend',html);
+    if(autoScroll) scrollToBottom();
   }else if(d.state==='thinking'){
-    el.innerHTML='<div class="thinking-indicator">Claude is thinking...</div>';
-    el.classList.add('show');
-  }else{
-    el.classList.remove('show');
+    // Thinking is shown as a bubble in messages (already handled by render)
   }
 }
 
