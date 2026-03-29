@@ -77,4 +77,7 @@ ENV PATH="/oopsbox/bin:/opt/dashboard/venv/bin:${PATH}"
 
 EXPOSE 80
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -sf http://127.0.0.1:5000/api/auth/status || exit 1
+
 ENTRYPOINT ["/entrypoint.sh"]

@@ -22,9 +22,14 @@ if [ ! -f "$AUTH_FILE" ]; then
     echo ""
     echo "  ====================================="
     echo "   No OOPSBOX_PASSWORD set."
-    echo "   Generated password: $PASSWORD"
+    echo "   Generated login credentials:"
     echo "   Username: $USERNAME"
+    echo "   Password: $PASSWORD"
     echo "  ====================================="
+    echo ""
+  else
+    echo ""
+    echo "  Login username: $USERNAME"
     echo ""
   fi
 
@@ -58,6 +63,21 @@ chown -R $USER:$USER "$HOME/projects" "$HOME/.config/oopsbox" \
 
 # ── PATH in bashrc ──
 grep -q 'HOME/bin' "$HOME/.bashrc" 2>/dev/null || echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
+
+# ── Claude auth status ──
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+  echo "  Claude: using API key"
+elif [ -f "$HOME/.claude.json" ] && grep -q "token" "$HOME/.claude.json" 2>/dev/null; then
+  echo "  Claude: OAuth authenticated"
+else
+  echo ""
+  echo "  Claude: not authenticated"
+  echo "  To authenticate, either:"
+  echo "    1. Set -e ANTHROPIC_API_KEY=sk-ant-..."
+  echo "    2. Run: docker exec -it -u oopsbox $(hostname) claude"
+  echo "       and complete the OAuth login flow"
+  echo ""
+fi
 
 # ── Start s6-overlay ──
 exec /init
