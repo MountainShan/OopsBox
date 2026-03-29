@@ -88,13 +88,16 @@ class LoginReq(BaseModel):
     password: str
 
 @app.post("/api/auth/login")
-async def api_login(body: LoginReq):
+async def api_login(body: LoginReq, request: Request):
     if verify_password(body.username, body.password):
         token = secrets.token_hex(32)
         SESSIONS[token] = time.time() + SESSION_TTL
         _save_sessions()
         resp = JSONResponse({"ok": True})
-        resp.set_cookie("oopsbox_session", token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
+        # Set secure flag when accessed via HTTPS
+        is_https = request.headers.get("x-forwarded-proto") == "https" or request.url.scheme == "https"
+        resp.set_cookie("oopsbox_session", token, max_age=SESSION_TTL, httponly=True,
+                        samesite="lax", path="/", secure=is_https)
         return resp
     raise HTTPException(401, "wrong username or password")
 
