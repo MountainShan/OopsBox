@@ -521,14 +521,10 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
 
 <script>
 if(location.protocol==='https:') location.replace('http://'+location.host+location.pathname);
+// ── Clean up service worker (was causing refresh loops) ──
 if('serviceWorker' in navigator){
   navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));
   caches.keys().then(ks=>ks.forEach(k=>caches.delete(k)));
-}
-
-// ── PWA service worker ──
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/static/sw.js').catch(()=>{});
 }
 
 /* ── Theme + Vibe ── */
