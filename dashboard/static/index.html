@@ -995,10 +995,6 @@ function openSystemTerm(){
 function openCodeServer(){
   window.open('/code-server/','_blank');
 }
-async function doLogout(){
-  await fetch('/api/auth/logout',{method:'POST'});
-  location.href='/login';
-}
 loadSys();
 setInterval(loadSys,3000);
 
