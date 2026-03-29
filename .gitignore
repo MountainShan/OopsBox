@@ -8,5 +8,4 @@ venv/
 .project-registry.json
 node_modules/
 login.html
-sw.js
 test-*.html

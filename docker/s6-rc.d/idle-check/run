@@ -1,3 +1,4 @@
 #!/command/execlineb -P
+s6-env HOME=/oopsbox
 s6-setuidgid oopsbox
 /bin/bash -c "while true; do /oopsbox/bin/idle-check.sh >> /oopsbox/idle-check.log 2>&1; sleep 600; done"

@@ -1,1 +1,2 @@
+s6-env HOME=/oopsbox
 s6-setuidgid oopsbox /oopsbox/bin/agents-init.sh
