@@ -1117,50 +1117,14 @@ selectProj=function(name){
 // Restore on load
 setTimeout(restoreLastProject,800);
 
-// Auto-reconnect on iPad wake (visibility change)
-let reconnectBanner=null;
-function showReconnectBanner(){
-  if(reconnectBanner)return;
-  reconnectBanner=document.createElement('div');
-  reconnectBanner.style.cssText='position:fixed;top:0;left:0;right:0;z-index:999;background:var(--accent);color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:600;transition:opacity .3s';
-  reconnectBanner.textContent='Reconnecting...';
-  document.body.appendChild(reconnectBanner);
-}
-function hideReconnectBanner(){
-  if(reconnectBanner){
-    reconnectBanner.style.opacity='0';
-    setTimeout(()=>{reconnectBanner?.remove();reconnectBanner=null;},300);
-  }
-}
-
 document.addEventListener('visibilitychange',()=>{
   if(!document.hidden){
-    showReconnectBanner();
-    // Refresh all data
+    // Just refresh data, don't reload iframes (causes cascade)
     load();
     loadChannels();
     loadSys();
-    // Reload iframes to reconnect WebSockets
-    if(deskCurrent){
-      const chatFrame=document.getElementById('df-chat');
-      const workFrame=document.getElementById('df-work');
-      if(chatFrame&&chatFrame.src)chatFrame.src=chatFrame.src;
-      if(workFrame&&workFrame.src)workFrame.src=workFrame.src;
-    }
-    setTimeout(hideReconnectBanner,1500);
   }
 });
-
-// Periodic connectivity check
-setInterval(async()=>{
-  try{
-    const r=await fetch('/api/auth/status',{credentials:'include'});
-    if(!r.ok)throw new Error();
-    hideReconnectBanner();
-  }catch(e){
-    showReconnectBanner();
-  }
-},10000);
 
 </script>
 <div class="ctx-menu" id="ctx-menu"></div>

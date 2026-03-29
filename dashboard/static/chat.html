@@ -640,11 +640,9 @@ function startPolling(){
   pollState();
   // Adaptive polling: fast (500ms) after send, normal (1500ms) otherwise
   pollInterval=setInterval(()=>{
-    const fast=Date.now()<fastPollUntil;
     pollMessages();
-    if(fast) pollMessages(); // double-tap in fast mode
-  }, 800);
-  setInterval(pollState,800);
+  }, 2000);
+  setInterval(pollState,1500);
 }
 
 function enterFastPoll(){
