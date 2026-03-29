@@ -390,7 +390,7 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
         <input type="checkbox" id="create-skip-perms" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
         <span>Skip permission prompts</span>
       </label>
-      <div style="font-size:10px;color:var(--red);margin-top:3px;padding-left:28px">Uses <code>--dangerously-skip-permissions</code>. Claude won't ask before running commands.</div>
+      <div style="font-size:10px;color:var(--red);margin-top:3px;padding-left:28px">Uses <code>dangerously-skip-permissions</code>. Claude won't ask before running commands.</div>
     </div>
     <div class="err" id="cerr"></div>
     <div class="ma">
@@ -507,7 +507,7 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
         <span>Skip permission prompts</span>
       </label>
       <div style="font-size:12px;color:var(--muted);margin-top:4px;padding-left:28px">
-        Uses <code>--dangerously-skip-permissions</code>. Claude won't ask before editing files or running commands. Requires restart.
+        Uses <code>dangerously-skip-permissions</code>. Claude won't ask before editing files or running commands. Requires restart.
       </div>
     </div>
     <div class="err" id="set-err"></div>
@@ -520,7 +520,6 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
 
 
 <script>
-if(location.protocol==='https:') location.replace('http://'+location.host+location.pathname);
 // ── Clean up service worker (was causing refresh loops) ──
 if('serviceWorker' in navigator){
   navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));
@@ -580,10 +579,13 @@ function toggleSSHAuth(){
 }
 
 async function load(){
-  const r=await fetch('/api/projects').catch(()=>null);
-  if(!r||!r.ok)return;
-  projects=(await r.json()).projects||[];
-  renderList();
+  try{
+    const r=await fetch('/api/projects',{redirect:'error'});
+    if(!r.ok)return;
+    const d=await r.json();
+    projects=d.projects||[];
+    renderList();
+  }catch(e){}
 }
 
 function renderList(){
@@ -851,11 +853,13 @@ setInterval(load,5000);
 /* ── Channels ── */
 let channels=[];
 async function loadChannels(){
-  const r=await fetch('/api/channels').catch(()=>null);
-  if(!r||!r.ok)return;
-  const d=await r.json();
-  channels=d.channels||[];
-  renderChannels();
+  try{
+    const r=await fetch('/api/channels',{redirect:'error'});
+    if(!r.ok)return;
+    const d=await r.json();
+    channels=d.channels||[];
+    renderChannels();
+  }catch(e){}
 }
 function renderChannels(){
   const el=document.getElementById('chan-list');
@@ -957,8 +961,9 @@ function sendEnterKey(){const n=_projName();if(n)fetch(`/api/projects/${n}/send-
 /* ── System monitor ── */
 function barClass(pct){return pct<60?'ok':pct<80?'warn':'crit'}
 async function loadSys(){
-  const r=await fetch('/api/system').catch(()=>null);
-  if(!r||!r.ok)return;
+  try{
+  const r=await fetch('/api/system',{redirect:'error'});
+  if(!r.ok)return;
   const s=await r.json();
   for(const [k,v] of [['cpu',s.cpu],['ram',s.ram],['swap',s.swap],['disk',s.disk]]){
     const bar=document.getElementById('bar-'+k);
@@ -972,6 +977,7 @@ async function loadSys(){
     else if(k==='swap') val.textContent=v.total_mb>0?(v.used_mb/1024).toFixed(1)+'G':'0';
     else if(k==='disk') val.textContent=v.used_gb+'G';
   }
+  }catch(e){}
 }
 async function doLogout(){
   await fetch('/api/auth/logout',{method:'POST'});
@@ -1072,51 +1078,8 @@ function lpStart(e,name,type){
 function lpCancel(){if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}}
 
 // ── #9 Session & state UX ──
-
-// Remember last active project
-function saveLastProject(name){
-  try{localStorage.setItem('oopsbox-last-project',name);}catch(e){}
-}
-function restoreLastProject(){
-  try{
-    const last=localStorage.getItem('oopsbox-last-project');
-    if(last&&!isMobile()){
-      // Wait for project list to load, then open
-      const check=setInterval(()=>{
-        const p=projects.find(x=>x.name===last);
-        if(p){
-          clearInterval(check);
-          if(p.status==='running') openView(last,p.code_port,p.ttyd_port);
-          else selectProj(last);
-        }
-      },500);
-      setTimeout(()=>clearInterval(check),5000);
-    }
-  }catch(e){}
-}
-// Patch openView to save
-const _origOpenView=openView;
-openView=function(name,cp,tp,tab){
-  saveLastProject(name);
-  return _origOpenView(name,cp,tp,tab);
-};
-// Patch selectProj to save
-const _origSelectProj=selectProj;
-selectProj=function(name){
-  saveLastProject(name);
-  return _origSelectProj(name);
-};
-// Restore on load
-setTimeout(restoreLastProject,800);
-
-document.addEventListener('visibilitychange',()=>{
-  if(!document.hidden){
-    // Just refresh data, don't reload iframes (causes cascade)
-    load();
-    loadChannels();
-    loadSys();
-  }
-});
+// (restoreLastProject removed — was causing HTTPS refresh loop
+//  by auto-loading iframes that triggered page-level navigation)
 
 </script>
 <div class="ctx-menu" id="ctx-menu"></div>

@@ -345,7 +345,7 @@ async function pollMessages(){
   if(polling)return;polling=true;
   try{
     const url=`/api/projects/${PROJECT}/session-messages?after=${lastMsgCount}`;
-    const r=await fetch(url,{credentials:'include'});
+    const r=await fetch(url,{credentials:'include',redirect:'error'});
     if(!r.ok){polling=false;return;}
     const d=await r.json();
     if(currentSessionFile&&d.session_file&&d.session_file!==currentSessionFile){
@@ -388,7 +388,7 @@ function removeInlinePrompt(){
 async function pollState(){
   if(promptPaused)return;
   try{
-    const r=await fetch(`/api/projects/${PROJECT}/prompt-state`,{credentials:'include'});
+    const r=await fetch(`/api/projects/${PROJECT}/prompt-state`,{credentials:'include',redirect:'error'});
     if(!r.ok)return;
     const d=await r.json();
     const prevState=currentState;
@@ -452,7 +452,7 @@ function renderPrompt(d){
 async function confirmChoice(){await sendKey('Enter');pausePrompt(5000);}
 
 async function selectCheckbox(idx){
-  const state=await (await fetch(`/api/projects/${PROJECT}/prompt-state`,{credentials:'include'})).json();
+  const state=await (await fetch(`/api/projects/${PROJECT}/prompt-state`,{credentials:'include',redirect:'error'})).json();
   let cursorIdx=0;
   for(let i=0;i<state.choices.length;i++){
     if((state.raw[i]||'').includes('❯')){cursorIdx=i;break;}
