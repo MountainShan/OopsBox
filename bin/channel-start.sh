@@ -35,7 +35,20 @@ if [ -n "$TG_TOKEN" ] && [ "$TG_TOKEN" != "null" ]; then
   fi
 fi
 
-echo "[channel-start] $NAME — workdir:${WORKDIR}"
+# Decrypt per-channel API key
+CHANNEL_API_KEY=""
+API_KEY_ENC=$(jq -r --arg n "$NAME" '.[$n].api_key_enc // ""' "$REGISTRY")
+if [ -n "$API_KEY_ENC" ] && [ "$API_KEY_ENC" != "null" ] && [ -f "$KEY_FILE" ]; then
+  KEY=$(cat "$KEY_FILE")
+  CHANNEL_API_KEY=$(echo "$API_KEY_ENC" | openssl enc -aes-256-cbc -a -A -d -salt -pbkdf2 -pass "pass:$KEY" 2>/dev/null || echo "")
+fi
+AGENT_API_KEY="${CHANNEL_API_KEY:-${ANTHROPIC_API_KEY:-}}"
+
+# Per-channel ANTHROPIC_BASE_URL (for LiteLLM proxy)
+CHANNEL_BASE_URL=$(jq -r --arg n "$NAME" '.[$n].anthropic_base_url // ""' "$REGISTRY")
+AGENT_BASE_URL="${CHANNEL_BASE_URL:-${ANTHROPIC_BASE_URL:-}}"
+
+echo "[channel-start] $NAME — workdir:${WORKDIR}, api_key:${CHANNEL_API_KEY:+set}, base_url:${CHANNEL_BASE_URL:+set}"
 
 # Ensure agents session exists
 if ! tmux has-session -t agents 2>/dev/null; then
@@ -57,7 +70,7 @@ FLAGS="--dangerously-skip-permissions --allow-dangerously-skip-permissions -n $W
 
 SID_FILE="/tmp/claude-loop-session-${WINDOW}.id"
 tmux send-keys -t "agents:$WINDOW" \
-  "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; SID_FILE=${SID_FILE}; while true; do if [ -f \"\$SID_FILE\" ]; then SID=\$(cat \"\$SID_FILE\"); claude --resume \"\$SID\" $FLAGS || { rm -f \"\$SID_FILE\"; claude $FLAGS; }; else claude $FLAGS; fi; HASH_DIR=\$(echo \"\$PWD\" | sed 's/[^a-zA-Z0-9]/-/g'); LATEST=\$(ls -t \"\$HOME/.claude/projects/\$HASH_DIR\"/*.jsonl 2>/dev/null | head -1); [ -n \"\$LATEST\" ] && basename \"\$LATEST\" .jsonl > \"\$SID_FILE\"; echo '[channel] restarting in 2s...'; sleep 2; done" Enter
+  "export ANTHROPIC_API_KEY='${AGENT_API_KEY}'; export ANTHROPIC_BASE_URL='${AGENT_BASE_URL}'; SID_FILE=${SID_FILE}; while true; do if [ -f \"\$SID_FILE\" ]; then SID=\$(cat \"\$SID_FILE\"); claude --resume \"\$SID\" $FLAGS || { rm -f \"\$SID_FILE\"; claude $FLAGS; }; else claude $FLAGS; fi; HASH_DIR=\$(echo \"\$PWD\" | sed 's/[^a-zA-Z0-9]/-/g'); LATEST=\$(ls -t \"\$HOME/.claude/projects/\$HASH_DIR\"/*.jsonl 2>/dev/null | head -1); [ -n \"\$LATEST\" ] && basename \"\$LATEST\" .jsonl > \"\$SID_FILE\"; echo '[channel] restarting in 2s...'; sleep 2; done" Enter
 
 # Auto-confirm bypass permissions dialog
 (

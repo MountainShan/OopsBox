@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, field_validator
 from typing import Optional
 import re
+import shlex
 import paramiko
 import io
 
@@ -40,10 +41,12 @@ def _save_sessions():
 
 SESSIONS = _load_sessions()
 
+PBKDF2_ITERATIONS = 600_000
+
 def hash_password(password: str, salt: str = None) -> tuple:
     if not salt:
         salt = secrets.token_hex(16)
-    hashed = hashlib.sha256((salt + password).encode()).hexdigest()
+    hashed = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), PBKDF2_ITERATIONS).hex()
     return hashed, salt
 
 def load_auth() -> dict:
@@ -64,8 +67,21 @@ def verify_password(username: str, password: str) -> bool:
         return False
     if username != auth.get("username"):
         return False
-    hashed, _ = hash_password(password, auth.get("salt", ""))
-    return hashed == auth.get("password_hash")
+    salt = auth.get("salt", "")
+    stored_hash = auth.get("password_hash", "")
+    # Try PBKDF2 first
+    hashed, _ = hash_password(password, salt)
+    if hashed == stored_hash:
+        return True
+    # Fall back to legacy SHA-256 for migration
+    legacy = hashlib.sha256((salt + password).encode()).hexdigest()
+    if legacy == stored_hash:
+        # Auto-upgrade to PBKDF2
+        new_hash, _ = hash_password(password, salt)
+        auth["password_hash"] = new_hash
+        AUTH_FILE.write_text(json.dumps(auth, indent=2))
+        return True
+    return False
 
 # Auto-migrate from ~/upw.txt if auth.json doesn't exist
 _upw = Path.home() / "upw.txt"
@@ -186,11 +202,15 @@ def get_ssh_client(meta: dict) -> paramiko.SSHClient:
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     auth = {"hostname": meta["ssh_host"], "port": meta.get("ssh_port", 22),
             "username": meta["ssh_user"]}
-    if meta.get("ssh_auth") == "key" and meta.get("ssh_key"):
-        pkey = paramiko.RSAKey.from_private_key(io.StringIO(meta["ssh_key"]))
-        auth["pkey"] = pkey
+    # Decrypt SSH credentials (support both encrypted and legacy plaintext)
+    if meta.get("ssh_auth") == "key":
+        key_text = _decrypt_token(meta.get("ssh_key_enc", "")) or meta.get("ssh_key", "")
+        if key_text:
+            pkey = paramiko.RSAKey.from_private_key(io.StringIO(key_text))
+            auth["pkey"] = pkey
     else:
-        auth["password"] = meta.get("ssh_pass", "")
+        ssh_pass = _decrypt_token(meta.get("ssh_pass_enc", "")) or meta.get("ssh_pass", "")
+        auth["password"] = ssh_pass
     # Support legacy SSH algorithms for older devices
     auth["disabled_algorithms"] = {}
     auth["allow_agent"] = False
@@ -199,8 +219,9 @@ def get_ssh_client(meta: dict) -> paramiko.SSHClient:
         ssh.connect(**auth, timeout=10)
     except paramiko.SSHException:
         # Retry with legacy transport settings
+        ssh_pass = _decrypt_token(meta.get("ssh_pass_enc", "")) or meta.get("ssh_pass", "")
         transport = paramiko.Transport((meta["ssh_host"], meta.get("ssh_port", 22)))
-        transport.connect(username=meta["ssh_user"], password=meta.get("ssh_pass", ""))
+        transport.connect(username=meta["ssh_user"], password=ssh_pass)
         ssh._transport = transport
     return ssh
 
@@ -233,6 +254,7 @@ class CreateReq(BaseModel):
     mem_limit: str = "4g"
     cpu_limit: str = "2.0"
     api_key: Optional[str] = None
+    anthropic_base_url: Optional[str] = None
     container_name: Optional[str] = None
     container_type: str = "docker"  # "docker" or "lxc"
     container_user: str = "root"
@@ -256,18 +278,31 @@ async def create_project(body: CreateReq):
         if not body.ssh_host or not body.ssh_user:
             raise HTTPException(400, "SSH requires host and username")
         # Test SSH connection using system ssh command (supports more device types)
-        ssh_opts = "-o StrictHostKeyChecking=no -o ConnectTimeout=5 -o KexAlgorithms=+diffie-hellman-group14-sha1 -o HostKeyAlgorithms=+ssh-rsa"
-        if body.ssh_auth == "password":
-            test_cmd = f"sshpass -p '{body.ssh_pass}' ssh {ssh_opts} -p {body.ssh_port} {body.ssh_user}@{body.ssh_host} exit"
-        else:
-            # Key auth — write temp key file
-            import tempfile
-            tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.key', delete=False)
-            tmp.write(body.ssh_key or "")
-            tmp.close()
-            os.chmod(tmp.name, 0o600)
-            test_cmd = f"ssh {ssh_opts} -i {tmp.name} -p {body.ssh_port} {body.ssh_user}@{body.ssh_host} exit"
-        r = run(["bash", "-c", test_cmd])
+        ssh_opts = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
+                    "-o", "KexAlgorithms=+diffie-hellman-group14-sha1",
+                    "-o", "HostKeyAlgorithms=+ssh-rsa"]
+        tmp_key_file = None
+        try:
+            if body.ssh_auth == "password":
+                cmd = ["sshpass", "-p", body.ssh_pass or ""] + ["ssh"] + ssh_opts + \
+                      ["-p", str(body.ssh_port), f"{body.ssh_user}@{body.ssh_host}", "exit"]
+            else:
+                # Key auth — write temp key file
+                import tempfile
+                tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.key', delete=False)
+                tmp.write(body.ssh_key or "")
+                tmp.close()
+                os.chmod(tmp.name, 0o600)
+                tmp_key_file = tmp.name
+                cmd = ["ssh"] + ssh_opts + ["-i", tmp.name, "-p", str(body.ssh_port),
+                       f"{body.ssh_user}@{body.ssh_host}", "exit"]
+            r = run(cmd)
+        finally:
+            if tmp_key_file:
+                try:
+                    os.unlink(tmp_key_file)
+                except OSError:
+                    pass
         # Some devices (switches/routers) reject 'exit' command but still connect
         # Accept if return code is 0 or if stderr doesn't contain connection/auth errors
         conn_errors = ["permission denied", "connection refused", "connection timed out", "no route to host", "could not resolve"]
@@ -283,8 +318,8 @@ async def create_project(body: CreateReq):
             "ssh_port": body.ssh_port,
             "ssh_user": body.ssh_user,
             "ssh_auth": body.ssh_auth,
-            "ssh_pass": body.ssh_pass if body.ssh_auth == "password" else None,
-            "ssh_key": body.ssh_key if body.ssh_auth == "key" else None,
+            "ssh_pass_enc": _encrypt_token(body.ssh_pass) if body.ssh_auth == "password" and body.ssh_pass else None,
+            "ssh_key_enc": _encrypt_token(body.ssh_key) if body.ssh_auth == "key" and body.ssh_key else None,
             "remote_path": body.remote_path or f"/home/{body.ssh_user}",
         }
         save_registry(reg)
@@ -301,10 +336,9 @@ async def create_project(body: CreateReq):
         ct = body.container_type  # docker or lxc
         # Verify container exists
         if ct == "lxc":
-            test_cmd = f"lxc info {body.container_name}"
+            r = run(["lxc", "info", body.container_name])
         else:
-            test_cmd = f"docker inspect {body.container_name}"
-        r = run(["bash", "-c", test_cmd])
+            r = run(["docker", "inspect", body.container_name])
         if r.returncode != 0:
             raise HTTPException(400, f"Container '{body.container_name}' not found ({ct})")
         reg = load_registry()
@@ -341,6 +375,12 @@ async def create_project(body: CreateReq):
         reg[body.name]["api_key_enc"] = _encrypt_token(body.api_key)
         save_registry(reg)
 
+    # Store ANTHROPIC_BASE_URL if provided (for LiteLLM proxy)
+    if body.anthropic_base_url:
+        reg = load_registry()
+        reg[body.name]["anthropic_base_url"] = body.anthropic_base_url
+        save_registry(reg)
+
     # Store skip_permissions if set
     if body.skip_permissions:
         reg = load_registry()
@@ -366,6 +406,7 @@ class UpdateReq(BaseModel):
     mem_limit: Optional[str] = None
     cpu_limit: Optional[str] = None
     api_key: Optional[str] = None
+    anthropic_base_url: Optional[str] = None
     container_name: Optional[str] = None
     container_type: Optional[str] = None
     container_user: Optional[str] = None
@@ -378,16 +419,37 @@ async def update_project(name: str, body: UpdateReq):
         raise HTTPException(404, f"'{name}' not found")
     reg = load_registry()
     meta = reg.get(name, {})
-    for field in ["ssh_host", "ssh_port", "ssh_user", "ssh_auth", "ssh_pass", "ssh_key", "remote_path", "skip_permissions", "isolated", "mem_limit", "cpu_limit", "container_name", "container_type", "container_user", "container_path"]:
+    for field in ["ssh_host", "ssh_port", "ssh_user", "ssh_auth", "remote_path", "skip_permissions", "isolated", "mem_limit", "cpu_limit", "container_name", "container_type", "container_user", "container_path"]:
         val = getattr(body, field)
         if val is not None:
             meta[field] = val
+    # Encrypt SSH credentials
+    if body.ssh_pass is not None:
+        if body.ssh_pass:
+            meta["ssh_pass_enc"] = _encrypt_token(body.ssh_pass)
+            meta.pop("ssh_pass", None)  # remove legacy plaintext
+        else:
+            meta.pop("ssh_pass_enc", None)
+            meta.pop("ssh_pass", None)
+    if body.ssh_key is not None:
+        if body.ssh_key:
+            meta["ssh_key_enc"] = _encrypt_token(body.ssh_key)
+            meta.pop("ssh_key", None)  # remove legacy plaintext
+        else:
+            meta.pop("ssh_key_enc", None)
+            meta.pop("ssh_key", None)
     # Encrypt API key if provided; empty string clears it
     if body.api_key is not None:
         if body.api_key:
             meta["api_key_enc"] = _encrypt_token(body.api_key)
         else:
             meta.pop("api_key_enc", None)
+    # ANTHROPIC_BASE_URL for LiteLLM proxy; empty string clears it
+    if body.anthropic_base_url is not None:
+        if body.anthropic_base_url:
+            meta["anthropic_base_url"] = body.anthropic_base_url
+        else:
+            meta.pop("anthropic_base_url", None)
     reg[name] = meta
     save_registry(reg)
     return get_status(name)
@@ -398,9 +460,9 @@ async def get_project_settings(name: str):
     if not (PROJECTS_DIR / name).exists():
         raise HTTPException(404, f"'{name}' not found")
     meta = get_project_meta(name)
-    # Never expose password directly, just indicate if set
-    safe = {k: v for k, v in meta.items() if k not in ("ssh_pass", "api_key_enc")}
-    safe["has_password"] = bool(meta.get("ssh_pass"))
+    # Never expose secrets, just indicate if set
+    safe = {k: v for k, v in meta.items() if k not in ("ssh_pass", "ssh_pass_enc", "ssh_key", "ssh_key_enc", "api_key_enc")}
+    safe["has_password"] = bool(meta.get("ssh_pass_enc") or meta.get("ssh_pass"))
     safe["has_api_key"] = bool(meta.get("api_key_enc"))
     return safe
 
@@ -1090,7 +1152,7 @@ async def write_file(project: str, path: str, body: SaveReq):
             try:
                 sftp.stat(parent)
             except FileNotFoundError:
-                ssh.exec_command(f"mkdir -p {parent}")
+                ssh.exec_command(f"mkdir -p {shlex.quote(parent)}")
             with sftp.open(target, "w") as f:
                 f.write(body.content.encode("utf-8"))
             sftp.close(); ssh.close()
@@ -1166,7 +1228,7 @@ async def upload_file(project: str, path: str, file: UploadFile = File(...)):
             try:
                 sftp.stat(parent)
             except FileNotFoundError:
-                ssh.exec_command(f"mkdir -p {parent}")
+                ssh.exec_command(f"mkdir -p {shlex.quote(parent)}")
             with sftp.open(target, "wb") as f:
                 f.write(content)
             sftp.close(); ssh.close()
@@ -1278,7 +1340,9 @@ def get_channel_status(name: str) -> dict:
     windows = r.stdout.strip().split("\n") if r.returncode == 0 else []
     status = "running" if window in windows else "idle"
     return {"name": name, "status": status, "workdir": meta.get("workdir", str(_HOME)),
-            "skip_permissions": meta.get("skip_permissions", False)}
+            "skip_permissions": meta.get("skip_permissions", False),
+            "has_api_key": bool(meta.get("api_key_enc")),
+            "anthropic_base_url": meta.get("anthropic_base_url", "")}
 
 
 @app.get("/api/channels")
@@ -1292,6 +1356,8 @@ class ChannelCreateReq(BaseModel):
     workdir: str = ""
     skip_permissions: bool = False
     telegram_token: str = ""
+    api_key: Optional[str] = None
+    anthropic_base_url: Optional[str] = None
 
     @field_validator("name")
     @classmethod
@@ -1310,11 +1376,16 @@ async def create_channel(body: ChannelCreateReq):
     chan_dir = CHANNELS_DIR / body.name
     chan_dir.mkdir(parents=True, exist_ok=True)
     workdir = body.workdir if body.workdir and body.workdir != str(_HOME) else str(chan_dir)
-    reg[body.name] = {
+    entry = {
         "workdir": workdir,
         "skip_permissions": body.skip_permissions,
         "telegram_token_enc": _encrypt_token(body.telegram_token),
     }
+    if body.api_key:
+        entry["api_key_enc"] = _encrypt_token(body.api_key)
+    if body.anthropic_base_url:
+        entry["anthropic_base_url"] = body.anthropic_base_url
+    reg[body.name] = entry
     save_channels(reg)
     return get_channel_status(body.name)
 
@@ -1322,6 +1393,8 @@ async def create_channel(body: ChannelCreateReq):
 class ChannelUpdateReq(BaseModel):
     workdir: Optional[str] = None
     skip_permissions: Optional[bool] = None
+    api_key: Optional[str] = None
+    anthropic_base_url: Optional[str] = None
 
 
 @app.put("/api/channels/{name}")
@@ -1333,8 +1406,31 @@ async def update_channel(name: str, body: ChannelUpdateReq):
         reg[name]["workdir"] = body.workdir
     if body.skip_permissions is not None:
         reg[name]["skip_permissions"] = body.skip_permissions
+    # Encrypt API key if provided; empty string clears it
+    if body.api_key is not None:
+        if body.api_key:
+            reg[name]["api_key_enc"] = _encrypt_token(body.api_key)
+        else:
+            reg[name].pop("api_key_enc", None)
+    # ANTHROPIC_BASE_URL for LiteLLM proxy; empty string clears it
+    if body.anthropic_base_url is not None:
+        if body.anthropic_base_url:
+            reg[name]["anthropic_base_url"] = body.anthropic_base_url
+        else:
+            reg[name].pop("anthropic_base_url", None)
     save_channels(reg)
     return get_channel_status(name)
+
+
+@app.get("/api/channels/{name}/settings")
+async def get_channel_settings(name: str):
+    reg = load_channels()
+    if name not in reg:
+        raise HTTPException(404, f"Channel '{name}' not found")
+    meta = reg[name]
+    safe = {k: v for k, v in meta.items() if k not in ("telegram_token_enc", "api_key_enc")}
+    safe["has_api_key"] = bool(meta.get("api_key_enc"))
+    return safe
 
 
 @app.delete("/api/channels/{name}")

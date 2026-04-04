@@ -29,7 +29,7 @@ done
 if ! tmux has-session -t agents 2>/dev/null; then
   tmux new-session -d -s agents -c "$HOME" -n "system"
   tmux send-keys -t "agents:system" \
-    "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh system" Enter
+    "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; export ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-}; claude-loop.sh system" Enter
   tmux resize-window -t "agents:system" -x 300 -y 80 2>/dev/null || true
   echo "[agents-init] agents session created"
 fi

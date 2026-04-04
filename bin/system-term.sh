@@ -29,14 +29,14 @@ case "$ACTION" in
     if ! tmux has-session -t agents 2>/dev/null; then
       tmux new-session -d -s agents -c "$HOME" -n "system"
       tmux send-keys -t "agents:system" \
-        "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh system" Enter
+        "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; export ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-}; claude-loop.sh system" Enter
       tmux resize-window -t "agents:system" -x 300 -y 80 2>/dev/null || true
     fi
     # Ensure system window exists in agents session
     if ! tmux list-windows -t agents -F '#{window_name}' | grep -q '^system$'; then
       tmux new-window -t agents -n "system" -c "$HOME"
       tmux send-keys -t "agents:system" \
-        "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; claude-loop.sh system" Enter
+        "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}; export ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-}; claude-loop.sh system" Enter
       tmux resize-window -t "agents:system" -x 300 -y 80 2>/dev/null || true
     fi
     # Pre-create tmux session so send-keys works before anyone opens the page

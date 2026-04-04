@@ -385,6 +385,11 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
       <input id="create-api-key" type="password" placeholder="Leave blank to use subscription plan" autocapitalize="none" autocorrect="off">
       <div style="font-size:10px;color:var(--muted);margin-top:3px">Set to use API billing. Leave empty for subscription (Max/Pro).</div>
     </div>
+    <div class="field">
+      <label>ANTHROPIC_BASE_URL <span style="font-size:11px;color:var(--muted)">(optional, LiteLLM)</span></label>
+      <input id="create-base-url" type="text" placeholder="e.g. http://localhost:4000" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-family:monospace">
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set for LiteLLM proxy. Leave empty for direct Anthropic API.</div>
+    </div>
     <div class="field" style="padding-top:8px;border-top:1px solid var(--border)">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
         <input type="checkbox" id="create-skip-perms" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
@@ -422,6 +427,16 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
       <div style="font-size:11px;color:var(--muted);margin-top:3px">Get from <a href="https://t.me/BotFather" target="_blank" style="color:var(--accent)">@BotFather</a> on Telegram</div>
     </div>
     <div class="field">
+      <label>API Key <span style="font-size:11px;color:var(--muted)">(optional)</span></label>
+      <input id="chan-api-key" type="password" placeholder="Leave blank to use subscription plan" autocapitalize="none" autocorrect="off">
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set to use API billing. Leave empty for subscription (Max/Pro).</div>
+    </div>
+    <div class="field">
+      <label>ANTHROPIC_BASE_URL <span style="font-size:11px;color:var(--muted)">(optional, LiteLLM)</span></label>
+      <input id="chan-base-url" type="text" placeholder="e.g. http://localhost:4000" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-family:monospace">
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set for LiteLLM proxy. Leave empty for direct Anthropic API.</div>
+    </div>
+    <div class="field">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
         <input type="checkbox" id="chan-skip-perms" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
         <span>Skip permission prompts</span>
@@ -431,6 +446,41 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
     <div class="ma">
       <button class="btn btn-ghost" onclick="closeChanModal()">Cancel</button>
       <button class="btn btn-primary" id="chan-btn" onclick="doCreateChan()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Channel Settings Modal -->
+<div class="backdrop" id="chan-settings-modal">
+  <div class="modal" style="max-width:380px">
+    <h2 id="chan-settings-title">
+      <span style="font-size:16px">&#9881;</span>
+      Channel Settings
+    </h2>
+    <div class="field">
+      <label>Working directory</label>
+      <input id="chan-set-workdir" autocapitalize="none" autocorrect="off">
+    </div>
+    <div class="field">
+      <label>API Key <span id="chan-set-apikey-hint" style="font-size:11px;color:var(--muted)"></span></label>
+      <input id="chan-set-api-key" type="password" placeholder="Leave blank to use subscription plan" autocapitalize="none" autocorrect="off">
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set to use API billing. Leave empty for subscription (Max/Pro). Stored encrypted.</div>
+    </div>
+    <div class="field">
+      <label>ANTHROPIC_BASE_URL <span id="chan-set-baseurl-hint" style="font-size:11px;color:var(--muted)"></span></label>
+      <input id="chan-set-base-url" type="text" placeholder="e.g. http://localhost:4000" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-family:monospace">
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set for LiteLLM proxy. Leave empty for direct Anthropic API.</div>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="chan-set-skip-perms" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
+        <span>Skip permission prompts</span>
+      </label>
+    </div>
+    <div class="err" id="chan-set-err"></div>
+    <div class="ma">
+      <button class="btn btn-ghost" onclick="closeChanSettings()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveChanSettings()">Save</button>
     </div>
   </div>
 </div>
@@ -500,6 +550,11 @@ html.light .backdrop{background:rgba(0,0,0,.4)}
       <label>API Key <span id="set-apikey-hint" style="font-size:11px;color:var(--muted)"></span></label>
       <input id="set-api-key" type="password" placeholder="Leave blank to use subscription plan" autocapitalize="none" autocorrect="off">
       <div style="font-size:10px;color:var(--muted);margin-top:3px">Set a per-project API key to use API billing. Leave empty to use your subscription (Max/Pro). Stored encrypted.</div>
+    </div>
+    <div class="field">
+      <label>ANTHROPIC_BASE_URL <span id="set-baseurl-hint" style="font-size:11px;color:var(--muted)"></span></label>
+      <input id="set-base-url" type="text" placeholder="e.g. http://localhost:4000" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-family:monospace">
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set for LiteLLM proxy. Leave empty for direct Anthropic API.</div>
     </div>
     <div class="field" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
@@ -726,6 +781,7 @@ function openModal(){
   document.getElementById('mem-limit').value='4g';
   document.getElementById('cpu-limit').value='2.0';
   document.getElementById('create-api-key').value='';
+  document.getElementById('create-base-url').value='';
   document.getElementById('create-skip-perms').checked=false;
   setTimeout(()=>document.getElementById('pname').focus(),100);
 }
@@ -759,6 +815,8 @@ async function openSettings(name){
     document.getElementById('set-skip-perms').checked=!!meta.skip_permissions;
     document.getElementById('set-api-key').value='';
     document.getElementById('set-apikey-hint').textContent=meta.has_api_key?'(API key set — using API billing)':'(not set — using subscription plan)';
+    document.getElementById('set-base-url').value=meta.anthropic_base_url||'';
+    document.getElementById('set-baseurl-hint').textContent=meta.anthropic_base_url?'(set: '+meta.anthropic_base_url+')':'(not set — direct Anthropic API)';
   }catch(e){
     document.getElementById('set-backend').textContent='Error loading settings';
   }
@@ -777,6 +835,8 @@ async function saveSettings(){
   const body={skip_permissions:document.getElementById('set-skip-perms').checked};
   const apiKey=document.getElementById('set-api-key').value;
   if(apiKey)body.api_key=apiKey;
+  const baseUrl=document.getElementById('set-base-url').value.trim();
+  body.anthropic_base_url=baseUrl;
   if(document.getElementById('set-ssh-fields').style.display!=='none'){
     body.ssh_host=document.getElementById('set-ssh-host').value.trim();
     body.ssh_port=parseInt(document.getElementById('set-ssh-port').value)||22;
@@ -809,6 +869,8 @@ async function doCreate(){
   const body={name,backend};
   const createKey=document.getElementById('create-api-key').value.trim();
   if(createKey)body.api_key=createKey;
+  const createBaseUrl=document.getElementById('create-base-url').value.trim();
+  if(createBaseUrl)body.anthropic_base_url=createBaseUrl;
   if(backend==='local'&&document.getElementById('isolated-check').checked){
     body.isolated=true;
     body.mem_limit=document.getElementById('mem-limit').value.trim()||'4g';
@@ -887,6 +949,8 @@ async function delChan(name){
 function openChanModal(){
   document.getElementById('chan-modal').classList.add('open');
   document.getElementById('chan-name').value='';
+  document.getElementById('chan-api-key').value='';
+  document.getElementById('chan-base-url').value='';
   document.getElementById('chan-err').style.display='none';
   setTimeout(()=>document.getElementById('chan-name').focus(),100);
 }
@@ -904,12 +968,16 @@ async function doCreateChan(){
   if(!token){
     err.textContent='Telegram Bot Token is required';err.style.display='block';return;
   }
+  const chanKey=document.getElementById('chan-api-key').value.trim();
+  const chanBaseUrl=document.getElementById('chan-base-url').value.trim();
   const body={
     name,
     workdir:document.getElementById('chan-workdir').value.trim()||'',
     skip_permissions:document.getElementById('chan-skip-perms').checked,
     telegram_token:token
   };
+  if(chanKey)body.api_key=chanKey;
+  if(chanBaseUrl)body.anthropic_base_url=chanBaseUrl;
   const btn=document.getElementById('chan-btn');
   btn.innerHTML='Creating...';btn.disabled=true;
   try{
@@ -918,6 +986,46 @@ async function doCreateChan(){
     closeChanModal();loadChannels();
   }catch(e){err.textContent=e.message;err.style.display='block';}
   finally{btn.innerHTML='Create';btn.disabled=false;}
+}
+
+/* ── Channel Settings ── */
+let chanSettingsName=null;
+async function openChanSettings(name){
+  chanSettingsName=name;
+  document.getElementById('chan-settings-title').innerHTML='<span style="font-size:16px">&#9881;</span> '+name+' Settings';
+  document.getElementById('chan-set-err').style.display='none';
+  try{
+    const r=await fetch(`/api/channels/${name}/settings`);
+    const meta=await r.json();
+    document.getElementById('chan-set-workdir').value=meta.workdir||'';
+    document.getElementById('chan-set-api-key').value='';
+    document.getElementById('chan-set-apikey-hint').textContent=meta.has_api_key?'(API key set — using API billing)':'(not set — using subscription plan)';
+    document.getElementById('chan-set-base-url').value=meta.anthropic_base_url||'';
+    document.getElementById('chan-set-baseurl-hint').textContent=meta.anthropic_base_url?'(set: '+meta.anthropic_base_url+')':'(not set — direct Anthropic API)';
+    document.getElementById('chan-set-skip-perms').checked=!!meta.skip_permissions;
+  }catch(e){
+    document.getElementById('chan-set-workdir').value='';
+  }
+  document.getElementById('chan-settings-modal').classList.add('open');
+}
+function closeChanSettings(){document.getElementById('chan-settings-modal').classList.remove('open');chanSettingsName=null;}
+document.getElementById('chan-settings-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeChanSettings()});
+async function saveChanSettings(){
+  if(!chanSettingsName)return;
+  const err=document.getElementById('chan-set-err');
+  const body={
+    workdir:document.getElementById('chan-set-workdir').value.trim(),
+    skip_permissions:document.getElementById('chan-set-skip-perms').checked
+  };
+  const apiKey=document.getElementById('chan-set-api-key').value;
+  if(apiKey)body.api_key=apiKey;
+  const baseUrl=document.getElementById('chan-set-base-url').value.trim();
+  body.anthropic_base_url=baseUrl;
+  try{
+    const r=await fetch(`/api/channels/${chanSettingsName}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok){const d=await r.json();throw new Error(d.detail||'Failed');}
+    closeChanSettings();loadChannels();
+  }catch(e){err.textContent=e.message;err.style.display='block';}
 }
 
 let chanLogName=null;
@@ -1032,6 +1140,7 @@ function showCtx(e,name,type){
     }else{
       html+=`<div class="ctx-item" onclick="ctxDo('start')">▶ Start</div>`;
     }
+    html+=`<div class="ctx-item" onclick="ctxDo('chan-settings')">⚙ Settings</div>`;
     html+=`<div class="ctx-sep"></div>`;
     html+=`<div class="ctx-item danger" onclick="ctxDo('delete')">🗑 Delete</div>`;
   }
@@ -1062,6 +1171,7 @@ function ctxDo(action){
     if(action==='start') chanAct('start',name);
     else if(action==='stop') chanAct('stop',name);
     else if(action==='log') viewChanLog(name);
+    else if(action==='chan-settings') openChanSettings(name);
     else if(action==='delete') delChan(name);
   }
 }

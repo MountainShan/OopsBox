@@ -61,7 +61,7 @@ if [ "$RUNTIME" = "podman" ]; then
 fi
 
 tmux send-keys -t "agents:$NAME" \
-  "export ANTHROPIC_API_KEY=\${ANTHROPIC_API_KEY:-}; $RUNTIME run -it --rm \
+  "export ANTHROPIC_API_KEY=\${ANTHROPIC_API_KEY:-}; export ANTHROPIC_BASE_URL=\${ANTHROPIC_BASE_URL:-}; $RUNTIME run -it --rm \
     --name $CONTAINER \
     --memory $MEM_LIMIT \
     --cpus $CPU_LIMIT \
@@ -69,6 +69,7 @@ tmux send-keys -t "agents:$NAME" \
     -v ${HOME}/.claude:/home/agent/.claude:Z \
     -v ${HOME}/.gitconfig:/home/agent/.gitconfig:ro \
     -e ANTHROPIC_API_KEY \
+    -e ANTHROPIC_BASE_URL \
     $RUNTIME_FLAGS \
     oopsbox-agent \
     claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter

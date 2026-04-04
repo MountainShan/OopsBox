@@ -5,6 +5,7 @@ WORKDIR="${HOME}/projects/${NAME}"
 PID_DIR="/tmp/rcoder-${NAME}"
 SESSION="proj-${NAME}"
 REGISTRY="${HOME}/projects/.project-registry.json"
+KEY_FILE="$HOME/.config/oopsbox/channel.key"
 
 [ -d "$WORKDIR" ] || { echo "ERROR: project '$NAME' not found" >&2; exit 1; }
 mkdir -p "$PID_DIR"
@@ -43,7 +44,14 @@ fi
 # Use per-project key if set, otherwise fall back to global (or empty for Max plan)
 AGENT_API_KEY="${PROJECT_API_KEY:-${ANTHROPIC_API_KEY:-}}"
 
-echo "[start] $NAME — backend:${BACKEND}, skip_perms:${SKIP_PERMS}, isolated:${ISOLATED}, api_key:${PROJECT_API_KEY:+set}, ttyd :${TTYD_PORT}"
+# Per-project ANTHROPIC_BASE_URL (for LiteLLM proxy)
+PROJECT_BASE_URL=""
+if [ -f "$REGISTRY" ]; then
+  PROJECT_BASE_URL=$(jq -r --arg n "$NAME" '.[$n].anthropic_base_url // ""' "$REGISTRY")
+fi
+AGENT_BASE_URL="${PROJECT_BASE_URL:-${ANTHROPIC_BASE_URL:-}}"
+
+echo "[start] $NAME — backend:${BACKEND}, skip_perms:${SKIP_PERMS}, isolated:${ISOLATED}, api_key:${PROJECT_API_KEY:+set}, base_url:${PROJECT_BASE_URL:+set}, ttyd :${TTYD_PORT}"
 
 # AI agent → shared "agents" tmux session
 if [ "$ISOLATED" = "true" ] && [ "$BACKEND" = "local" ]; then
@@ -55,7 +63,7 @@ else
   if ! tmux list-windows -t agents -F '#{window_name}' | grep -qx "$NAME"; then
     tmux new-window -t agents -n "$NAME" -c "$WORKDIR"
     tmux send-keys -t "agents:$NAME" \
-      "export ANTHROPIC_API_KEY='${AGENT_API_KEY}'; claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter
+      "export ANTHROPIC_API_KEY='${AGENT_API_KEY}'; export ANTHROPIC_BASE_URL='${AGENT_BASE_URL}'; claude-loop.sh '$NAME' '$SKIP_PERMS'" Enter
     tmux resize-window -t "agents:$NAME" -x 300 -y 80 2>/dev/null || true
   fi
 fi
@@ -91,6 +99,17 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
     SSH_OPTS="-o StrictHostKeyChecking=no -o KexAlgorithms=+diffie-hellman-group14-sha1 -o HostKeyAlgorithms=+ssh-rsa"
     REMOTE_PATH=$(jq -r --arg n "$NAME" '.[$n].remote_path // "/home/'"$SSH_USER"'"' "$REGISTRY")
 
+    # Decrypt SSH password (try encrypted field first, fall back to legacy plaintext)
+    SSH_PASS=""
+    SSH_PASS_ENC=$(jq -r --arg n "$NAME" '.[$n].ssh_pass_enc // ""' "$REGISTRY")
+    if [ -n "$SSH_PASS_ENC" ] && [ "$SSH_PASS_ENC" != "null" ] && [ -f "$KEY_FILE" ]; then
+      KEY=$(cat "$KEY_FILE")
+      SSH_PASS=$(echo "$SSH_PASS_ENC" | openssl enc -aes-256-cbc -a -A -d -salt -pbkdf2 -pass "pass:$KEY" 2>/dev/null || echo "")
+    fi
+    if [ -z "$SSH_PASS" ]; then
+      SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
+    fi
+
     # Mount remote filesystem via sshfs so all file operations go to remote
     if command -v sshfs &>/dev/null && ! mountpoint -q "$WORKDIR" 2>/dev/null; then
       SSHFS_OPTS="-o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,StrictHostKeyChecking=no,KexAlgorithms=+diffie-hellman-group14-sha1,HostKeyAlgorithms=+ssh-rsa"
@@ -98,7 +117,6 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
         sshfs "${SSH_USER}@${SSH_HOST}:${REMOTE_PATH}" "$WORKDIR" -p "$SSH_PORT" $SSHFS_OPTS 2>/dev/null && \
           echo "[start] sshfs mounted ${SSH_USER}@${SSH_HOST}:${REMOTE_PATH} → $WORKDIR"
       else
-        SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
         echo "$SSH_PASS" | sshfs "${SSH_USER}@${SSH_HOST}:${REMOTE_PATH}" "$WORKDIR" -p "$SSH_PORT" $SSHFS_OPTS -o password_stdin 2>/dev/null && \
           echo "[start] sshfs mounted ${SSH_USER}@${SSH_HOST}:${REMOTE_PATH} → $WORKDIR"
       fi
@@ -110,7 +128,6 @@ if [ ! -f "$PID_DIR/ttyd.pid" ] || \
       if [ "$SSH_AUTH" = "key" ]; then
         tmux send-keys -t "$TERM_SESSION" "ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}" Enter
       else
-        SSH_PASS=$(jq -r --arg n "$NAME" '.[$n].ssh_pass // ""' "$REGISTRY")
         if command -v sshpass >/dev/null 2>&1; then
           tmux send-keys -t "$TERM_SESSION" "sshpass -p '${SSH_PASS}' ssh -p ${SSH_PORT} ${SSH_OPTS} ${SSH_USER}@${SSH_HOST}" Enter
         else

@@ -4,12 +4,17 @@ set -e
 export HOME="/oopsbox"
 USER="oopsbox"
 
-# ── API Key ──
+# ── API Key & Base URL ──
 mkdir -p "$HOME/.config/oopsbox"
+ENV_FILE="$HOME/.config/oopsbox/env"
+: > "$ENV_FILE"
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-  echo "export ANTHROPIC_API_KEY='${ANTHROPIC_API_KEY}'" > "$HOME/.config/oopsbox/env"
-  chmod 600 "$HOME/.config/oopsbox/env"
+  echo "export ANTHROPIC_API_KEY='${ANTHROPIC_API_KEY}'" >> "$ENV_FILE"
 fi
+if [ -n "${ANTHROPIC_BASE_URL:-}" ]; then
+  echo "export ANTHROPIC_BASE_URL='${ANTHROPIC_BASE_URL}'" >> "$ENV_FILE"
+fi
+chmod 600 "$ENV_FILE"
 
 # ── Auth setup ──
 AUTH_FILE="$HOME/.config/oopsbox/auth.json"
@@ -34,7 +39,12 @@ if [ ! -f "$AUTH_FILE" ]; then
   fi
 
   SALT=$(python3 -c "import secrets; print(secrets.token_hex(16))")
-  HASH=$(python3 -c "import hashlib; print(hashlib.sha256(('${SALT}'+'''${PASSWORD}''').encode()).hexdigest())")
+  HASH=$(SALT="$SALT" PASSWORD="$PASSWORD" python3 -c "
+import os, hashlib
+salt = os.environ['SALT']
+pw = os.environ['PASSWORD']
+print(hashlib.pbkdf2_hmac('sha256', pw.encode(), salt.encode(), 600000).hex())
+")
   cat > "$AUTH_FILE" <<EOF
 {
   "username": "$USERNAME",
