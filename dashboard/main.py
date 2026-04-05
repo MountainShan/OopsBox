@@ -711,6 +711,21 @@ def _extract_text(content) -> str:
 _session_cache: dict = {}
 
 
+def _extract_tool_result_text(content) -> str:
+    """Extract plain text from tool_result content (string or list of text items)."""
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                t = item.get("text", "").strip()
+                if t:
+                    parts.append(t)
+        return "\n".join(parts)
+    return ""
+
+
 def _parse_jsonl(filepath: Path, max_lines: int = 2000) -> list:
     messages = []
     try:
@@ -733,7 +748,32 @@ def _parse_jsonl(filepath: Path, max_lines: int = 2000) -> list:
                 continue
             content = msg.get("content", "")
             role = msg.get("role", "")
-            if isinstance(content, list) and role == "user":
+            ts = d.get("timestamp", "")
+
+            if isinstance(content, list) and role == "assistant":
+                # Extract text portions and tool_use items separately
+                text_parts = []
+                for item in content:
+                    if not isinstance(item, dict):
+                        continue
+                    if item.get("type") == "text":
+                        t = item.get("text", "").strip()
+                        if t:
+                            text_parts.append(t)
+                    elif item.get("type") == "tool_use":
+                        messages.append({
+                            "role": "tool_call",
+                            "tool": item.get("name", "unknown"),
+                            "input": item.get("input", {}),
+                            "tool_use_id": item.get("id", ""),
+                            "output_preview": "",
+                            "output_full": "",
+                            "status": "success",
+                            "ts": ts,
+                        })
+                if text_parts:
+                    messages.append({"role": "assistant", "text": "\n\n".join(text_parts), "ts": ts})
+            elif isinstance(content, list) and role == "user":
                 has_user_text = any(
                     isinstance(item, dict) and item.get("type") == "text" and item.get("text", "").strip()
                     for item in content
@@ -743,23 +783,35 @@ def _parse_jsonl(filepath: Path, max_lines: int = 2000) -> list:
                     for item in content
                 )
                 if not has_user_text and has_tool_result:
-                    role = "tool_output"
+                    # Match each tool_result to its corresponding tool_call entry
+                    for item in content:
+                        if not isinstance(item, dict) or item.get("type") != "tool_result":
+                            continue
+                        tool_use_id = item.get("tool_use_id", "")
+                        result_text = _extract_tool_result_text(item.get("content", ""))
+                        is_error = bool(item.get("is_error"))
+                        # Search backwards for matching tool_call
+                        for prev in reversed(messages):
+                            if prev.get("role") == "tool_call" and prev.get("tool_use_id") == tool_use_id:
+                                prev["output_full"] = result_text
+                                prev["output_preview"] = result_text[:200]
+                                if is_error:
+                                    prev["status"] = "error"
+                                break
                 elif not has_user_text:
                     continue
-            text = _extract_text(content)
-            if not text:
-                continue
-            messages.append({"role": role, "text": text, "ts": d.get("timestamp", "")})
+                else:
+                    text = _extract_text(content)
+                    if text:
+                        messages.append({"role": "user", "text": text, "ts": ts})
+            else:
+                text = _extract_text(content)
+                if not text:
+                    continue
+                messages.append({"role": role, "text": text, "ts": ts})
     except Exception:
         pass
-    # Merge assistant tool_use + following tool_output
-    merged = []
-    for m in messages:
-        if m["role"] == "tool_output" and merged and merged[-1]["role"] == "assistant":
-            merged[-1]["text"] += "\n\n" + m["text"]
-        else:
-            merged.append(m)
-    return merged
+    return messages
 
 
 @app.get("/api/projects/{name}/session-messages")
