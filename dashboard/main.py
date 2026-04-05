@@ -866,6 +866,89 @@ async def session_messages(name: str, after: int = 0):
     }
 
 
+@app.get("/api/projects/{name}/session-stream")
+async def session_stream(name: str, after: int = 0):
+    """SSE stream for real-time session updates."""
+    import asyncio
+
+    async def event_generator():
+        last_count = after
+        last_mtime = 0
+        last_state = ""
+        heartbeat_counter = 0
+
+        while True:
+            try:
+                session_dir = _get_session_dir(name)
+                if not session_dir.exists():
+                    await asyncio.sleep(1)
+                    continue
+
+                # Find latest session file (same logic as session_messages)
+                files = sorted(session_dir.glob("*.jsonl"), key=lambda f: f.stat().st_mtime, reverse=True)
+                if not files:
+                    await asyncio.sleep(1)
+                    continue
+
+                fp = files[0]
+                if len(files) > 1 and fp.stat().st_size < 2000:
+                    import time as _time
+                    if _time.time() - files[1].stat().st_mtime < 3600:
+                        fp = files[1]
+
+                st = fp.stat()
+                if st.st_mtime_ns != last_mtime:
+                    last_mtime = st.st_mtime_ns
+                    merged = _parse_jsonl(fp)
+
+                    if len(merged) > last_count:
+                        new_msgs = merged[last_count:]
+                        last_count = len(merged)
+                        for msg in new_msgs:
+                            yield f"event: message\ndata: {json.dumps(msg)}\n\n"
+
+                # Check state every 3rd iteration (~1s)
+                heartbeat_counter += 1
+                if heartbeat_counter % 3 == 0:
+                    # Inline state check (simplified from prompt_state)
+                    window = "system" if name == "_system" else name
+                    r = run(["tmux", "capture-pane", "-t", f"agents:{window}", "-p", "-S", "-8"])
+                    state = "idle"
+                    if r.returncode == 0:
+                        lines = r.stdout.strip().split("\n")
+                        tail = [l.replace("\u00a0", " ").strip() for l in reversed(lines) if l.strip()][:5]
+                        tail_text = " ".join(tail)
+                        if any(c in tail_text for c in "◐◑◒◓") or re.search(r'Thinking|Herding|Garnishing|Cogitating', tail_text):
+                            state = "thinking"
+                        elif any(re.match(r'^[❯›>]\s*$', t) for t in tail):
+                            state = "waiting_text"
+
+                    if state != last_state:
+                        last_state = state
+                        yield f"event: state\ndata: {json.dumps({'state': state})}\n\n"
+
+                # Heartbeat every ~15s (50 * 300ms)
+                if heartbeat_counter % 50 == 0:
+                    yield f": heartbeat\n\n"
+
+            except GeneratorExit:
+                return
+            except Exception:
+                pass
+
+            await asyncio.sleep(0.3)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
 @app.get("/api/projects/{name}/prompt-state")
 async def prompt_state(name: str):
     # All AI agents live in "agents" session, window = project name or "system"
