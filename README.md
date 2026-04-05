@@ -58,8 +58,9 @@ Think of it as a side project that ate my weekends and became sentient. It now h
 
 - **AI Agent chat** — talk to your coding agent without fighting with terminal IME on iPad. auto-restart loop keeps it running even when you accidentally Ctrl+C it. interactive yes/no and checkbox prompts rendered as clickable buttons — because parsing tmux output with your eyeballs at 2am is a skill I no longer want. session persistence via `--resume` so your conversation survives reboots, crashes, and your questionable life choices.
 - **Web terminal** — ttyd + tmux, with actual ^C, ^D, ^Z, ^L, Tab, and arrow buttons in the toolbar. because Apple thinks iPad users don't need a proper terminal. per-project sessions that auto-respawn when you inevitably Ctrl+D yourself out. the terminal is now harder to kill than a cockroach.
-- **Workspace** — file manager + terminal in tab view. click a file, modal editor pops up. close it, back to browsing. large files load in chunks (1000 lines at a time) with navigation, because loading a 10,000-line file on an iPad is how you discover what "browser not responding" means.
-- **Code editor** — syntax highlighting, Markdown preview with Mermaid, file upload/download, image preview. sliding window for large files so your browser doesn't file a restraining order.
+- **Workspace** — file manager + terminal in tab view. the file manager finally grew up and learned how to be a real file manager. right-click context menus, multi-select with checkboxes (Ctrl+click, Shift+click, the whole civilized experience), drag-and-drop upload with progress bars, rename, delete, new folder, copy/cut/paste, column sorting, search — basically everything FileZilla does minus the FTP part and plus the existential dread of building it myself. single-click selects, double-click opens, because I finally stopped pretending that "click to open" was acceptable UX. oh and there's a batch action bar now. select 47 files and delete them all at once. power.
+- **Code editor** — syntax highlighting, Markdown preview with Mermaid, file upload/download, image preview. sliding window for large files so your browser doesn't file a restraining order. the whole thing got refactored from a 760-line single-file nightmare into proper ES modules because even I have standards (low ones, but they exist).
+- **Skills panel** — the AI Agent page now has a ⚡ Skills button that shows all installed Claude Code plugins and skills. filter them, see which ones you can invoke vs which ones the AI triggers automatically. click one to insert it into the input box. I added this because I kept forgetting what skills I installed, which is the software equivalent of buying groceries you already have at home.
 - **Telegram Channels** — connect Claude Code to Telegram via `--channels`. your AI agent becomes a Telegram bot. tokens encrypted with AES-256-CBC because storing API keys in plaintext is how you end up on Hacker News for the wrong reasons. channels auto-start on boot because I got tired of manually starting them every time the server decided to take a nap.
 - **Docker deployment** — `docker run -p 8080:80 oopsbox` and you're done. the whole platform in one container, managed by s6-overlay because apparently I now have opinions about process supervisors. pass your API key via `-e ANTHROPIC_API_KEY`, set a password with `-e OOPSBOX_PASSWORD`, mount some volumes for persistence, and pretend you planned this all along.
 - **SSH remote projects** — your agent runs here, executes commands over there. editor uses SFTP. it works better than it should, which frankly makes me nervous.
@@ -173,7 +174,7 @@ all AI agents share one tmux session ("agents"):
 
 session recovery:
   claude-loop.sh uses --resume <session-id> to persist conversations
-  session IDs saved to /tmp/, auto-recovered on restart
+  sessions resumed by name from ~/.claude/sessions/*.json
   terminals use tmux remain-on-exit + respawn hooks
   dashboard uses systemd Restart=always
   basically everything auto-heals. it's like wolverine but uglier.
@@ -262,8 +263,9 @@ MIT — do whatever you want with it. if it breaks, that's on you. I just wanted
 
 - **AI Agent 對話** — 在 iPad 上跟你的 coding agent 講話，不用跟 terminal 的輸入法打架。自動重啟循環讓它一直跑，就算你不小心 Ctrl+C 也沒關係。互動式 yes/no 和 checkbox 直接渲染成可點擊的按鈕 — 因為凌晨兩點用肉眼在 tmux 裡解析文字是我不再想擁有的技能。Session 用 `--resume` 保持連續性，你的對話能撐過重開機、crash、以及你那些令人質疑的人生決定。
 - **Web terminal** — ttyd + tmux，toolbar 上有 ^C、^D、^Z、^L、Tab 和方向鍵按鈕。因為 Apple 覺得 iPad 使用者不需要真正的 terminal。每個專案獨立 session，shell 退出會自動重生。這個 terminal 現在比蟑螂還難殺。
-- **Workspace** — 檔案管理器 + terminal 用 tab 切換。點檔案跳出編輯器，改完關掉。大檔案分段載入（每次 1000 行），因為在 iPad 上載入一萬行的檔案，就是你認識「瀏覽器沒有回應」這句話的時刻。
-- **Code editor** — 語法高亮、Markdown 預覽支援 Mermaid、檔案上傳下載、圖片預覽。大檔案用滑動視窗，讓你的瀏覽器不會申請保護令。
+- **Workspace** — 檔案管理器 + terminal 用 tab 切換。檔案管理器終於長大了，學會當一個真正的檔案管理器。右鍵選單、checkbox 多選（Ctrl+點、Shift+點，整套文明人的體驗）、拖放上傳帶進度條、重新命名、刪除、新資料夾、複製/剪下/貼上、欄位排序、搜尋 — 基本上 FileZilla 能做的都做了，少了 FTP 多了自己從零造輪子的存在危機。單擊選取、雙擊開啟，因為我終於不再假裝「點一下就開啟」是可接受的 UX 了。對了現在還有批次操作列，選 47 個檔案一次全刪。權力的感覺。
+- **Code editor** — 語法高亮、Markdown 預覽支援 Mermaid、檔案上傳下載、圖片預覽。大檔案用滑動視窗，讓你的瀏覽器不會申請保護令。整個東西從 760 行的單檔噩夢重構成正經的 ES modules，因為就連我也有標準（很低，但它存在）。
+- **Skills 面板** — AI Agent 頁面現在有一個 ⚡ Skills 按鈕，顯示所有已安裝的 Claude Code 插件和技能。可以過濾、看哪些是你能手動呼叫的、哪些是 AI 自動觸發的。點一下就插入輸入框。我加這個功能是因為我一直忘記自己裝了什麼 skill，這在軟體世界裡等同於買了家裡已經有的菜。
 - **Telegram Channels** — 透過 `--channels` 把 Claude Code 接上 Telegram。Token 用 AES-256-CBC 加密，因為明碼存 API key 就是你上 Hacker News 頭版但原因是壞的那種。Channel 開機自動啟動，因為我受夠了每次 server 打盹就要手動開。
 - **Docker 部署** — `docker run -p 8080:80 oopsbox` 搞定。整個平台塞在一個 container 裡，用 s6-overlay 管理，因為我現在居然對 process supervisor 有意見了。用 `-e ANTHROPIC_API_KEY` 傳 API key，用 `-e OOPSBOX_PASSWORD` 設密碼，掛幾個 volume 做持久化，然後假裝這一切都是計劃好的。
 - **SSH 遠端專案** — agent 在這台跑，指令在那台執行。editor 用 SFTP。支援密碼和金鑰認證。它運作得比它應該有的還好，這讓我很緊張。
@@ -377,7 +379,7 @@ Python：  fastapi, uvicorn, paramiko, python-multipart, aiofiles
 
 復活機制：
   claude-loop.sh 用 --resume <session-id> 保持對話連續性
-  Session ID 存在 /tmp/，重啟時自動恢復
+  Session 用名字從 ~/.claude/sessions/*.json 裡找回來
   Terminal 用 tmux remain-on-exit + respawn hooks
   Dashboard 用 systemd Restart=always
   基本上所有東西都會自動復活。像金鋼狼但是比較醜。
