@@ -1132,6 +1132,89 @@ async def system_stats():
     }
 
 
+@app.get("/api/projects/{name}/available-skills")
+async def available_skills(name: str):
+    """Scan installed plugins for available skills."""
+    skills = []
+    plugins_dir = Path.home() / ".claude" / "plugins"
+
+    if not plugins_dir.exists():
+        return {"skills": skills}
+
+    # Scan plugin cache for skill definitions
+    cache_dir = plugins_dir / "cache"
+    if cache_dir.exists():
+        for skill_md in cache_dir.glob("**/skills/*/SKILL.md"):
+            try:
+                content = skill_md.read_text(errors="replace")
+                # Parse YAML-like frontmatter
+                skill_name = skill_md.parent.name  # folder name = skill name
+                desc = ""
+                if content.startswith("---"):
+                    try:
+                        end = content.index("---", 3)
+                        fm = content[3:end]
+                        # Extract description from frontmatter
+                        for line in fm.split("\n"):
+                            if line.strip().startswith("description:"):
+                                desc = line.split(":", 1)[1].strip().strip('"').strip("'")[:80]
+                                break
+                    except ValueError:
+                        pass
+                # Determine source plugin name
+                parts = skill_md.parts
+                source = ""
+                for i, p in enumerate(parts):
+                    if p == "cache" and i + 1 < len(parts):
+                        source = parts[i + 1]
+                        break
+
+                cmd = "/" + skill_name
+                skills.append({
+                    "cmd": cmd,
+                    "desc": desc or skill_name,
+                    "source": source
+                })
+            except Exception:
+                pass
+
+    # Scan external plugins for skills too
+    for marketplace in plugins_dir.glob("marketplaces/*/external_plugins/*/skills/*/SKILL.md"):
+        try:
+            content = marketplace.read_text(errors="replace")
+            skill_name = marketplace.parent.name
+            desc = ""
+            if content.startswith("---"):
+                try:
+                    end = content.index("---", 3)
+                    fm = content[3:end]
+                    for line in fm.split("\n"):
+                        if line.strip().startswith("description:"):
+                            desc = line.split(":", 1)[1].strip().strip('"').strip("'")[:80]
+                            break
+                except ValueError:
+                    pass
+            plugin_name = marketplace.parents[2].name  # external_plugins/<name>/skills/<skill>
+            cmd = "/" + plugin_name + ":" + skill_name
+            skills.append({
+                "cmd": cmd,
+                "desc": desc or skill_name,
+                "source": plugin_name
+            })
+        except Exception:
+            pass
+
+    # Deduplicate by cmd
+    seen = set()
+    unique = []
+    for s in skills:
+        if s["cmd"] not in seen:
+            seen.add(s["cmd"])
+            unique.append(s)
+
+    return {"skills": sorted(unique, key=lambda s: s["cmd"])}
+
+
 # ── File browser API (local + SFTP) ──────────────────────────────────────────
 
 def _get_base(project: str) -> Path:
