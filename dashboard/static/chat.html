@@ -179,6 +179,26 @@ pre code .hljs-operator{color:#c9cdd8}
 .tool-call.tc-bash{border-left:3px solid var(--color-bash)}
 .tool-call.tc-grep,.tool-call.tc-search,.tool-call.tc-glob{border-left:3px solid var(--color-grep)}
 .tool-call.tc-write{border-left:3px solid var(--color-write)}
+
+/* Skills Panel */
+.skills-panel{display:none;background:var(--bg2);border-bottom:1px solid var(--border);max-height:50vh;overflow:hidden;flex-direction:column;flex-shrink:0}
+.skills-panel.open{display:flex}
+.skills-header{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border)}
+.skills-title{font-size:12px;font-weight:600;color:var(--text-hi)}
+.skills-count{font-size:10px;color:var(--muted);background:var(--bg3);padding:1px 6px;border-radius:8px}
+.skills-close{margin-left:auto;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:0 4px}
+.skills-close:hover{color:var(--text)}
+.skills-filter{margin:6px 10px;padding:5px 8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;outline:none}
+.skills-filter:focus{border-color:var(--accent)}
+.skills-list{overflow-y:auto;padding:0 6px 6px;-webkit-overflow-scrolling:touch}
+.skill-item{display:flex;align-items:flex-start;gap:8px;padding:6px 8px;border-radius:5px;cursor:pointer;transition:background .1s}
+.skill-item:hover{background:var(--bg3)}
+.skill-cmd{font-size:11px;font-weight:600;color:var(--accent);font-family:monospace;white-space:nowrap;min-width:fit-content}
+.skill-desc{font-size:11px;color:var(--muted);line-height:1.4;overflow:hidden;text-overflow:ellipsis}
+.skill-source{font-size:9px;color:var(--border);margin-top:1px}
+.skill-type{font-size:9px;padding:1px 4px;border-radius:3px;font-weight:500;white-space:nowrap}
+.skill-type.user{background:#10b98120;color:var(--green)}
+.skill-type.agent{background:#3b82f620;color:var(--color-read)}
 </style>
 </head>
 <body>
@@ -186,8 +206,20 @@ pre code .hljs-operator{color:#c9cdd8}
 <div class="header">
   <div class="title" id="title">AI Agent</div>
   <span class="state" id="state-display"></span>
+  <button onclick="toggleSkillsPanel()" title="Available Skills">&#9889; Skills</button>
   <button onclick="refreshAndScroll()">&#8635;</button>
   <button onclick="scrollToBottom()">&#8595;</button>
+</div>
+
+<!-- Skills Panel -->
+<div class="skills-panel" id="skills-panel">
+  <div class="skills-header">
+    <span class="skills-title">Available Skills</span>
+    <span class="skills-count" id="skills-count"></span>
+    <button class="skills-close" onclick="toggleSkillsPanel()">&times;</button>
+  </div>
+  <input class="skills-filter" id="skills-filter" type="text" placeholder="Filter skills..." autocomplete="off">
+  <div class="skills-list" id="skills-list"></div>
 </div>
 
 <div class="messages" id="messages">
@@ -779,9 +811,48 @@ async function loadSkills(){
       }
     }
     SLASH_COMMANDS.sort((a,b)=>a.cmd.localeCompare(b.cmd));
+  renderSkillsPanel(d.skills);
   }catch(e){}
 }
 loadSkills();
+
+// ── Skills Panel ──
+let allSkills=[];
+const USER_SKILLS=['/simplify','/update-config','/keybindings-help','/loop','/schedule','/claude-api','/commit','/review','/pr-comments','/memory','/compact','/clear','/help','/cost','/doctor','/init','/login','/logout','/status','/permissions','/model','/config','/vim','/terminal-setup'];
+
+function renderSkillsPanel(skills){
+  allSkills=skills||[];
+  const list=document.getElementById('skills-list');
+  const count=document.getElementById('skills-count');
+  count.textContent=allSkills.length+' skills';
+  renderSkillsList(allSkills);
+}
+function renderSkillsList(skills){
+  const list=document.getElementById('skills-list');
+  list.innerHTML=skills.map(s=>{
+    const isUser=USER_SKILLS.includes(s.cmd);
+    const typeLabel=isUser?'<span class="skill-type user">user</span>':'<span class="skill-type agent">agent</span>';
+    return `<div class="skill-item" onclick="insertSkill('${s.cmd}')">
+      <div><div class="skill-cmd">${s.cmd}</div><div class="skill-source">${s.source||''}</div></div>
+      <div class="skill-desc">${s.desc||''}</div>
+      ${typeLabel}
+    </div>`;
+  }).join('');
+}
+function toggleSkillsPanel(){
+  document.getElementById('skills-panel').classList.toggle('open');
+}
+function insertSkill(cmd){
+  const input=document.getElementById('user-input');
+  input.value=cmd+' ';
+  input.focus();
+  toggleSkillsPanel();
+}
+document.getElementById('skills-filter').addEventListener('input',function(){
+  const q=this.value.toLowerCase();
+  if(!q){renderSkillsList(allSkills);return;}
+  renderSkillsList(allSkills.filter(s=>s.cmd.toLowerCase().includes(q)||s.desc.toLowerCase().includes(q)));
+});
 
 let slashActiveIdx=-1;
 
