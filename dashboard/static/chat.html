@@ -160,6 +160,25 @@ pre code .hljs-operator{color:#c9cdd8}
 
 .spin{display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:sp .6s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
+
+.tool-call{margin:4px 0;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:12px}
+.tool-call-header{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--bg2);cursor:pointer;user-select:none}
+.tool-call-header:hover{background:var(--bg3)}
+.tool-call-icon{font-size:14px}
+.tool-call-name{font-weight:600;font-size:12px}
+.tool-call-param{color:var(--muted);font-family:monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.tool-call-status{font-size:10px;padding:1px 6px;border-radius:3px}
+.tool-call-status.ok{color:var(--green);background:color-mix(in srgb,var(--green) 10%,transparent)}
+.tool-call-status.err{color:var(--red);background:color-mix(in srgb,var(--red) 10%,transparent)}
+.tool-call-arrow{color:var(--muted);font-size:10px;transition:transform .2s}
+.tool-call-arrow.open{transform:rotate(90deg)}
+.tool-call-body{display:none;padding:8px 10px;border-top:1px solid var(--border);background:var(--bg);font-family:monospace;white-space:pre-wrap;max-height:300px;overflow-y:auto;font-size:11px;color:var(--muted);line-height:1.5}
+.tool-call-body.show{display:block}
+.tool-call.tc-read{border-left:3px solid var(--color-read)}
+.tool-call.tc-edit,.tool-call.tc-update{border-left:3px solid var(--color-edit)}
+.tool-call.tc-bash{border-left:3px solid var(--color-bash)}
+.tool-call.tc-grep,.tool-call.tc-search,.tool-call.tc-glob{border-left:3px solid var(--color-grep)}
+.tool-call.tc-write{border-left:3px solid var(--color-write)}
 </style>
 </head>
 <body>
@@ -265,6 +284,36 @@ marked.setOptions({breaks:true,gfm:true,renderer});
 
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
+// ── Tool call rendering ──
+const TOOL_ICONS={Read:'📄',Edit:'✏️',Write:'📝',Bash:'>_',Grep:'🔍',Glob:'📁',Agent:'🤖',WebSearch:'🌐',WebFetch:'🌐'};
+const TOOL_CSS={Read:'tc-read',Edit:'tc-edit',Write:'tc-write',Bash:'tc-bash',Grep:'tc-grep',Glob:'tc-glob',Search:'tc-grep',Update:'tc-edit'};
+let tcId=0;
+
+function renderToolCall(m){
+  const id='tc-'+(tcId++);
+  const icon=TOOL_ICONS[m.tool]||'🔧';
+  const cls=TOOL_CSS[m.tool]||'';
+  const sCls=m.status==='error'?'err':'ok';
+  const sText=m.status==='error'?'error':'ok';
+  let param='';
+  const inp=m.input||{};
+  if(inp.file_path)param=inp.file_path;
+  else if(inp.command)param=inp.command;
+  else if(inp.pattern)param=inp.pattern;
+  else if(inp.query)param=(inp.query||'').slice(0,60);
+  else if(inp.prompt)param=(inp.prompt||'').slice(0,60)+'...';
+  else{const k=Object.keys(inp);if(k.length)param=k[0]+': '+String(inp[k[0]]).slice(0,50);}
+  const body=m.output_full||m.output_preview||'(no output)';
+  return `<div class="tool-call ${cls}"><div class="tool-call-header" onclick="tcToggle('${id}')"><span class="tool-call-icon">${icon}</span><span class="tool-call-name">${esc(m.tool)}</span><span class="tool-call-param">${esc(param)}</span><span class="tool-call-status ${sCls}">${sText}</span><span class="tool-call-arrow" id="${id}-a">▶</span></div><div class="tool-call-body" id="${id}">${esc(body)}</div></div>`;
+}
+
+function tcToggle(id){
+  const b=document.getElementById(id);
+  const a=document.getElementById(id+'-a');
+  if(b){b.classList.toggle('show');}
+  if(a){a.classList.toggle('open');}
+}
+
 // ── Step block color coding (#4) ──
 const STEP_ICONS={Read:'📄',Edit:'✏️',Update:'✏️',Bash:'>_',Grep:'🔍',Search:'🔍',Write:'📝',Glob:'📁'};
 const STEP_CLASSES={Read:'step-read',Edit:'step-edit',Update:'step-update',Bash:'step-bash',Grep:'step-grep',Search:'step-search',Write:'step-write',Glob:'step-grep'};
@@ -309,7 +358,7 @@ async function refreshAndScroll(){
 // ── Render messages ──
 const MAX_DISPLAY=50;
 function render(){
-  truncId=0; // Reset so IDs stay consistent across re-renders
+  truncId=0;tcId=0; // Reset so IDs stay consistent across re-renders
   const el=document.getElementById('messages');
   if(!messages.length){
     const hint=currentState==='waiting_text'?'Claude is ready — type a message below to start.':'Waiting for conversation...';
@@ -329,6 +378,8 @@ function render(){
       parsed=colorizeSteps(parsed);
       parsed=makeExpandable(parsed);
       html+=`<div class="msg assistant">${parsed}</div>`;
+    }else if(m.role==='tool_call'){
+      html+=renderToolCall(m);
     }else if(m.role==='tool_output'){
       let parsed=marked.parse(m.text);
       parsed=makeExpandable(parsed);
