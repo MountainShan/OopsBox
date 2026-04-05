@@ -25,14 +25,16 @@ fi
 mkdir -p "$WORKDIR/.claude"
 [ -f "$WORKDIR/.claude/settings.local.json" ] || echo '{}' > "$WORKDIR/.claude/settings.local.json"
 
-# Pre-write Telegram token
+# Set up per-channel Telegram state directory
 if [ -n "$TG_TOKEN" ] && [ "$TG_TOKEN" != "null" ]; then
-  mkdir -p "$HOME/.claude/channels/telegram"
-  echo "TELEGRAM_BOT_TOKEN=${TG_TOKEN}" > "$HOME/.claude/channels/telegram/.env"
-  chmod 600 "$HOME/.claude/channels/telegram/.env"
-  if [ ! -f "$HOME/.claude/channels/telegram/access.json" ]; then
-    echo '{"dm_policy":"pairing","allowed_senders":[],"pending_pairings":{}}' > "$HOME/.claude/channels/telegram/access.json"
+  CHANNEL_TG_DIR="$HOME/.claude/channels/telegram-${NAME}"
+  mkdir -p "$CHANNEL_TG_DIR"
+  echo "TELEGRAM_BOT_TOKEN=${TG_TOKEN}" > "$CHANNEL_TG_DIR/.env"
+  chmod 600 "$CHANNEL_TG_DIR/.env"
+  if [ ! -f "$CHANNEL_TG_DIR/access.json" ]; then
+    echo '{"dmPolicy":"pairing","allowFrom":[],"groups":{},"pending":{}}' > "$CHANNEL_TG_DIR/access.json"
   fi
+  mkdir -p "$HOME/.claude/channels/telegram"
 fi
 
 # Decrypt per-channel API key
@@ -68,9 +70,13 @@ tmux resize-window -t "agents:$WINDOW" -x 300 -y 80 2>/dev/null || true
 # Channels always need skip permissions
 FLAGS="--dangerously-skip-permissions --allow-dangerously-skip-permissions -n $WINDOW --channels plugin:telegram@claude-plugins-official"
 
-SID_FILE="/tmp/claude-loop-session-${WINDOW}.id"
+CHANNEL_TG_DIR_EXPORT=""
+if [ -n "${CHANNEL_TG_DIR:-}" ]; then
+  CHANNEL_TG_DIR_EXPORT="export TELEGRAM_STATE_DIR='${CHANNEL_TG_DIR}';"
+fi
+# Use find_session_by_name to resume by name
 tmux send-keys -t "agents:$WINDOW" \
-  "export ANTHROPIC_API_KEY='${AGENT_API_KEY}'; export ANTHROPIC_BASE_URL='${AGENT_BASE_URL}'; SID_FILE=${SID_FILE}; while true; do if [ -f \"\$SID_FILE\" ]; then SID=\$(cat \"\$SID_FILE\"); claude --resume \"\$SID\" $FLAGS || { rm -f \"\$SID_FILE\"; claude $FLAGS; }; else claude $FLAGS; fi; HASH_DIR=\$(echo \"\$PWD\" | sed 's/[^a-zA-Z0-9]/-/g'); LATEST=\$(ls -t \"\$HOME/.claude/projects/\$HASH_DIR\"/*.jsonl 2>/dev/null | head -1); [ -n \"\$LATEST\" ] && basename \"\$LATEST\" .jsonl > \"\$SID_FILE\"; echo '[channel] restarting in 2s...'; sleep 2; done" Enter
+  "export ANTHROPIC_API_KEY='${AGENT_API_KEY}'; export ANTHROPIC_BASE_URL='${AGENT_BASE_URL}'; ${CHANNEL_TG_DIR_EXPORT} SESSION_NAME='${WINDOW}'; while true; do SID=''; for f in \"\$HOME/.claude/sessions\"/*.json; do [ -f \"\$f\" ] || continue; sn=\$(jq -r '.name // \"\"' \"\$f\" 2>/dev/null); if [ \"\$sn\" = \"\$SESSION_NAME\" ]; then SID=\$(jq -r '.sessionId // \"\"' \"\$f\" 2>/dev/null); break; fi; done; if [ -n \"\$SID\" ] && [ \"\$SID\" != 'null' ]; then echo \"[channel] Resuming '\$SESSION_NAME': \$SID\"; claude --resume \"\$SID\" $FLAGS || claude $FLAGS; else echo \"[channel] No session for '\$SESSION_NAME', starting fresh...\"; claude $FLAGS; fi; echo '[channel] restarting in 2s...'; sleep 2; done" Enter
 
 # Auto-confirm bypass permissions dialog
 (

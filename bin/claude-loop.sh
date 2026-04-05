@@ -1,56 +1,59 @@
 #!/usr/bin/env bash
-# Auto-restart Claude, always resuming the last session via --resume
+# Auto-restart Claude, always resuming the last session by name
 # Trap SIGINT so Ctrl+C only kills Claude, not the loop
 set -uo pipefail
 
 SESSION_NAME="${1:-}"
 SKIP_PERMS="${2:-false}"
 
-FLAGS=""
-if [ -n "$SESSION_NAME" ]; then
-  FLAGS="$FLAGS -n $SESSION_NAME"
+if [ -z "$SESSION_NAME" ]; then
+  echo "[claude-loop] ERROR: session name is required" >&2
+  exit 1
 fi
+
+FLAGS="-n $SESSION_NAME"
 if [ "$SKIP_PERMS" = "true" ]; then
   FLAGS="$FLAGS --dangerously-skip-permissions"
 fi
 
-# Session ID file — persists across restarts
-SID_FILE="/tmp/claude-loop-session-${SESSION_NAME:-default}.id"
+# Find session ID by name from ~/.claude/sessions/*.json
+find_session_by_name() {
+  local name="$1"
+  for f in "$HOME/.claude/sessions"/*.json; do
+    [ -f "$f" ] || continue
+    local sname sid
+    sname=$(jq -r '.name // ""' "$f" 2>/dev/null)
+    if [ "$sname" = "$name" ]; then
+      sid=$(jq -r '.sessionId // ""' "$f" 2>/dev/null)
+      if [ -n "$sid" ] && [ "$sid" != "null" ]; then
+        echo "$sid"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
 
 while true; do
   trap '' INT
 
-  if [ -f "$SID_FILE" ]; then
-    SID=$(cat "$SID_FILE")
-    echo "[claude-loop] Resuming session: $SID"
+  SID=$(find_session_by_name "$SESSION_NAME" 2>/dev/null || echo "")
+
+  if [ -n "$SID" ]; then
+    echo "[claude-loop] Resuming session '$SESSION_NAME': $SID"
     claude --resume "$SID" $FLAGS
     EXIT_CODE=$?
   else
-    echo "[claude-loop] No saved session, starting fresh..."
+    echo "[claude-loop] No existing session for '$SESSION_NAME', starting fresh..."
     claude $FLAGS
     EXIT_CODE=$?
   fi
 
   trap - INT
 
-  # After Claude exits, find and save the latest session ID for next restart
-  # Claude stores sessions as JSONL files named by session ID
-  WORK_DIR="${PWD}"
-  HASH_DIR=$(echo "$WORK_DIR" | sed 's/[^a-zA-Z0-9]/-/g')
-  SESSION_DIR="$HOME/.claude/projects/$HASH_DIR"
-  if [ -d "$SESSION_DIR" ]; then
-    LATEST=$(ls -t "$SESSION_DIR"/*.jsonl 2>/dev/null | head -1)
-    if [ -n "$LATEST" ]; then
-      # Session ID is the filename without .jsonl extension
-      basename "$LATEST" .jsonl > "$SID_FILE"
-      echo "[claude-loop] Saved session ID: $(cat "$SID_FILE")"
-    fi
-  fi
-
-  # If resume failed, clear saved session and retry fresh
-  if [ $EXIT_CODE -ne 0 ] && [ -f "$SID_FILE" ]; then
-    echo "[claude-loop] Resume failed (code $EXIT_CODE), clearing saved session..."
-    rm -f "$SID_FILE"
+  # If resume failed, start fresh next time
+  if [ $EXIT_CODE -ne 0 ] && [ -n "$SID" ]; then
+    echo "[claude-loop] Resume failed (code $EXIT_CODE), will start fresh next time..."
   fi
 
   echo ""
