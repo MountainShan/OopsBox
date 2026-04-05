@@ -399,6 +399,7 @@ document.getElementById('messages').addEventListener('scroll',function(){
 });
 
 // ── Poll JSONL messages ──
+let jsonlPrompt=null;
 let polling=false;
 let initialLoad=true;
 let currentSessionFile='';
@@ -429,6 +430,7 @@ async function pollMessages(){
       currentSessionFile=d.session_file||currentSessionFile;
       render();
     }
+    jsonlPrompt=d.pending_prompt||null;
   }catch(e){}
   polling=false;
 }
@@ -471,7 +473,12 @@ async function pollState(){
         d.state==='waiting_choice'?'waiting for choice':
         d.state==='waiting_text'?'ready':'';
     }
-    renderPrompt(d);
+    // If we have a JSONL-detected prompt, use it
+    if(jsonlPrompt&&jsonlPrompt.type==='permission'){
+      renderPermissionPrompt(jsonlPrompt);
+    }else{
+      renderPrompt(d);
+    }
   }catch(e){}
 }
 
@@ -508,6 +515,34 @@ function renderPrompt(d){
   }else if(d.state==='thinking'){
     // Thinking is shown as a bubble in messages (already handled by render)
   }
+}
+
+function renderPermissionPrompt(prompt){
+  const msgEl=document.getElementById('messages');
+  removeInlinePrompt();
+
+  const toolName=prompt.tool||'tool';
+  const input=prompt.input||{};
+  let detail='';
+  if(input.file_path)detail=input.file_path;
+  else if(input.command)detail=input.command;
+  else if(input.pattern)detail=input.pattern;
+
+  let html=`<div class="prompt-inline" id="inline-prompt">
+    <div class="prompt-title">Permission required — ${esc(toolName)}</div>
+    ${detail?`<div style="font-size:11px;color:var(--muted);font-family:monospace;margin-bottom:6px">${esc(detail)}</div>`:''}
+    <div class="prompt-choices">
+      <div class="prompt-choice" onclick="selectChoice('1')">
+        <span style="font-weight:700;color:var(--green)">1.</span><span>Yes, allow</span>
+      </div>
+      <div class="prompt-choice" onclick="selectChoice('2')">
+        <span style="font-weight:700;color:var(--red)">2.</span><span>No, deny</span>
+      </div>
+    </div>
+  </div>`;
+
+  msgEl.insertAdjacentHTML('beforeend',html);
+  if(autoScroll) scrollToBottom();
 }
 
 async function confirmChoice(){await sendKey('Enter');pausePrompt(5000);}

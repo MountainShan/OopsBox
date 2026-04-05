@@ -845,10 +845,24 @@ async def session_messages(name: str, after: int = 0):
         merged = _parse_jsonl(fp)
         _session_cache[cache_key] = (mtime_ns, fsize, merged)
 
+    # Detect pending prompt from JSONL
+    pending_prompt = None
+    if merged:
+        last = merged[-1]
+        # If last message is a tool_call with no output yet, Claude might be waiting for permission
+        if last.get("role") == "tool_call" and not last.get("output_full") and not last.get("output_preview"):
+            pending_prompt = {
+                "type": "permission",
+                "tool": last.get("tool", ""),
+                "input": last.get("input", {}),
+                "question": f"Allow {last.get('tool', 'tool')} call?",
+            }
+
     return {
         "messages": merged[after:],
         "total": len(merged),
         "session_file": fp.name,
+        "pending_prompt": pending_prompt,
     }
 
 
