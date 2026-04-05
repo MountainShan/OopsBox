@@ -108,7 +108,7 @@ pre code .hljs-operator{color:#c9cdd8}
 
 /* Input area (#3 toolbar redesign) */
 .input-area{padding:4px 8px;border-top:1px solid var(--border);background:var(--bg2);
-  display:flex;flex-direction:column;gap:3px;padding-bottom:calc(4px + env(safe-area-inset-bottom,0px));flex-shrink:0}
+  display:flex;flex-direction:column;gap:3px;padding-bottom:calc(4px + env(safe-area-inset-bottom,0px));flex-shrink:0;position:relative}
 .toolbar{display:flex;gap:2px;flex-wrap:wrap;align-items:center}
 .toolbar.collapsed .tb-group{display:none}
 .tb-toggle{min-width:28px;min-height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px;
@@ -150,6 +150,13 @@ pre code .hljs-operator{color:#c9cdd8}
 .send-btn:hover{opacity:.85}
 .send-btn:active{transform:scale(.95)}
 .send-btn:disabled{opacity:.4;cursor:not-allowed}
+
+.slash-popup{display:none;position:absolute;bottom:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border);border-radius:8px;max-height:220px;overflow-y:auto;z-index:50;box-shadow:0 -4px 16px rgba(0,0,0,.4);margin-bottom:4px}
+.slash-popup.show{display:block}
+.slash-item{display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;transition:background .1s}
+.slash-item:hover,.slash-item.active{background:var(--bg3)}
+.slash-cmd{color:var(--accent);font-weight:600;font-size:13px;font-family:monospace;min-width:140px}
+.slash-desc{color:var(--muted);font-size:12px}
 
 .spin{display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:sp .6s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
@@ -201,6 +208,9 @@ pre code .hljs-operator{color:#c9cdd8}
 
   <!-- File chips (#10) -->
   <div class="file-chips" id="file-chips"></div>
+
+  <!-- Slash command autocomplete popup -->
+  <div class="slash-popup" id="slash-popup"></div>
 
   <!-- Input row -->
   <div class="input-row">
@@ -603,6 +613,33 @@ async function doSend(){
 
 // ── Keyboard handling ──
 function handleInputKey(e){
+  const popup=document.getElementById('slash-popup');
+  const isVisible=popup.classList.contains('show');
+  if(isVisible){
+    const items=popup.querySelectorAll('.slash-item');
+    const active=popup.querySelector('.slash-item.active');
+    const idx=active?[...items].indexOf(active):-1;
+    if(e.key==='ArrowDown'){
+      e.preventDefault();
+      highlightSlash(Math.min(idx+1,items.length-1));
+      return;
+    }
+    if(e.key==='ArrowUp'){
+      e.preventDefault();
+      highlightSlash(Math.max(idx-1,0));
+      return;
+    }
+    if(e.key==='Enter'&&!e.shiftKey){
+      e.preventDefault();
+      if(idx>=0){pickSlash(idx);}else{hideSlash();doSend();}
+      return;
+    }
+    if(e.key==='Escape'){
+      e.preventDefault();
+      hideSlash();
+      return;
+    }
+  }
   if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doSend();}
 }
 
@@ -622,6 +659,85 @@ document.addEventListener('keydown',e=>{
 });
 
 function autoGrow(el){el.style.height='36px';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+
+// ── Slash command autocomplete ──
+const SLASH_COMMANDS=[
+  {cmd:'/compact',    desc:'Compress conversation context'},
+  {cmd:'/clear',      desc:'Clear conversation history'},
+  {cmd:'/help',       desc:'Show help'},
+  {cmd:'/cost',       desc:'Show token usage'},
+  {cmd:'/doctor',     desc:'Check installation health'},
+  {cmd:'/init',       desc:'Initialize project with CLAUDE.md'},
+  {cmd:'/login',      desc:'Switch Anthropic account'},
+  {cmd:'/logout',     desc:'Sign out'},
+  {cmd:'/status',     desc:'Show account status'},
+  {cmd:'/memory',     desc:'Edit CLAUDE.md memory files'},
+  {cmd:'/permissions',desc:'View permissions'},
+  {cmd:'/model',      desc:'Switch AI model'},
+  {cmd:'/config',     desc:'View configuration'},
+  {cmd:'/vim',        desc:'Toggle Vim mode'},
+  {cmd:'/review',     desc:'Request code review'},
+  {cmd:'/pr-comments',desc:'View PR comments'},
+  {cmd:'/terminal-setup',desc:'Install shell integration'},
+];
+
+let slashActiveIdx=-1;
+
+function showSlash(items){
+  const popup=document.getElementById('slash-popup');
+  slashActiveIdx=-1;
+  popup.innerHTML=items.map((it,i)=>
+    `<div class="slash-item" onmousedown="event.preventDefault();pickSlash(${i})">` +
+    `<span class="slash-cmd">${it.cmd}</span>` +
+    `<span class="slash-desc">${it.desc}</span></div>`
+  ).join('');
+  popup.classList.add('show');
+}
+
+function hideSlash(){
+  const popup=document.getElementById('slash-popup');
+  popup.classList.remove('show');
+  slashActiveIdx=-1;
+}
+
+function highlightSlash(idx){
+  const popup=document.getElementById('slash-popup');
+  const items=popup.querySelectorAll('.slash-item');
+  items.forEach((el,i)=>el.classList.toggle('active',i===idx));
+  slashActiveIdx=idx;
+  if(items[idx])items[idx].scrollIntoView({block:'nearest'});
+}
+
+function pickSlash(idx){
+  const popup=document.getElementById('slash-popup');
+  const items=popup.querySelectorAll('.slash-item');
+  if(!items[idx])return;
+  const cmd=items[idx].querySelector('.slash-cmd').textContent;
+  const ta=document.getElementById('input');
+  ta.value=cmd+' ';
+  autoGrow(ta);
+  hideSlash();
+  ta.focus();
+}
+
+// Input event: show/hide popup based on typed /
+document.getElementById('input').addEventListener('input',function(){
+  const val=this.value;
+  if(val.startsWith('/')){
+    const q=val.toLowerCase();
+    const matches=SLASH_COMMANDS.filter(c=>c.cmd.toLowerCase().startsWith(q));
+    if(matches.length>0){showSlash(matches);}else{hideSlash();}
+  }else{
+    hideSlash();
+  }
+});
+
+// Close popup on outside click
+document.addEventListener('mousedown',function(e){
+  if(!e.target.closest('#slash-popup')&&!e.target.closest('#input')){
+    hideSlash();
+  }
+});
 
 // ── iPad fixes ──
 document.getElementById('input').addEventListener('focus',function(){
