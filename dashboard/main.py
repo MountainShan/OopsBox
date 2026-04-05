@@ -1147,6 +1147,10 @@ class DeleteReq(BaseModel):
 class MkdirReq(BaseModel):
     path: str
 
+class CopyReq(BaseModel):
+    paths: list[str]
+    dest: str
+
 @app.put("/api/files/{project}/write")
 async def write_file(project: str, path: str, body: SaveReq):
     if _is_ssh_project(project):
@@ -1344,6 +1348,199 @@ async def make_directory(project: str, body: MkdirReq):
         raise HTTPException(409, "directory already exists")
     target.mkdir(parents=True, exist_ok=False)
     return {"created": body.path}
+
+
+# ── Copy / Search / Zip-download ─────────────────────────────────────────────
+
+import zipfile
+import fnmatch
+
+@app.post("/api/files/{project}/copy")
+async def copy_files(project: str, body: CopyReq):
+    import shutil as _shutil
+    copied = []
+    if _is_ssh_project(project):
+        try:
+            ssh, sftp = get_sftp(project)
+            remote_base = _get_remote_base(project)
+            dest = os.path.normpath(os.path.join(remote_base, body.dest))
+            if not dest.startswith(remote_base):
+                raise HTTPException(403, "path traversal")
+            _, stdout, _ = ssh.exec_command(f"mkdir -p {shlex.quote(dest)}")
+            stdout.channel.recv_exit_status()
+            for rel in body.paths:
+                src = os.path.normpath(os.path.join(remote_base, rel))
+                if not src.startswith(remote_base):
+                    continue
+                dst = os.path.join(dest, os.path.basename(src))
+                _, stdout, stderr = ssh.exec_command(f"cp -r {shlex.quote(src)} {shlex.quote(dst)}")
+                stdout.channel.recv_exit_status()
+                copied.append(rel)
+            sftp.close(); ssh.close()
+            return {"copied": copied, "to": body.dest}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(500, f"SFTP copy error: {str(e)}")
+    # Local
+    base = _get_base(project)
+    if not base.exists():
+        raise HTTPException(404, f"'{project}' not found")
+    base_resolved = base.resolve()
+    dest = (base / body.dest).resolve()
+    if not str(dest).startswith(str(base_resolved)):
+        raise HTTPException(403, "path traversal")
+    dest.mkdir(parents=True, exist_ok=True)
+    for rel in body.paths:
+        src = (base / rel).resolve()
+        if not str(src).startswith(str(base_resolved)):
+            continue
+        if not src.exists():
+            continue
+        dst = dest / src.name
+        if src.is_dir():
+            _shutil.copytree(str(src), str(dst))
+        else:
+            _shutil.copy2(str(src), str(dst))
+        copied.append(rel)
+    return {"copied": copied, "to": body.dest}
+
+
+@app.get("/api/files/{project}/search")
+async def search_files(project: str, q: str, path: str = ""):
+    results = []
+    if _is_ssh_project(project):
+        try:
+            ssh, sftp = get_sftp(project)
+            remote_base = _get_remote_base(project)
+            search_root = os.path.normpath(os.path.join(remote_base, path)) if path else remote_base
+            if not search_root.startswith(remote_base):
+                raise HTTPException(403, "path traversal")
+            # Use find with -name, skipping hidden dirs
+            find_cmd = (
+                f"find {shlex.quote(search_root)} "
+                f"-not \\( -name '.*' -prune \\) "
+                f"-name {shlex.quote(q)} 2>/dev/null | head -100"
+            )
+            _, stdout, _ = ssh.exec_command(find_cmd)
+            stdout.channel.recv_exit_status()
+            for line in stdout.read().decode("utf-8", errors="replace").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                rel = os.path.relpath(line, remote_base)
+                try:
+                    stat = sftp.stat(line)
+                    import stat as stat_mod
+                    kind = "dir" if stat_mod.S_ISDIR(stat.st_mode) else "file"
+                except Exception:
+                    kind = "file"
+                results.append({"name": os.path.basename(line), "path": rel, "type": kind})
+                if len(results) >= 100:
+                    break
+            sftp.close(); ssh.close()
+            return {"results": results, "query": q}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(500, f"SFTP search error: {str(e)}")
+    # Local
+    base = _get_base(project)
+    if not base.exists():
+        raise HTTPException(404, f"'{project}' not found")
+    base_resolved = base.resolve()
+    search_root = (base / path).resolve() if path else base_resolved
+    if not str(search_root).startswith(str(base_resolved)):
+        raise HTTPException(403, "path traversal")
+    for dirpath, dirnames, filenames in os.walk(str(search_root)):
+        # Skip hidden directories
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        for name in dirnames:
+            if fnmatch.fnmatch(name, q) or q.lower() in name.lower():
+                full = os.path.join(dirpath, name)
+                rel = os.path.relpath(full, str(base_resolved))
+                results.append({"name": name, "path": rel, "type": "dir"})
+                if len(results) >= 100:
+                    return {"results": results, "query": q}
+        for name in filenames:
+            if fnmatch.fnmatch(name, q) or q.lower() in name.lower():
+                full = os.path.join(dirpath, name)
+                rel = os.path.relpath(full, str(base_resolved))
+                results.append({"name": name, "path": rel, "type": "file"})
+                if len(results) >= 100:
+                    return {"results": results, "query": q}
+    return {"results": results, "query": q}
+
+
+@app.get("/api/files/{project}/zip-download")
+async def zip_download(project: str, paths: str):
+    from starlette.responses import StreamingResponse as _SR
+    path_list = [p.strip() for p in paths.split(",") if p.strip()]
+    if not path_list:
+        raise HTTPException(400, "no paths provided")
+    buf = io.BytesIO()
+    if _is_ssh_project(project):
+        try:
+            ssh, sftp = get_sftp(project)
+            remote_base = _get_remote_base(project)
+
+            def _sftp_add(zf: zipfile.ZipFile, remote_path: str, arc_base: str):
+                import stat as stat_mod
+                try:
+                    st = sftp.stat(remote_path)
+                except Exception:
+                    return
+                if stat_mod.S_ISDIR(st.st_mode):
+                    for entry in sftp.listdir_attr(remote_path):
+                        if entry.filename.startswith("."):
+                            continue
+                        _sftp_add(zf, os.path.join(remote_path, entry.filename),
+                                  os.path.join(arc_base, entry.filename))
+                else:
+                    with sftp.open(remote_path, "rb") as f:
+                        data = f.read()
+                    zf.writestr(arc_base, data)
+
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                for rel in path_list:
+                    target = os.path.normpath(os.path.join(remote_base, rel))
+                    if not target.startswith(remote_base):
+                        continue
+                    _sftp_add(zf, target, os.path.basename(target))
+            sftp.close(); ssh.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(500, f"SFTP zip error: {str(e)}")
+    else:
+        # Local
+        base = _get_base(project)
+        if not base.exists():
+            raise HTTPException(404, f"'{project}' not found")
+        base_resolved = base.resolve()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for rel in path_list:
+                target = (base / rel).resolve()
+                if not str(target).startswith(str(base_resolved)):
+                    continue
+                if not target.exists():
+                    continue
+                if target.is_dir():
+                    for dirpath, dirnames, filenames in os.walk(str(target)):
+                        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+                        for fname in filenames:
+                            if fname.startswith("."):
+                                continue
+                            full = os.path.join(dirpath, fname)
+                            arc = os.path.relpath(full, str(base_resolved))
+                            zf.write(full, arc)
+                else:
+                    arc = os.path.relpath(str(target), str(base_resolved))
+                    zf.write(str(target), arc)
+    buf.seek(0)
+    zip_name = f"{os.path.basename(path_list[0])}.zip" if len(path_list) == 1 else "download.zip"
+    return _SR(buf, media_type="application/zip",
+               headers={"Content-Disposition": f'attachment; filename="{zip_name}"'})
 
 
 # ── File upload/download ─────────────────────────────────────────────────────
