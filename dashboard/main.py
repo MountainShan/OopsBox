@@ -1138,6 +1138,15 @@ class SaveReq(BaseModel):
 class MoveReq(BaseModel):
     dest: str
 
+class RenameReq(BaseModel):
+    new_name: str
+
+class DeleteReq(BaseModel):
+    paths: list[str]
+
+class MkdirReq(BaseModel):
+    path: str
+
 @app.put("/api/files/{project}/write")
 async def write_file(project: str, path: str, body: SaveReq):
     if _is_ssh_project(project):
@@ -1205,6 +1214,136 @@ async def move_file(project: str, path: str, body: MoveReq):
     dst.parent.mkdir(parents=True, exist_ok=True)
     _shutil.move(str(src), str(dst))
     return {"moved": path, "to": body.dest}
+
+
+@app.post("/api/files/{project}/rename")
+async def rename_file(project: str, path: str, body: RenameReq):
+    if "/" in body.new_name or "\\" in body.new_name:
+        raise HTTPException(400, "new_name must not contain path separators")
+    if _is_ssh_project(project):
+        try:
+            ssh, sftp = get_sftp(project)
+            remote_base = _get_remote_base(project)
+            src = os.path.normpath(os.path.join(remote_base, path))
+            dst = os.path.normpath(os.path.join(os.path.dirname(src), body.new_name))
+            if not src.startswith(remote_base) or not dst.startswith(remote_base):
+                raise HTTPException(403, "path traversal")
+            try:
+                sftp.stat(dst)
+                raise HTTPException(409, "destination already exists")
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+            sftp.rename(src, dst)
+            sftp.close(); ssh.close()
+            new_rel = os.path.relpath(dst, remote_base)
+            return {"renamed": path, "to": new_rel}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(500, f"SFTP rename error: {str(e)}")
+    # Local
+    base = _get_base(project)
+    if not base.exists():
+        raise HTTPException(404, f"'{project}' not found")
+    src = (base / path).resolve()
+    dst = src.parent / body.new_name
+    base_resolved = base.resolve()
+    if not str(src).startswith(str(base_resolved)) or not str(dst).startswith(str(base_resolved)):
+        raise HTTPException(403, "path traversal")
+    if not src.exists():
+        raise HTTPException(404, "source not found")
+    if dst.exists():
+        raise HTTPException(409, "destination already exists")
+    src.rename(dst)
+    new_rel = str(dst.relative_to(base_resolved))
+    return {"renamed": path, "to": new_rel}
+
+
+@app.post("/api/files/{project}/delete")
+async def delete_files(project: str, body: DeleteReq):
+    import shutil as _shutil
+    deleted = []
+    if _is_ssh_project(project):
+        try:
+            ssh, sftp = get_sftp(project)
+            remote_base = _get_remote_base(project)
+            for rel in body.paths:
+                target = os.path.normpath(os.path.join(remote_base, rel))
+                if not target.startswith(remote_base) or target == remote_base:
+                    continue
+                try:
+                    stat = sftp.stat(target)
+                    import stat as stat_mod
+                    if stat_mod.S_ISDIR(stat.st_mode):
+                        _, stdout, stderr = ssh.exec_command(f"rm -rf {shlex.quote(target)}")
+                        stdout.channel.recv_exit_status()
+                    else:
+                        sftp.remove(target)
+                    deleted.append(rel)
+                except Exception:
+                    pass
+            sftp.close(); ssh.close()
+            return {"deleted": deleted}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(500, f"SFTP delete error: {str(e)}")
+    # Local
+    base = _get_base(project)
+    if not base.exists():
+        raise HTTPException(404, f"'{project}' not found")
+    base_resolved = base.resolve()
+    for rel in body.paths:
+        target = (base / rel).resolve()
+        if not str(target).startswith(str(base_resolved)) or target == base_resolved:
+            continue
+        if not target.exists():
+            continue
+        if target.is_dir():
+            _shutil.rmtree(str(target))
+        else:
+            target.unlink()
+        deleted.append(rel)
+    return {"deleted": deleted}
+
+
+@app.post("/api/files/{project}/mkdir")
+async def make_directory(project: str, body: MkdirReq):
+    if _is_ssh_project(project):
+        try:
+            ssh, sftp = get_sftp(project)
+            remote_base = _get_remote_base(project)
+            target = os.path.normpath(os.path.join(remote_base, body.path))
+            if not target.startswith(remote_base):
+                raise HTTPException(403, "path traversal")
+            try:
+                sftp.stat(target)
+                raise HTTPException(409, "directory already exists")
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+            _, stdout, _ = ssh.exec_command(f"mkdir -p {shlex.quote(target)}")
+            stdout.channel.recv_exit_status()
+            sftp.close(); ssh.close()
+            return {"created": body.path}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(500, f"SFTP mkdir error: {str(e)}")
+    # Local
+    base = _get_base(project)
+    if not base.exists():
+        raise HTTPException(404, f"'{project}' not found")
+    target = (base / body.path).resolve()
+    if not str(target).startswith(str(base.resolve())):
+        raise HTTPException(403, "path traversal")
+    if target.exists():
+        raise HTTPException(409, "directory already exists")
+    target.mkdir(parents=True, exist_ok=False)
+    return {"created": body.path}
 
 
 # ── File upload/download ─────────────────────────────────────────────────────
