@@ -377,10 +377,8 @@ function startRename(idx) {
     const newName = input.value.trim();
     if (save && newName && newName !== oldName) {
       const oldPath = e.path;
-      const parentDir = oldPath.substring(0, oldPath.length - oldName.length);
-      const newPath = parentDir + newName;
       try {
-        await API.renameFile(oldPath, newPath);
+        await API.renameFile(oldPath, newName);
         FM.loadDir(currentDir);
       } catch (err) {
         alert('Rename failed: ' + err.message);

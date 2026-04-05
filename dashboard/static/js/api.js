@@ -65,14 +65,12 @@ export function downloadUrl(path) {
   return `${base}/download?path=${encodeURIComponent(path)}`;
 }
 
-export async function renameFile(oldPath, newPath) {
-  const r = await fetch(`${base}/rename`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ old_path: oldPath, new_path: newPath }),
-    credentials: 'include'
+export async function renameFile(path, newName) {
+  const r = await fetch(`/api/files/${PROJECT}/rename?path=${encodeURIComponent(path)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_name: newName }), credentials: 'include'
   });
-  if (!r.ok) throw new Error('Rename failed');
+  if (!r.ok) throw new Error('Failed to rename');
   return r.json();
 }
 
@@ -110,7 +108,8 @@ export async function copyFiles(paths, dest) {
 }
 
 export async function moveFile(oldPath, newPath) {
-  return renameFile(oldPath, newPath);
+  const newName = newPath.split('/').pop();
+  return renameFile(oldPath, newName);
 }
 
 export async function searchFiles(query, path) {
@@ -121,8 +120,7 @@ export async function searchFiles(query, path) {
 }
 
 export function zipDownloadUrl(paths) {
-  const q = paths.map(p => `path=${encodeURIComponent(p)}`).join('&');
-  return `${base}/zip-download?${q}`;
+  return `/api/files/${PROJECT}/zip-download?paths=${paths.map(encodeURIComponent).join(',')}`;
 }
 
 export async function sendKeys(key, session) {
