@@ -833,25 +833,76 @@ document.body.addEventListener('touchmove',function(e){
   if(!e.target.closest('.messages'))e.preventDefault();
 },{passive:false});
 
-// ── Polling with fast mode after send ──
-let fastPollUntil=0;
-let pollInterval=null;
+// ── SSE streaming with polling fallback ──
+let eventSource=null;
+let sseConnected=false;
 
-function startPolling(){
-  pollMessages();
-  pollState();
-  // Adaptive polling: fast (500ms) after send, normal (1500ms) otherwise
-  pollInterval=setInterval(()=>{
-    pollMessages();
-  }, 2000);
-  setInterval(pollState,1500);
+function startSSE(){
+  if(eventSource)eventSource.close();
+  const url=`/api/projects/${PROJECT}/session-stream?after=${lastMsgCount}`;
+  eventSource=new EventSource(url);
+
+  eventSource.addEventListener('message',function(e){
+    try{
+      const msg=JSON.parse(e.data);
+      messages.push(msg);
+      if(messages.length>MAX_DISPLAY*2)messages=messages.slice(-MAX_DISPLAY);
+      lastMsgCount++;
+      render();
+    }catch(err){}
+  });
+
+  eventSource.addEventListener('state',function(e){
+    try{
+      const d=JSON.parse(e.data);
+      const prev=currentState;
+      currentState=d.state;
+      if(prev!==currentState)render();
+      const stateEl=document.getElementById('state-display');
+      stateEl.style.color='';
+      stateEl.textContent=
+        d.state==='thinking'?'thinking...':
+        d.state==='waiting_text'?'ready':'';
+    }catch(err){}
+  });
+
+  eventSource.onerror=function(){
+    sseConnected=false;
+    // Fall back to polling, retry SSE in 5s
+    startPollingFallback();
+    setTimeout(()=>{if(!sseConnected)startSSE();},5000);
+  };
+
+  eventSource.onopen=function(){
+    sseConnected=true;
+    stopPollingFallback();
+  };
 }
 
-function enterFastPoll(){
-  fastPollUntil=Date.now()+15000; // 15s of fast polling after send
+let pollMsgInterval=null;
+let pollStateInterval=null;
+
+function startPollingFallback(){
+  if(!pollMsgInterval)pollMsgInterval=setInterval(pollMessages,2000);
+  if(!pollStateInterval)pollStateInterval=setInterval(pollState,1500);
 }
 
-startPolling();
+function stopPollingFallback(){
+  if(pollMsgInterval){clearInterval(pollMsgInterval);pollMsgInterval=null;}
+  // Keep state polling as backup for prompt detection
+}
+
+function enterFastPoll(){} // No-op with SSE
+
+// Init: load initial messages, then start SSE
+async function init(){
+  await pollMessages();
+  scrollToBottom();
+  startSSE();
+  // Always poll state for prompt detection (tmux-based)
+  pollStateInterval=setInterval(pollState,2000);
+}
+init();
 </script>
 </body>
 </html>
