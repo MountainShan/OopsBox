@@ -1,0 +1,46 @@
+/* ── Reset & CSS Variables ── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0e1015;--bg2:#161920;--bg3:#1e2028;--border:#252830;--text:#c8ccd5;--text-hi:#e8ecf0;--muted:#6b7080;--accent:#e07840;--green:#10b981;--danger:#e05050}
+body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;font-size:clamp(12px,2.2vw,14px)}
+
+/* ── Tab layout ── */
+#workspace{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#file-manager{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#file-manager.hidden{display:none}
+#split-handle{display:none}
+#terminal-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#terminal-panel.hidden{display:none}
+
+/* ── Tab bar ── */
+.ws-tabs{display:flex;align-items:center;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.ws-tab{flex:1;padding:clamp(3px,.8vw,5px) 0;text-align:center;font-size:clamp(10px,1.6vw,11px);font-weight:600;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s}
+.ws-tab.on{color:var(--text-hi);border-bottom:2px solid var(--accent)}
+.ws-tab svg{width:clamp(10px,1.8vw,12px);height:clamp(10px,1.8vw,12px);vertical-align:middle;margin-right:2px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── Common buttons ── */
+.fm-btn{padding:clamp(4px,1vw,6px) clamp(8px,1.5vw,12px);border-radius:5px;font-size:clamp(11px,2vw,13px);font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;white-space:nowrap;flex-shrink:0}
+.fm-btn:hover{color:var(--text);background:var(--bg3)}
+.fm-btn:active{transform:scale(.96)}
+.tb-btn{display:flex;align-items:center;gap:4px;padding:clamp(4px,1vw,6px) clamp(6px,1.2vw,10px);border-radius:5px;font-size:clamp(10px,2vw,12px);font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;white-space:nowrap}
+.tb-btn:hover{color:var(--text);background:var(--bg3)}
+.tb-btn:active{transform:scale(.96)}
+.tb-btn.danger{color:var(--danger);border-color:rgba(224,80,80,.25)}
+.tb-btn.primary{background:var(--accent);color:#fff;border-color:transparent}
+.tb-btn.primary:hover{opacity:.85}
+.tb-btn svg{width:clamp(12px,2.2vw,14px);height:clamp(12px,2.2vw,14px);fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tb-sep{width:1px;height:16px;background:var(--border);margin:0 2px}
+
+/* ── Modal overlay ── */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);padding:clamp(4px,1vw,10px)}
+.modal-overlay.open{display:flex}
+.modal-inner{flex:1;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+
+/* ── Small modal (new file / new folder) ── */
+.small-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center}
+.small-modal-bg.open{display:flex}
+.small-modal{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px;width:320px}
+.small-modal h3{font-size:13px;color:var(--text-hi);margin-bottom:12px}
+.small-modal input{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text-hi);font-size:12px;outline:none}
+.small-modal input:focus{border-color:var(--accent)}
+.small-modal-hint{font-size:10px;color:var(--muted);margin-top:4px}
+.small-modal-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:12px}

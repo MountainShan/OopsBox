@@ -7,208 +7,92 @@
 <title>OopsBox — Workspace</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/material-darker.min.css">
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0e1015;--bg2:#161920;--bg3:#1e2028;--border:#252830;--text:#c8ccd5;--text-hi:#e8ecf0;--muted:#6b7080;--accent:#e07840;--green:#10b981}
-body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;font-size:clamp(12px,2.2vw,14px)}
-
-/* ── Tab layout ── */
-#workspace{display:flex;flex-direction:column;height:100vh;overflow:hidden}
-#file-manager{flex:1;display:flex;flex-direction:column;overflow:hidden}
-#file-manager.hidden{display:none}
-#split-handle{display:none}
-#terminal-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
-#terminal-panel.hidden{display:none}
-
-/* ── Tab bar ── */
-.ws-tabs{display:flex;align-items:center;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
-.ws-tab{flex:1;padding:clamp(3px,.8vw,5px) 0;text-align:center;font-size:clamp(10px,1.6vw,11px);font-weight:600;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s}
-.ws-tab.on{color:var(--text-hi);border-bottom:2px solid var(--accent)}
-.ws-tab svg{width:clamp(10px,1.8vw,12px);height:clamp(10px,1.8vw,12px);vertical-align:middle;margin-right:2px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-
-/* ── File manager toolbar ── */
-.fm-toolbar{display:flex;align-items:center;gap:clamp(4px,1vw,6px);padding:clamp(5px,1.2vw,8px) clamp(8px,1.5vw,12px);background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
-.fm-breadcrumb{flex:1;font-size:clamp(12px,2.2vw,14px);color:var(--muted);display:flex;align-items:center;gap:2px;overflow:hidden;min-width:0}
-.fm-breadcrumb span{cursor:pointer;padding:clamp(2px,.5vw,3px) clamp(3px,.8vw,6px);border-radius:4px;white-space:nowrap;transition:all .1s}
-.fm-breadcrumb span:hover{color:var(--text-hi);background:var(--bg3)}
-.fm-breadcrumb .sep{color:var(--border);cursor:default;padding:0 2px}
-.fm-breadcrumb .sep:hover{background:none;color:var(--border)}
-.fm-btn{padding:clamp(4px,1vw,6px) clamp(8px,1.5vw,12px);border-radius:5px;font-size:clamp(11px,2vw,13px);font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;white-space:nowrap;flex-shrink:0}
-.fm-btn:hover{color:var(--text);background:var(--bg3)}
-.fm-btn:active{transform:scale(.96)}
-
-/* ── File table ── */
-.fm-table-wrap{flex:1;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.fm-table{width:100%;border-collapse:collapse;table-layout:fixed}
-.fm-table thead{position:sticky;top:0;background:var(--bg2);z-index:1}
-.fm-table th{padding:clamp(5px,1vw,8px) clamp(8px,1.5vw,12px);text-align:left;font-size:clamp(10px,1.8vw,12px);color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);position:relative;overflow:hidden;white-space:nowrap}
-.fm-table td{padding:clamp(7px,1.5vw,10px) clamp(8px,1.5vw,12px);border-bottom:1px solid var(--border);font-size:clamp(13px,2.5vw,15px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fm-table tbody tr{cursor:pointer;transition:background .1s}
-.fm-table tbody tr:hover{background:var(--bg3)}
-.fm-table tbody tr.selected{background:var(--bg3)}
-.fm-col-icon{width:clamp(32px,6vw,44px);text-align:center;font-size:clamp(16px,3vw,20px)}
-.fm-col-name{font-weight:500;color:var(--text-hi)}
-.fm-col-size{color:var(--muted);font-size:clamp(11px,2vw,13px);text-align:right}
-.fm-col-mtime{color:var(--muted);font-size:clamp(11px,2vw,13px);text-align:right}
-.fm-row-back td{color:var(--muted);font-style:italic}
-.fm-row-dir .fm-col-name{color:var(--accent);font-weight:600}
-.fm-empty{padding:20px;text-align:center;color:var(--muted);font-size:clamp(12px,2.2vw,14px)}
-/* Column resize handle */
-.col-resize{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;z-index:2}
-.col-resize:hover,.col-resize.active{background:var(--accent)}
-
-/* ── Terminal ── */
-.term-bar{display:flex;align-items:center;gap:clamp(3px,.8vw,5px);padding:clamp(2px,.6vw,4px) clamp(4px,1vw,8px);background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
-.term-hint{font-size:clamp(10px,1.8vw,12px);color:var(--muted)}
-.copy-ok{font-size:clamp(10px,1.8vw,12px);color:var(--green);opacity:0;transition:opacity .3s}
-.copy-ok.show{opacity:1}
-.term-frame{flex:1;border:none;width:100%;height:100%}
-.tb-btn{display:flex;align-items:center;gap:4px;padding:clamp(4px,1vw,6px) clamp(6px,1.2vw,10px);border-radius:5px;font-size:clamp(10px,2vw,12px);font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;white-space:nowrap}
-.tb-btn:hover{color:var(--text);background:var(--bg3)}
-.tb-btn:active{transform:scale(.96)}
-.tb-btn.danger{color:#e05050;border-color:#e0505040}
-.tb-btn.primary{background:var(--accent);color:#fff;border-color:transparent}
-.tb-btn.primary:hover{opacity:.85}
-.tb-btn svg{width:clamp(12px,2.2vw,14px);height:clamp(12px,2.2vw,14px);fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-
-/* ── Modal overlay ── */
-.modal-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);padding:clamp(4px,1vw,10px)}
-.modal-overlay.open{display:flex}
-.modal-inner{flex:1;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden}
-
-/* ── Editor modal ── */
-.editor-toolbar{display:flex;align-items:center;gap:clamp(4px,1vw,6px);padding:clamp(4px,1vw,6px) clamp(8px,1.5vw,12px);background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
-.editor-filename{font-size:clamp(13px,2.5vw,15px);color:var(--text-hi);font-weight:600}
-.editor-modified{font-size:clamp(11px,2vw,13px);color:#f59e0b;margin-left:4px}
-.editor-body{flex:1;overflow:hidden;position:relative}
-.editor-wrap{width:100%;height:100%}
-.editor-info{padding:clamp(3px,.8vw,6px) 12px;font-size:clamp(10px,1.8vw,12px);color:var(--muted);background:var(--bg2);border-top:1px solid var(--border);display:flex;gap:12px;flex-shrink:0}
-.saved-indicator{color:var(--green);font-size:10px;opacity:0;transition:opacity .3s}
-.saved-indicator.show{opacity:1}
-.tb-sep{width:1px;height:16px;background:var(--border);margin:0 2px}
-
-/* ── Image modal ── */
-.image-body{flex:1;overflow:auto;padding:clamp(10px,2vw,20px);text-align:center;background:var(--bg);-webkit-overflow-scrolling:touch}
-.image-body img{max-width:100%;max-height:80vh;border-radius:6px;border:1px solid var(--border)}
-
-/* ── Phone: hide size/mtime columns ── */
-@media(max-width:480px){
-  .fm-table{table-layout:auto!important}
-  #col-size,#col-mtime{width:0!important}
-  .fm-col-size,.fm-col-mtime{display:none}
-  .col-resize{display:none}
-  .fm-col-icon{width:32px;font-size:16px}
-  .fm-col-name{width:auto!important}
-  .modal-overlay{padding:0}
-  .modal-inner{border-radius:0;border:none}
-}
-/* ── Tablet: hide mtime column ── */
-@media(min-width:481px) and (max-width:768px){
-  .fm-col-mtime{display:none}
-}
-
-/* ── Markdown preview ── */
-.md-preview{display:none;position:absolute;inset:0;overflow-y:auto;padding:20px 28px;background:var(--bg);color:var(--text);font-size:14px;line-height:1.7;-webkit-overflow-scrolling:touch;z-index:5}
-.md-preview h1,.md-preview h2,.md-preview h3,.md-preview h4{color:var(--text-hi);margin:1.2em 0 .5em;font-weight:700}
-.md-preview h1{font-size:1.6em;border-bottom:1px solid var(--border);padding-bottom:.3em}
-.md-preview h2{font-size:1.3em;border-bottom:1px solid var(--border);padding-bottom:.2em}
-.md-preview h3{font-size:1.1em}
-.md-preview p{margin:.6em 0}
-.md-preview a{color:#60a5fa;text-decoration:none}
-.md-preview code{background:var(--bg3);padding:2px 5px;border-radius:3px;font-size:.9em;font-family:monospace}
-.md-preview pre{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px 16px;overflow-x:auto;margin:.8em 0}
-.md-preview pre code{background:none;padding:0}
-.md-preview blockquote{border-left:3px solid var(--border);padding-left:14px;color:var(--muted);margin:.8em 0}
-.md-preview ul,.md-preview ol{padding-left:24px;margin:.6em 0}
-.md-preview li{margin:.2em 0}
-.md-preview table{border-collapse:collapse;margin:.8em 0;width:100%}
-.md-preview th,.md-preview td{border:1px solid var(--border);padding:6px 10px;text-align:left}
-.md-preview th{background:var(--bg3);font-weight:600}
-.md-preview img{max-width:100%;border-radius:4px}
-.md-preview hr{border:none;border-top:1px solid var(--border);margin:1.5em 0}
-.md-preview .mermaid{background:var(--bg2);border-radius:6px;padding:12px;margin:.8em 0;text-align:center}
-.md-preview input[type="checkbox"]{margin-right:6px}
-
-/* ── New file modal ── */
-.small-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center}
-.small-modal-bg.open{display:flex}
-.small-modal{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px;width:320px}
-.small-modal h3{font-size:13px;color:var(--text-hi);margin-bottom:12px}
-.small-modal input{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text-hi);font-size:12px;outline:none}
-.small-modal input:focus{border-color:var(--accent)}
-.small-modal-hint{font-size:10px;color:var(--muted);margin-top:4px}
-.small-modal-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:12px}
-
-.ib-nav{padding:1px 5px;border-radius:3px;font-size:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .1s}
-.ib-nav:hover{color:var(--text);background:var(--bg3)}
-.CodeMirror{height:100% !important;font-size:clamp(13px,2.5vw,15px);line-height:1.6;font-family:monospace}
-.cm-s-material-darker .CodeMirror-gutters{background:#0a0c10;border-right:1px solid #1e2130}
-</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/dialog/dialog.min.css">
+<link rel="stylesheet" href="/static/css/theme.css">
+<link rel="stylesheet" href="/static/css/file-manager.css">
+<link rel="stylesheet" href="/static/css/editor.css">
 </head>
 <body>
 
 <div id="workspace">
   <!-- Tab bar -->
   <div class="ws-tabs">
-    <button class="ws-tab on" id="ws-tab-files" onclick="wsSwitch('files')">
+    <button class="ws-tab on" id="ws-tab-files" onclick="TERM.wsSwitch('files')">
       <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       Files
     </button>
-    <button class="ws-tab" id="ws-tab-term" onclick="wsSwitch('term')">
+    <button class="ws-tab" id="ws-tab-term" onclick="TERM.wsSwitch('term')">
       <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
       Terminal
     </button>
-    <button class="ws-tab" id="ws-tab-local" onclick="wsSwitch('local')" style="display:none">
+    <button class="ws-tab" id="ws-tab-local" onclick="TERM.wsSwitch('local')" style="display:none">
       <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
       Local
     </button>
   </div>
 
   <!-- File Manager -->
-  <div id="file-manager">
+  <div id="file-manager" style="position:relative">
     <div class="fm-toolbar">
       <div class="fm-breadcrumb" id="fm-breadcrumb"></div>
-      <button class="fm-btn" onclick="showNewFileModal()">+ New</button>
-      <button class="fm-btn" onclick="uploadFile()">Upload</button>
-      <button class="fm-btn" onclick="downloadSelected()">Download</button>
-      <button class="fm-btn" onclick="loadDir(currentDir)">Refresh</button>
-      <input type="file" id="file-upload-input" style="display:none" onchange="handleUpload(event)" multiple>
+      <div class="fm-search-wrap">
+        <span class="fm-search-icon">🔍</span>
+        <input class="fm-search" id="fm-search" type="text" placeholder="Search..." autocomplete="off" spellcheck="false">
+        <div class="fm-search-results" id="fm-search-results"></div>
+      </div>
+      <button class="fm-btn" onclick="FM.showNewFileModal()">+ New</button>
+      <button class="fm-btn" onclick="FM.showNewFolderModal()">新資料夾</button>
+      <button class="fm-btn" onclick="FM.triggerUpload()">Upload</button>
+      <button class="fm-btn" onclick="FM.downloadSelected()">Download</button>
+      <button class="fm-btn" onclick="FM.loadDir(FM.getCurrentDir())">Refresh</button>
+      <input type="file" id="file-upload-input" style="display:none" onchange="FM.handleUpload(event)" multiple>
     </div>
+    <div class="fm-batch-bar" id="fm-batch-bar">
+      <span class="fm-batch-count" id="fm-batch-count">0 selected</span>
+      <button class="tb-btn" onclick="FM.batchDownload()">⬇️ Download</button>
+      <button class="tb-btn" onclick="FM.batchCopy()">📋 Copy</button>
+      <button class="tb-btn" onclick="FM.batchCut()">✂️ Cut</button>
+      <button class="tb-btn danger" onclick="FM.batchDelete()">🗑️ Delete</button>
+    </div>
+    <div class="fm-upload-progress" id="fm-upload-progress"></div>
     <div class="fm-table-wrap" id="fm-table-wrap">
       <table class="fm-table" id="fm-table">
         <colgroup>
+          <col id="col-check" style="width:36px">
           <col id="col-icon" style="width:44px">
           <col id="col-name">
           <col id="col-size" style="width:80px">
           <col id="col-mtime" style="width:110px">
         </colgroup>
         <thead><tr>
+          <th class="fm-col-check"><input type="checkbox" id="fm-select-all" title="Select all"></th>
           <th class="fm-col-icon"></th>
-          <th>Name<div class="col-resize" data-col="1"></div></th>
-          <th class="fm-col-size">Size<div class="col-resize" data-col="2"></div></th>
-          <th class="fm-col-mtime">Modified</th>
+          <th data-sort="name" onclick="FM.setSort('name')">Name <span class="sort-icon">▲</span><div class="col-resize" data-col="2"></div></th>
+          <th class="fm-col-size" data-sort="size" onclick="FM.setSort('size')">Size <span class="sort-icon">▲</span><div class="col-resize" data-col="3"></div></th>
+          <th class="fm-col-mtime" data-sort="mtime" onclick="FM.setSort('mtime')">Modified <span class="sort-icon">▲</span></th>
         </tr></thead>
         <tbody id="fm-body"></tbody>
       </table>
     </div>
+    <div class="fm-drop-overlay" id="fm-drop-overlay"><span class="fm-drop-text">Drop files to upload</span></div>
   </div>
 
   <!-- Terminal -->
   <div id="terminal-panel" class="hidden">
     <div class="term-bar">
-      <button class="tb-btn danger" onclick="sendTermKey('\x03')" title="Ctrl+C">^C</button>
-      <button class="tb-btn" onclick="sendTermKey('\x04')" title="Ctrl+D">^D</button>
-      <button class="tb-btn" onclick="sendTermKey('\x1a')" title="Ctrl+Z">^Z</button>
-      <button class="tb-btn" onclick="sendTermKey('\x0c')" title="Ctrl+L (clear)">^L</button>
-      <button class="tb-btn" onclick="sendTermKey('\t')" title="Tab (autocomplete)">Tab</button>
-      <button class="tb-btn" onclick="sendTermKey('\x1b[A')" title="Up arrow">▲</button>
-      <button class="tb-btn" onclick="sendTermKey('\x1b[B')" title="Down arrow">▼</button>
+      <button class="tb-btn danger" onclick="TERM.sendKey('\x03')" title="Ctrl+C">^C</button>
+      <button class="tb-btn" onclick="TERM.sendKey('\x04')" title="Ctrl+D">^D</button>
+      <button class="tb-btn" onclick="TERM.sendKey('\x1a')" title="Ctrl+Z">^Z</button>
+      <button class="tb-btn" onclick="TERM.sendKey('\x0c')" title="Ctrl+L (clear)">^L</button>
+      <button class="tb-btn" onclick="TERM.sendKey('\t')" title="Tab (autocomplete)">Tab</button>
+      <button class="tb-btn" onclick="TERM.sendKey('\x1b[A')" title="Up arrow">▲</button>
+      <button class="tb-btn" onclick="TERM.sendKey('\x1b[B')" title="Down arrow">▼</button>
       <div class="tb-sep"></div>
-      <button class="tb-btn" id="mouse-toggle" onclick="toggleMouse()">
+      <button class="tb-btn" id="mouse-toggle" onclick="TERM.toggleMouse()">
         <svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6"/><line x1="12" y1="7" x2="12" y2="11"/></svg>
         <span id="mouse-label">Select Mode</span>
       </button>
-      <button class="tb-btn" onclick="copyFromTmux()">
+      <button class="tb-btn" onclick="TERM.copyFromTmux()">
         <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         Copy
       </button>
@@ -228,15 +112,15 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
       <span class="editor-filename" id="editor-filename"></span>
       <span class="editor-modified" id="editor-modified"></span>
       <div style="flex:1"></div>
-      <button class="tb-btn" id="md-preview-btn" onclick="togglePreview()" style="display:none">Preview</button>
-      <button class="tb-btn" onclick="doUndo()">Undo</button>
-      <button class="tb-btn" onclick="doRedo()">Redo</button>
-      <button class="tb-btn" onclick="findReplace()">Find</button>
+      <button class="tb-btn" id="md-preview-btn" onclick="EDITOR.togglePreview()" style="display:none">Preview</button>
+      <button class="tb-btn" onclick="EDITOR.doUndo()">Undo</button>
+      <button class="tb-btn" onclick="EDITOR.doRedo()">Redo</button>
+      <button class="tb-btn" onclick="EDITOR.findReplace()">Find</button>
       <div class="tb-sep"></div>
-      <button class="tb-btn primary" onclick="save()">Save</button>
-      <button class="tb-btn" onclick="saveAs()">Save As</button>
+      <button class="tb-btn primary" onclick="EDITOR.save()">Save</button>
+      <button class="tb-btn" onclick="EDITOR.saveAs()">Save As</button>
       <div class="tb-sep"></div>
-      <button class="tb-btn" onclick="closeEditor()">&#10005; Close</button>
+      <button class="tb-btn" onclick="EDITOR.closeEditor()">&#10005; Close</button>
     </div>
     <div class="editor-body">
       <div id="editor-wrap" class="editor-wrap"></div>
@@ -247,11 +131,11 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
       <span class="saved-indicator" id="saved-ind">Saved</span>
       <span id="info-chunk" style="color:var(--accent)"></span>
       <div id="chunk-nav" style="display:none;gap:3px;align-items:center">
-        <button class="ib-nav" onclick="loadChunk('first')" title="First chunk">⏮</button>
-        <button class="ib-nav" onclick="loadChunk('prev')" title="Previous chunk">◀</button>
-        <button class="ib-nav" onclick="loadChunk('next')" title="Next chunk">▶</button>
-        <button class="ib-nav" onclick="loadChunk('last')" title="Last chunk">⏭</button>
-        <button class="ib-nav" onclick="jumpToLine()" title="Go to line">⤓</button>
+        <button class="ib-nav" onclick="EDITOR.loadChunk('first')" title="First chunk">⏮</button>
+        <button class="ib-nav" onclick="EDITOR.loadChunk('prev')" title="Previous chunk">◀</button>
+        <button class="ib-nav" onclick="EDITOR.loadChunk('next')" title="Next chunk">▶</button>
+        <button class="ib-nav" onclick="EDITOR.loadChunk('last')" title="Last chunk">⏭</button>
+        <button class="ib-nav" onclick="EDITOR.jumpToLine()" title="Go to line">⤓</button>
       </div>
       <span style="flex:1"></span>
       <span id="info-lang">--</span>
@@ -266,9 +150,9 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
     <div class="editor-toolbar">
       <span class="editor-filename" id="image-filename"></span>
       <div style="flex:1"></div>
-      <button class="tb-btn" onclick="downloadCurrentImage()">Download</button>
+      <button class="tb-btn" onclick="EDITOR.downloadCurrentImage()">Download</button>
       <div class="tb-sep"></div>
-      <button class="tb-btn" onclick="closeImageModal()">&#10005; Close</button>
+      <button class="tb-btn" onclick="EDITOR.closeImageModal()">&#10005; Close</button>
     </div>
     <div class="image-body">
       <img id="image-el" src="">
@@ -281,14 +165,31 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
   <div class="small-modal">
     <h3>New File</h3>
     <input id="newfile-path" placeholder="filename.ext" autocomplete="off" spellcheck="false"
-           onkeydown="if(event.key==='Enter')createNewFile()">
+           onkeydown="if(event.key==='Enter')FM.createNewFile()">
     <div class="small-modal-hint">Created in current directory. Use path/file for subdirs.</div>
     <div class="small-modal-actions">
-      <button class="fm-btn" onclick="hideNewFileModal()">Cancel</button>
-      <button class="fm-btn" style="background:var(--accent);color:#fff;border-color:transparent" onclick="createNewFile()">Create</button>
+      <button class="fm-btn" onclick="FM.hideNewFileModal()">Cancel</button>
+      <button class="fm-btn" style="background:var(--accent);color:#fff;border-color:transparent" onclick="FM.createNewFile()">Create</button>
     </div>
   </div>
 </div>
+
+<!-- New Folder Modal -->
+<div class="small-modal-bg" id="newfolder-modal">
+  <div class="small-modal">
+    <h3>New Folder</h3>
+    <input id="newfolder-path" placeholder="folder-name" autocomplete="off" spellcheck="false"
+           onkeydown="if(event.key==='Enter')FM.createNewFolder()">
+    <div class="small-modal-hint">Created in current directory.</div>
+    <div class="small-modal-actions">
+      <button class="fm-btn" onclick="FM.hideNewFolderModal()">Cancel</button>
+      <button class="fm-btn" style="background:var(--accent);color:#fff;border-color:transparent" onclick="FM.createNewFolder()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Context Menu -->
+<div class="fm-context-menu" id="fm-context-menu"></div>
 
 <!-- Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
@@ -312,449 +213,34 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/search/searchcursor.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/search/jump-to-line.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/dialog/dialog.min.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/dialog/dialog.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 
-<script>
-const params=new URLSearchParams(location.search);
-const PROJECT=params.get('project');
-const TERM_URL=params.get('termUrl')||`/proj/${PROJECT}/term/`;
-const BACKEND=params.get('backend')||'local';
+<script type="module">
+import FM from '/static/js/file-manager.js';
+import EDITOR from '/static/js/editor.js';
+import TERM from '/static/js/terminal.js';
+import { PROJECT } from '/static/js/api.js';
 
-document.getElementById('term-iframe').src=TERM_URL;
+// Initialize mermaid
+mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
 
-// Show local terminal tab for SSH/Container projects
-if(BACKEND==='ssh'||BACKEND==='container'){
-  document.getElementById('ws-tab-local').style.display='';
-  document.getElementById('local-iframe').src='/system/term/';
-  document.getElementById('ws-tab-term').innerHTML=`<svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> Remote`;
-}
+// Initialize modules
+TERM.init();
+FM.init();
 
-// ── State ──
-let editor=null, currentDir='', currentFile=null, previewMode=false, mouseOn=true, selectedEntry=null;
-
-// ── Helpers ──
-function modeForFile(name){
-  const ext=name.split('.').pop().toLowerCase();
-  const map={js:'javascript',jsx:'javascript',ts:'javascript',tsx:'javascript',mjs:'javascript',py:'python',sh:'shell',bash:'shell',zsh:'shell',md:'markdown',html:'htmlmixed',htm:'htmlmixed',css:'css',scss:'css',less:'css',json:{name:'javascript',json:true},yaml:'yaml',yml:'yaml',toml:'toml',go:'go',rs:'rust',c:'text/x-csrc',cpp:'text/x-c++src',h:'text/x-csrc',java:'text/x-java',dockerfile:'dockerfile',nginx:'nginx',conf:'nginx',sql:'sql',xml:'xml',svg:'xml'};
-  return map[ext]||'text/plain';
-}
-function langName(name){
-  const ext=name.split('.').pop().toLowerCase();
-  const map={js:'JavaScript',ts:'TypeScript',py:'Python',sh:'Shell',md:'Markdown',html:'HTML',css:'CSS',json:'JSON',yaml:'YAML',go:'Go',rs:'Rust',c:'C',cpp:'C++',java:'Java',sql:'SQL'};
-  return map[ext]||ext.toUpperCase();
-}
-function isImage(name){return /\.(png|jpg|jpeg|gif|svg|webp|ico|bmp)$/i.test(name)}
-function formatSize(bytes){
-  if(bytes==null)return'--';
-  if(bytes<1024)return bytes+' B';
-  if(bytes<1048576)return(bytes/1024).toFixed(1)+' KB';
-  return(bytes/1048576).toFixed(1)+' MB';
-}
-function formatDate(ts){
-  if(!ts)return'--';
-  const d=new Date(ts*1000);
-  const m=String(d.getMonth()+1).padStart(2,'0');
-  const day=String(d.getDate()).padStart(2,'0');
-  const h=String(d.getHours()).padStart(2,'0');
-  const min=String(d.getMinutes()).padStart(2,'0');
-  return`${m}/${day} ${h}:${min}`;
-}
-
-// ── Breadcrumb ──
-function updateBreadcrumb(path){
-  const el=document.getElementById('fm-breadcrumb');
-  let html='<span onclick="loadDir(\'\')">/</span>';
-  if(path){
-    const parts=path.split('/');
-    let acc='';
-    for(let i=0;i<parts.length;i++){
-      acc+=(i?'/':'')+parts[i];
-      const p=acc;
-      html+=`<span class="sep">/</span><span onclick="loadDir('${p.replace(/'/g,"\\'")}')">${parts[i]}</span>`;
-    }
-  }
-  el.innerHTML=html;
-}
-
-// ── File Manager ──
-async function loadDir(path){
-  currentDir=path;
-  selectedEntry=null;
-  updateBreadcrumb(path);
-  const body=document.getElementById('fm-body');
-  body.innerHTML='<tr><td colspan="4" class="fm-empty">Loading...</td></tr>';
-  try{
-    const r=await fetch(`/api/files/${PROJECT}?path=${encodeURIComponent(path)}`,{credentials:'include'});
-    if(!r.ok){body.innerHTML='<tr><td colspan="4" class="fm-empty">Error loading files</td></tr>';return;}
-    const d=await r.json();
-    const entries=d.entries||[];
-    body.innerHTML='';
-    // ".." row
-    if(path){
-      const tr=document.createElement('tr');
-      tr.className='fm-row-back';
-      tr.innerHTML='<td class="fm-col-icon">&#8592;</td><td>..</td><td class="fm-col-size"></td><td class="fm-col-mtime"></td>';
-      tr.onclick=()=>{const parts=path.split('/');parts.pop();loadDir(parts.join('/'))};
-      body.appendChild(tr);
-    }
-    for(const e of entries){
-      const tr=document.createElement('tr');
-      tr.className=e.type==='dir'?'fm-row-dir':'';
-      const icon=e.type==='dir'?'&#128193;':'&#128196;';
-      tr.innerHTML=`<td class="fm-col-icon">${icon}</td><td class="fm-col-name">${e.name}</td><td class="fm-col-size">${e.type==='dir'?'--':formatSize(e.size)}</td><td class="fm-col-mtime">${formatDate(e.mtime)}</td>`;
-      tr.onclick=()=>{
-        if(e.type==='dir'){loadDir(e.path);}
-        else{selectedEntry=e;openFile(e.path,e.name);}
-      };
-      body.appendChild(tr);
-    }
-    if(!entries.length&&!path){
-      body.innerHTML='<tr><td colspan="4" class="fm-empty">No files</td></tr>';
-    }
-  }catch(err){
-    body.innerHTML='<tr><td colspan="4" class="fm-empty">Error: '+err.message+'</td></tr>';
-  }
-}
-
-// ── Editor (singleton) ──
-function initEditor(){
-  if(editor)return;
-  const wrap=document.getElementById('editor-wrap');
-  const ta=document.createElement('textarea');
-  wrap.appendChild(ta);
-  editor=CodeMirror.fromTextArea(ta,{
-    theme:'material-darker',lineNumbers:true,lineWrapping:false,indentUnit:2,tabSize:2,
-    indentWithTabs:false,matchBrackets:true,styleActiveLine:true,
-    extraKeys:{
-      'Ctrl-S':()=>{save();return false},'Cmd-S':()=>{save();return false},
-      'Ctrl-H':()=>{findReplace();return false},'Cmd-H':()=>{findReplace();return false},
-    }
-  });
-  editor.on('cursorActivity',()=>{
-    const pos=editor.getCursor();
-    document.getElementById('info-pos').textContent=`Ln ${pos.line+1}, Col ${pos.ch+1}`;
-  });
-  editor.on('change',()=>{
-    if(currentFile){currentFile.modified=true;document.getElementById('editor-modified').textContent='● modified';}
-  });
-}
-
-// ── Open file ──
-let chunkState=null; // {path, total, offset, end}
-
-async function openFile(path,name){
-  if(isImage(name||path)){
-    document.getElementById('image-filename').textContent=name||path.split('/').pop();
-    document.getElementById('image-el').src=`/api/files/${PROJECT}/download?path=${encodeURIComponent(path)}`;
-    document.getElementById('image-modal').classList.add('open');
-    return;
-  }
-  try{
-    const r=await fetch(`/api/files/${PROJECT}/read?path=${encodeURIComponent(path)}`,{credentials:'include'});
-    if(!r.ok){alert('Cannot open file');return;}
-    const d=await r.json();
-    currentFile={path,name:d.name,content:d.content,modified:false,doc:CodeMirror.Doc(d.content,modeForFile(d.name))};
-    initEditor();
-    editor.swapDoc(currentFile.doc);
-    document.getElementById('editor-filename').textContent=d.name;
-    document.getElementById('editor-modified').textContent='';
-    document.getElementById('info-path').textContent=path;
-    document.getElementById('info-lang').textContent=langName(d.name);
-    // Chunked file indicator
-    if(d.chunked){
-      chunkState={path,total:d.total_lines,offset:d.offset,end:d.end};
-      document.getElementById('info-chunk').textContent=`Lines ${d.offset+1}-${d.end} of ${d.total_lines}`;
-      document.getElementById('chunk-nav').style.display='flex';
-    }else{
-      chunkState=null;
-      document.getElementById('info-chunk').textContent='';
-      document.getElementById('chunk-nav').style.display='none';
-    }
-    // Markdown preview button
-    const isMd=/\.(md|markdown)$/i.test(path);
-    document.getElementById('md-preview-btn').style.display=isMd?'flex':'none';
-    if(previewMode)togglePreview();
-    document.getElementById('editor-modal').classList.add('open');
-    setTimeout(()=>editor.refresh(),50);
-  }catch(e){alert('Error opening file: '+e.message);}
-}
-
-async function loadChunk(direction){
-  if(!chunkState)return;
-  const CHUNK=1000;
-  let newOffset;
-  if(direction==='next') newOffset=chunkState.end;
-  else if(direction==='prev') newOffset=Math.max(0,chunkState.offset-CHUNK);
-  else if(direction==='first') newOffset=0;
-  else if(direction==='last') newOffset=Math.max(0,chunkState.total-CHUNK);
-  else return;
-  // Save current content if modified before navigating
-  if(currentFile&&currentFile.modified){
-    if(!confirm('Unsaved changes will be lost. Continue?'))return;
-  }
-  try{
-    const r=await fetch(`/api/files/${PROJECT}/read?path=${encodeURIComponent(chunkState.path)}&offset=${newOffset}&limit=${CHUNK}`,{credentials:'include'});
-    if(!r.ok)return;
-    const d=await r.json();
-    currentFile.content=d.content;
-    currentFile.modified=false;
-    currentFile.doc=CodeMirror.Doc(d.content,modeForFile(currentFile.name));
-    editor.swapDoc(currentFile.doc);
-    chunkState.offset=d.offset;
-    chunkState.end=d.end;
-    document.getElementById('info-chunk').textContent=`Lines ${d.offset+1}-${d.end} of ${d.total_lines}`;
-    document.getElementById('editor-modified').textContent='';
-  }catch(e){}
-}
-
-async function jumpToLine(){
-  if(!chunkState)return;
-  const input=prompt(`Go to line (1-${chunkState.total}):`);
-  if(!input)return;
-  const line=parseInt(input,10);
-  if(isNaN(line)||line<1||line>chunkState.total)return;
-  const CHUNK=1000;
-  const newOffset=Math.max(0,line-Math.floor(CHUNK/2));
-  if(currentFile&&currentFile.modified){
-    if(!confirm('Unsaved changes will be lost. Continue?'))return;
-  }
-  try{
-    const r=await fetch(`/api/files/${PROJECT}/read?path=${encodeURIComponent(chunkState.path)}&offset=${newOffset}&limit=${CHUNK}`,{credentials:'include'});
-    if(!r.ok)return;
-    const d=await r.json();
-    currentFile.content=d.content;
-    currentFile.modified=false;
-    currentFile.doc=CodeMirror.Doc(d.content,modeForFile(currentFile.name));
-    editor.swapDoc(currentFile.doc);
-    chunkState.offset=d.offset;
-    chunkState.end=d.end;
-    document.getElementById('info-chunk').textContent=`Lines ${d.offset+1}-${d.end} of ${d.total_lines}`;
-    document.getElementById('editor-modified').textContent='';
-    // Jump cursor to the target line within the chunk
-    const localLine=line-d.offset-1;
-    setTimeout(()=>editor.setCursor(localLine,0),50);
-  }catch(e){}
-}
-
-function closeEditor(){
-  if(currentFile&&currentFile.modified){
-    if(!confirm(`${currentFile.name} has unsaved changes. Close anyway?`))return;
-  }
-  document.getElementById('editor-modal').classList.remove('open');
-  if(previewMode)togglePreview();
-  currentFile=null;
-  chunkState=null;
-  document.getElementById('chunk-nav').style.display='none';
-  document.getElementById('info-chunk').textContent='';
-}
-
-function closeImageModal(){
-  document.getElementById('image-modal').classList.remove('open');
-  document.getElementById('image-el').src='';
-}
-
-// ── Save ──
-async function save(){
-  if(!currentFile||!editor)return;
-  const content=editor.getValue();
-  const r=await fetch(`/api/files/${PROJECT}/write?path=${encodeURIComponent(currentFile.path)}`,{
-    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content}),credentials:'include'
-  });
-  if(r.ok){
-    currentFile.modified=false;currentFile.content=content;
-    document.getElementById('editor-modified').textContent='';
-    const ind=document.getElementById('saved-ind');
-    ind.classList.add('show');setTimeout(()=>ind.classList.remove('show'),1500);
-  }
-}
-
-async function saveAs(){
-  if(!currentFile||!editor)return;
-  const newPath=prompt('Save as:',currentFile.path);
-  if(!newPath)return;
-  if(newPath===currentFile.path){save();return;}
-  const content=editor.getValue();
-  const r=await fetch(`/api/files/${PROJECT}/write?path=${encodeURIComponent(newPath)}`,{
-    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content}),credentials:'include'
-  });
-  if(r.ok){
-    const name=newPath.split('/').pop();
-    currentFile={path:newPath,name,content,modified:false,doc:CodeMirror.Doc(content,modeForFile(name))};
-    editor.swapDoc(currentFile.doc);
-    document.getElementById('editor-filename').textContent=name;
-    document.getElementById('editor-modified').textContent='';
-    document.getElementById('info-path').textContent=newPath;
-    document.getElementById('info-lang').textContent=langName(name);
-    const ind=document.getElementById('saved-ind');
-    ind.classList.add('show');setTimeout(()=>ind.classList.remove('show'),1500);
-    loadDir(currentDir);
-  }
-}
-
-function doUndo(){if(editor)editor.undo()}
-function doRedo(){if(editor)editor.redo()}
-function findReplace(){if(editor)editor.execCommand('replace')}
-
-// ── Markdown preview ──
-mermaid.initialize({startOnLoad:false,theme:'dark',securityLevel:'loose'});
-
-async function togglePreview(){
-  previewMode=!previewMode;
-  const wrap=document.getElementById('editor-wrap');
-  const prev=document.getElementById('md-preview');
-  const btn=document.getElementById('md-preview-btn');
-  if(previewMode){
-    wrap.style.display='none';prev.style.display='block';btn.classList.add('primary');
-    const content=editor?editor.getValue():'';
-    const renderer=new marked.Renderer();
-    renderer.code=function({text,lang}){
-      if(lang==='mermaid')return`<div class="mermaid">${text}</div>`;
-      return`<pre><code class="language-${lang||''}">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</code></pre>`;
-    };
-    renderer.listitem=function({text}){
-      if(text.startsWith('[x] ')||text.startsWith('[X] '))return`<li><input type="checkbox" checked disabled>${text.slice(4)}</li>`;
-      if(text.startsWith('[ ] '))return`<li><input type="checkbox" disabled>${text.slice(4)}</li>`;
-      return`<li>${text}</li>`;
-    };
-    marked.setOptions({renderer,breaks:true,gfm:true});
-    prev.innerHTML=marked.parse(content);
-    try{const els=prev.querySelectorAll('.mermaid');for(let i=0;i<els.length;i++){const{svg}=await mermaid.render('mm-'+i+'-'+Date.now(),els[i].textContent);els[i].innerHTML=svg;}}catch(e){}
-  }else{
-    wrap.style.display='';prev.style.display='none';btn.classList.remove('primary');
-    if(editor)editor.refresh();
-  }
-}
-
-// ── Upload / Download ──
-function uploadFile(){document.getElementById('file-upload-input').click()}
-async function handleUpload(e){
-  const files=e.target.files;if(!files.length)return;
-  for(const file of files){
-    const form=new FormData();form.append('file',file);
-    await fetch(`/api/files/${PROJECT}/upload?path=${encodeURIComponent(currentDir)}`,{method:'POST',body:form,credentials:'include'});
-  }
-  e.target.value='';loadDir(currentDir);
-}
-function downloadSelected(){
-  if(selectedEntry&&selectedEntry.type==='file'){
-    window.open(`/api/files/${PROJECT}/download?path=${encodeURIComponent(selectedEntry.path)}`,'_blank');
-  }else if(currentFile){
-    window.open(`/api/files/${PROJECT}/download?path=${encodeURIComponent(currentFile.path)}`,'_blank');
-  }else{
-    alert('Select a file first');
-  }
-}
-function downloadCurrentImage(){
-  const src=document.getElementById('image-el').src;
-  if(src)window.open(src,'_blank');
-}
-
-// ── New file ──
-function showNewFileModal(){document.getElementById('newfile-modal').classList.add('open');const inp=document.getElementById('newfile-path');inp.value='';setTimeout(()=>inp.focus(),50)}
-function hideNewFileModal(){document.getElementById('newfile-modal').classList.remove('open')}
-document.getElementById('newfile-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)hideNewFileModal()});
-
-async function createNewFile(){
-  const name=document.getElementById('newfile-path').value.trim();
-  if(!name)return;
-  const path=currentDir?(currentDir+'/'+name):name;
-  const r=await fetch(`/api/files/${PROJECT}/write?path=${encodeURIComponent(path)}`,{
-    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:''}),credentials:'include'
-  });
-  if(!r.ok){alert('Failed to create file');return;}
-  hideNewFileModal();
-  loadDir(currentDir);
-}
-
-// ── Terminal key injection via tmux send-keys ──
-async function sendTermKey(key){
-  const session=PROJECT==='_system'?'term-system':`term-${PROJECT}`;
-  // Map control chars to tmux key names
-  const keyMap={
-    '\x03':'C-c','\x04':'C-d','\x1a':'C-z','\x0c':'C-l',
-    '\t':'Tab','\x1b[A':'Up','\x1b[B':'Down'
-  };
-  const tmuxKey=keyMap[key]||key;
-  try{
-    await fetch(`/api/projects/${PROJECT}/send-keys?keys=${encodeURIComponent(tmuxKey)}&session=${encodeURIComponent(session)}`,{
-      method:'POST',credentials:'include'
-    });
-  }catch(e){}
-  // Refocus terminal iframe
-  const iframe=document.getElementById('term-iframe');
-  if(iframe)iframe.focus();
-}
-
-// ── Mouse toggle & copy ──
-async function toggleMouse(){
-  mouseOn=!mouseOn;
-  await fetch(`/api/projects/${PROJECT}/mouse?on=${mouseOn}`,{method:'POST',credentials:'include'});
-  document.getElementById('mouse-label').textContent=mouseOn?'Select Mode':'Scroll Mode';
-  document.getElementById('mouse-hint').textContent=mouseOn?'':'Mouse off — long press to select text';
-  document.getElementById('mouse-toggle').classList.toggle('primary',!mouseOn);
-}
-
-async function copyFromTmux(){
-  try{
-    const r=await fetch(`/api/projects/${PROJECT}/clipboard`,{credentials:'include'});
-    if(!r.ok)throw new Error('API error');
-    const d=await r.json();
-    let text=(d.text||'').replace(/\n+$/,'');
-    if(!text){
-      const r2=await fetch(`/api/projects/${PROJECT}/terminal-output?lines=50`,{credentials:'include'});
-      if(r2.ok){const d2=await r2.json();text=(d2.output||'').replace(/\n+$/,'');}
-    }
-    if(!text){alert('Nothing to copy');return;}
-    try{await navigator.clipboard.writeText(text)}catch(e){
-      const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;left:-9999px';
-      document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
-    }
-    const ok=document.getElementById('copy-ok');
-    ok.classList.add('show');setTimeout(()=>ok.classList.remove('show'),1500);
-    if(!mouseOn)toggleMouse();
-  }catch(e){alert('Copy failed: '+e.message);}
-}
-
-// ── Keyboard shortcuts ──
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){
-    if(document.getElementById('newfile-modal').classList.contains('open')){hideNewFileModal();return;}
-    if(document.getElementById('editor-modal').classList.contains('open')){closeEditor();return;}
-    if(document.getElementById('image-modal').classList.contains('open')){closeImageModal();return;}
+// Keyboard shortcuts (Escape for modals)
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('newfolder-modal').classList.contains('open')) { FM.hideNewFolderModal(); return; }
+    if (document.getElementById('newfile-modal').classList.contains('open')) { FM.hideNewFileModal(); return; }
+    if (document.getElementById('editor-modal').classList.contains('open')) { EDITOR.closeEditor(); return; }
+    if (document.getElementById('image-modal').classList.contains('open')) { EDITOR.closeImageModal(); return; }
   }
 });
 
-// ── Tab switching ──
-function wsSwitch(tab){
-  const fm=document.getElementById('file-manager');
-  const tp=document.getElementById('terminal-panel');
-  const tFiles=document.getElementById('ws-tab-files');
-  const tTerm=document.getElementById('ws-tab-term');
-  const tLocal=document.getElementById('ws-tab-local');
-  const termFrame=document.getElementById('term-iframe');
-  const localFrame=document.getElementById('local-iframe');
-  tFiles.classList.remove('on');tTerm.classList.remove('on');tLocal.classList.remove('on');
-  if(tab==='files'){
-    fm.classList.remove('hidden');
-    tp.classList.add('hidden');
-    tFiles.classList.add('on');
-  }else if(tab==='term'){
-    fm.classList.add('hidden');
-    tp.classList.remove('hidden');
-    termFrame.style.display='';localFrame.style.display='none';
-    tTerm.classList.add('on');
-  }else if(tab==='local'){
-    fm.classList.add('hidden');
-    tp.classList.remove('hidden');
-    termFrame.style.display='none';localFrame.style.display='';
-    tLocal.classList.add('on');
-  }
-}
-
-// ── Init ──
-if(PROJECT)loadDir('');
+// Load initial directory
+if (PROJECT) FM.loadDir('');
 </script>
 </body>
 </html>
