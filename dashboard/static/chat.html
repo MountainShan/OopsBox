@@ -456,7 +456,12 @@ async function pollMessages(){
     }else if(d.total<lastMsgCount){
       lastMsgCount=0;polling=false;return pollMessages();
     }else if(d.messages&&d.messages.length){
-      messages.push(...d.messages);
+      for(const msg of d.messages){
+        if(msg.role==='user'){
+          const idx=messages.findIndex(m=>m._optimistic&&m.role==='user'&&m.text===msg.text);
+          if(idx>=0){messages[idx]=msg;}else{messages.push(msg);}
+        }else{messages.push(msg);}
+      }
       if(messages.length>MAX_DISPLAY*2) messages=messages.slice(-MAX_DISPLAY);
       lastMsgCount=d.total;
       currentSessionFile=d.session_file||currentSessionFile;
@@ -715,8 +720,8 @@ async function doSend(){
   const stateEl=document.getElementById('state-display');
   stateEl.textContent=`sending text: "${text.slice(0,20)}..."`;stateEl.style.color='yellow';
   el.value='';el.style.height='36px';
-  // Optimistic render: show user message immediately
-  messages.push({role:'user',text:text,ts:''});
+  // Optimistic render: show user message immediately (tagged for dedup)
+  messages.push({role:'user',text:text,ts:'',_optimistic:true});
   render();scrollToBottom();
   pausePrompt(5000);
   enterFastPoll();
@@ -932,7 +937,11 @@ function startSSE(){
   eventSource.addEventListener('message',function(e){
     try{
       const msg=JSON.parse(e.data);
-      messages.push(msg);
+      // Dedup: if incoming user message matches an optimistic one, replace it
+      if(msg.role==='user'){
+        const idx=messages.findIndex(m=>m._optimistic&&m.role==='user'&&m.text===msg.text);
+        if(idx>=0){messages[idx]=msg;}else{messages.push(msg);}
+      }else{messages.push(msg);}
       if(messages.length>MAX_DISPLAY*2)messages=messages.slice(-MAX_DISPLAY);
       lastMsgCount++;
       render();
