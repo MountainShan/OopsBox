@@ -510,8 +510,11 @@ async function pollState(){
         d.state==='waiting_choice'?'waiting for choice':
         d.state==='waiting_text'?'ready':'';
     }
-    // If we have a JSONL-detected prompt, use it
-    if(jsonlPrompt&&jsonlPrompt.type==='permission'){
+    // If tmux shows a choice prompt, always use it (most up-to-date)
+    // Only fall back to JSONL prompt if tmux doesn't detect a choice
+    if(d.state==='waiting_choice'&&d.choices.length){
+      renderPrompt(d);
+    }else if(jsonlPrompt&&jsonlPrompt.type==='permission'){
       renderPermissionPrompt(jsonlPrompt);
     }else{
       renderPrompt(d);
