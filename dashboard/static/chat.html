@@ -564,13 +564,19 @@ function renderPermissionPrompt(prompt){
   const toolName=prompt.tool||'tool';
   const input=prompt.input||{};
   let detail='';
-  if(input.file_path)detail=input.file_path;
-  else if(input.command)detail=input.command;
+  if(input.command)detail=input.command;
+  else if(input.file_path)detail=input.file_path;
+  else if(input.description)detail=input.description;
+  else if(input.prompt)detail=(input.prompt||'').slice(0,200);
   else if(input.pattern)detail=input.pattern;
+  else if(input.query)detail=input.query;
+  else if(input.skill)detail=input.skill;
+  else if(input.url)detail=input.url;
+  else{const k=Object.keys(input);if(k.length)detail=k.map(key=>key+': '+String(input[key]).slice(0,80)).join('\n');}
 
   let html=`<div class="prompt-inline" id="inline-prompt">
     <div class="prompt-title">Permission required — ${esc(toolName)}</div>
-    ${detail?`<div style="font-size:11px;color:var(--muted);font-family:monospace;margin-bottom:6px">${esc(detail)}</div>`:''}
+    ${detail?`<div style="font-size:11px;color:var(--muted);font-family:monospace;margin-bottom:6px;padding:6px 8px;background:var(--bg);border-radius:4px;line-height:1.5;white-space:pre-wrap;word-break:break-all;max-height:150px;overflow-y:auto">${esc(detail)}</div>`:''}
     <div class="prompt-choices">
       <div class="prompt-choice" onclick="selectChoice('1')">
         <span style="font-weight:700;color:var(--green)">1.</span><span>Yes, allow</span>
