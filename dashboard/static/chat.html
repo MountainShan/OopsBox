@@ -563,20 +563,29 @@ function renderPermissionPrompt(prompt){
 
   const toolName=prompt.tool||'tool';
   const input=prompt.input||{};
-  let detail='';
-  if(input.command)detail=input.command;
-  else if(input.file_path)detail=input.file_path;
-  else if(input.description)detail=input.description;
-  else if(input.prompt)detail=(input.prompt||'').slice(0,200);
-  else if(input.pattern)detail=input.pattern;
-  else if(input.query)detail=input.query;
-  else if(input.skill)detail=input.skill;
-  else if(input.url)detail=input.url;
-  else{const k=Object.keys(input);if(k.length)detail=k.map(key=>key+': '+String(input[key]).slice(0,80)).join('\n');}
+  // Build detail lines showing all relevant input fields
+  const detailLines=[];
+  const fieldOrder=['command','description','file_path','pattern','query','skill','url','old_string','new_string','prompt','subagent_type','model','content'];
+  const labelMap={command:'Command',description:'Description',file_path:'File',pattern:'Pattern',query:'Query',skill:'Skill',url:'URL',old_string:'Replace',new_string:'With',prompt:'Prompt',subagent_type:'Agent Type',model:'Model',content:'Content'};
+  // Show known fields first
+  for(const key of fieldOrder){
+    if(input[key]!=null&&input[key]!==''){
+      const val=String(input[key]);
+      const label=labelMap[key]||key;
+      detailLines.push(`${label}: ${val.slice(0,300)}`);
+    }
+  }
+  // Then any remaining fields
+  for(const key of Object.keys(input)){
+    if(!fieldOrder.includes(key)&&input[key]!=null&&input[key]!==''){
+      detailLines.push(`${key}: ${String(input[key]).slice(0,200)}`);
+    }
+  }
+  const detail=detailLines.join('\n');
 
   let html=`<div class="prompt-inline" id="inline-prompt">
     <div class="prompt-title">Permission required — ${esc(toolName)}</div>
-    ${detail?`<div style="font-size:11px;color:var(--muted);font-family:monospace;margin-bottom:6px;padding:6px 8px;background:var(--bg);border-radius:4px;line-height:1.5;white-space:pre-wrap;word-break:break-all;max-height:150px;overflow-y:auto">${esc(detail)}</div>`:''}
+    ${detail?`<div style="font-size:11px;color:var(--muted);font-family:monospace;margin-bottom:6px;padding:6px 8px;background:var(--bg);border-radius:4px;line-height:1.6;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto">${esc(detail)}</div>`:''}
     <div class="prompt-choices">
       <div class="prompt-choice" onclick="selectChoice('1')">
         <span style="font-weight:700;color:var(--green)">1.</span><span>Yes, allow</span>
