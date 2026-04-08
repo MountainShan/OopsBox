@@ -989,6 +989,27 @@ async def prompt_state(name: str):
     if not has_cursor:
         choices = []
 
+    # Extract tool context above choices (e.g. "Allow Bash command: ls -la")
+    tool_context = []
+    if choices:
+        # Walk lines above the choices to find the tool description
+        in_choices = False
+        for line in reversed(lines):
+            stripped = line.replace("\u00a0", " ").strip()
+            if not stripped:
+                if in_choices:
+                    break  # empty line above choices = end of context
+                continue
+            if re.match(r'([❯\s]*?)(\d+)\.\s+', stripped) or re.match(r'([❯\s]*?)\[([ xX])\]\s+', stripped):
+                in_choices = True
+                continue
+            if "Esc to cancel" in stripped or "Enter to confirm" in stripped or "Tab to amend" in stripped:
+                continue
+            if in_choices:
+                tool_context.insert(0, stripped)
+                if len(tool_context) >= 5:
+                    break
+
     # Check if tmux window exists and Claude is running
     if r.returncode != 0:
         return {"state": "no_session", "choices": [], "raw": []}
@@ -1019,7 +1040,7 @@ async def prompt_state(name: str):
     else:
         state = "idle"
 
-    return {"state": state, "choices": choices, "raw": lines[-5:] if lines else []}
+    return {"state": state, "choices": choices, "raw": lines[-5:] if lines else [], "tool_context": tool_context}
 
 
 @app.get("/api/projects/{name}/clipboard")

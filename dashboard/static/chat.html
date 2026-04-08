@@ -532,7 +532,10 @@ function renderPrompt(d){
 
   if(d.state==='waiting_choice'&&d.choices.length){
     const hasCheckbox=d.choices.some(c=>c.checked!==undefined);
-    let html='<div class="prompt-inline" id="inline-prompt"><div class="prompt-title">Choose an option</div><div class="prompt-choices">';
+    // Show tool context (description of what's being executed) above the choices
+    const ctx=(d.tool_context||[]).map(l=>esc(l)).join('<br>');
+    const ctxHtml=ctx?`<div style="font-size:11px;color:var(--muted);font-family:monospace;margin-bottom:8px;padding:6px 8px;background:var(--bg);border-radius:4px;line-height:1.6;white-space:pre-wrap;word-break:break-all">${ctx}</div>`:'';
+    let html=`<div class="prompt-inline" id="inline-prompt"><div class="prompt-title">Choose an option</div>${ctxHtml}<div class="prompt-choices">`;
     if(hasCheckbox){
       html+=d.choices.map((c,i)=>{
         const icon=c.checked?'☑':'☐';
