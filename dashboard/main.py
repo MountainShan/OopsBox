@@ -923,7 +923,7 @@ async def session_stream(name: str, after: int = 0):
                 heartbeat_counter += 1
                 if heartbeat_counter % 3 == 0:
                     # Inline state check (simplified from prompt_state)
-                    window = "system" if name == "_system" else name
+                    window = _find_agent_window(name)
                     r = run(["tmux", "capture-pane", "-t", f"agents:{window}", "-p", "-S", "-8"])
                     state = "idle"
                     if r.returncode == 0:
@@ -961,10 +961,30 @@ async def session_stream(name: str, after: int = 0):
     )
 
 
+def _find_agent_window(name: str) -> str:
+    """Find the tmux window name for a project. Falls back to listing windows."""
+    window = "system" if name == "_system" else name
+    # Try exact match first
+    r = run(["tmux", "capture-pane", "-t", f"agents:{window}", "-p", "-S", "-1"])
+    if r.returncode == 0:
+        return window
+    # Exact match failed — list all windows and find one whose working dir matches
+    r2 = run(["tmux", "list-windows", "-t", "agents", "-F", "#{window_name}"])
+    if r2.returncode == 0:
+        for w in r2.stdout.strip().split("\n"):
+            w = w.strip()
+            if not w:
+                continue
+            # Check if project dir contains this window name or vice versa
+            if w.lower() in name.lower() or name.lower() in w.lower():
+                return w
+    return window  # return original even if not found
+
+
 @app.get("/api/projects/{name}/prompt-state")
 async def prompt_state(name: str):
     # All AI agents live in "agents" session, window = project name or "system"
-    window = "system" if name == "_system" else name
+    window = _find_agent_window(name)
     r = run(["tmux", "capture-pane", "-t", f"agents:{window}", "-p", "-S", "-8"])
     lines = r.stdout.strip().split("\n") if r.returncode == 0 else []
 
@@ -1001,26 +1021,30 @@ async def prompt_state(name: str):
     if not has_cursor:
         choices = []
 
-    # Extract tool context above choices (e.g. "Allow Bash command: ls -la")
+    # Extract tool context above choices (e.g. "Read file\n  Read(~/path)")
     tool_context = []
     if choices:
         # Walk lines above the choices to find the tool description
         in_choices = False
         for line in reversed(lines):
             stripped = line.replace("\u00a0", " ").strip()
-            if not stripped:
-                if in_choices:
-                    break  # empty line above choices = end of context
-                continue
+            # Skip choice lines
             if re.match(r'([❯\s]*?)(\d+)\.\s+', stripped) or re.match(r'([❯\s]*?)\[([ xX])\]\s+', stripped):
                 in_choices = True
                 continue
             if "Esc to cancel" in stripped or "Enter to confirm" in stripped or "Tab to amend" in stripped:
                 continue
-            if in_choices:
-                tool_context.insert(0, stripped)
-                if len(tool_context) >= 5:
-                    break
+            if not in_choices:
+                continue
+            # Stop at separator line (──────)
+            if re.match(r'^[─━─\-]{5,}$', stripped):
+                break
+            # Skip empty lines but keep going
+            if not stripped:
+                continue
+            tool_context.insert(0, stripped)
+            if len(tool_context) >= 8:
+                break
 
     # Check if tmux window exists and Claude is running
     if r.returncode != 0:
