@@ -876,6 +876,7 @@ async def session_stream(name: str, after: int = 0):
         last_mtime = 0
         last_state = ""
         heartbeat_counter = 0
+        sent_tool_outputs = set()  # track tool_calls whose output was already sent
 
         while True:
             try:
@@ -906,6 +907,17 @@ async def session_stream(name: str, after: int = 0):
                         last_count = len(merged)
                         for msg in new_msgs:
                             yield f"event: message\ndata: {json.dumps(msg)}\n\n"
+                            # Track tool outputs in the initial batch
+                            if msg.get("role") == "tool_call" and msg.get("output_full"):
+                                sent_tool_outputs.add(msg.get("tool_use_id", ""))
+
+                    # Re-emit tool_calls that got output since last check
+                    for msg in merged:
+                        if msg.get("role") == "tool_call" and msg.get("output_full"):
+                            tid = msg.get("tool_use_id", "")
+                            if tid and tid not in sent_tool_outputs:
+                                sent_tool_outputs.add(tid)
+                                yield f"event: message\ndata: {json.dumps(msg)}\n\n"
 
                 # Check state every 3rd iteration (~1s)
                 heartbeat_counter += 1
