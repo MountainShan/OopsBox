@@ -944,6 +944,10 @@ function startSSE(){
       if(msg.role==='user'){
         const idx=messages.findIndex(m=>m._optimistic&&m.role==='user'&&m.text===msg.text);
         if(idx>=0){messages[idx]=msg;}else{messages.push(msg);}
+      }else if(msg.role==='tool_call'&&msg.tool_use_id){
+        // Update existing tool_call if it exists (output may have arrived)
+        const idx=messages.findIndex(m=>m.role==='tool_call'&&m.tool_use_id===msg.tool_use_id);
+        if(idx>=0){messages[idx]=msg;}else{messages.push(msg);}
       }else{messages.push(msg);}
       if(messages.length>MAX_DISPLAY*2)messages=messages.slice(-MAX_DISPLAY);
       lastMsgCount++;
