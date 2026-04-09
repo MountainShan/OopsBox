@@ -958,6 +958,7 @@ async def session_stream(name: str, after: int = 0):
         last_mtime = 0
         last_state = ""
         last_stats = None
+        last_fp = None
         heartbeat_counter = 0
         sent_tool_outputs = set()  # track tool_calls whose output was already sent
 
@@ -980,6 +981,10 @@ async def session_stream(name: str, after: int = 0):
                     if _time.time() - files[1].stat().st_mtime < 3600:
                         fp = files[1]
 
+                if fp != last_fp:
+                    last_fp = fp
+                    last_stats = None
+
                 st = fp.stat()
                 if st.st_mtime_ns != last_mtime:
                     last_mtime = st.st_mtime_ns
@@ -993,6 +998,11 @@ async def session_stream(name: str, after: int = 0):
                             # Track tool outputs in the initial batch
                             if msg.get("role") == "tool_call" and msg.get("output_full"):
                                 sent_tool_outputs.add(msg.get("tool_use_id", ""))
+                        # Only extract stats when new messages arrived
+                        stats = _extract_session_stats(fp)
+                        if stats and stats != last_stats:
+                            last_stats = stats
+                            yield f"event: stats\ndata: {json.dumps(stats)}\n\n"
 
                     # Re-emit tool_calls that got output since last check
                     for msg in merged:
@@ -1001,12 +1011,6 @@ async def session_stream(name: str, after: int = 0):
                             if tid and tid not in sent_tool_outputs:
                                 sent_tool_outputs.add(tid)
                                 yield f"event: message\ndata: {json.dumps(msg)}\n\n"
-
-                    # Emit stats if changed
-                    stats = _extract_session_stats(fp)
-                    if stats and stats != last_stats:
-                        last_stats = stats
-                        yield f"event: stats\ndata: {json.dumps(stats)}\n\n"
 
                 # Check state every 3rd iteration (~1s)
                 heartbeat_counter += 1
