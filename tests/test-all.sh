@@ -215,6 +215,23 @@ else
 fi
 
 # ═══════════════════════════════════════
+section "5b. Session Stats (SSE)"
+# ═══════════════════════════════════════
+
+# Quick SSE grab: read 3s of the stream, check for stats event
+SSE_OUT=$(curl -s --max-time 3 "$API/api/projects/_system/session-stream" 2>/dev/null || true)
+if echo "$SSE_OUT" | grep -q "event: stats"; then
+  STATS_DATA=$(echo "$SSE_OUT" | grep -A1 "event: stats" | grep "^data:" | head -1 | sed 's/^data: //')
+  if echo "$STATS_DATA" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'model' in d; assert 'input_tokens' in d; assert 'cost_usd' in d" 2>/dev/null; then
+    pass "Session stats SSE event (model + tokens + cost present)"
+  else
+    fail "Session stats SSE event" "invalid JSON: $STATS_DATA"
+  fi
+else
+  skip "Session stats SSE event" "no active session with messages"
+fi
+
+# ═══════════════════════════════════════
 section "6. Prompt State Detection"
 # ═══════════════════════════════════════
 
