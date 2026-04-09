@@ -711,6 +711,88 @@ def _extract_text(content) -> str:
 _session_cache: dict = {}
 
 
+# ── Session Stats ─────────────────────────────────────────────────────────────
+
+# Pricing per million tokens (USD). Matched by model name prefix.
+_MODEL_PRICING = [
+    ("claude-opus-4",   {"input": 15.00, "output": 75.00, "cache_read": 1.50,  "cache_write": 18.75}),
+    ("claude-sonnet-4", {"input":  3.00, "output": 15.00, "cache_read": 0.30,  "cache_write":  3.75}),
+    ("claude-haiku-4",  {"input":  0.80, "output":  4.00, "cache_read": 0.08,  "cache_write":  1.00}),
+]
+_DEFAULT_PRICING = {"input": 3.00, "output": 15.00, "cache_read": 0.30, "cache_write": 3.75}
+
+
+def _get_pricing(model: str) -> dict:
+    for prefix, pricing in _MODEL_PRICING:
+        if model.startswith(prefix):
+            return pricing
+    return _DEFAULT_PRICING
+
+
+def _extract_session_stats(filepath: Path) -> dict | None:
+    """Scan JSONL file and accumulate token usage across all assistant turns.
+    Returns None if no assistant entries with usage data are found."""
+    try:
+        size = filepath.stat().st_size
+        if size > 500_000:
+            import subprocess as _sp
+            r = _sp.run(["tail", "-n", "2000", str(filepath)], capture_output=True, text=True)
+            lines = r.stdout.strip().split("\n") if r.returncode == 0 else []
+        else:
+            lines = filepath.open().readlines()
+
+        model = ""
+        total_input = 0
+        total_output = 0
+        total_cache_read = 0
+        total_cache_write = 0
+        found = False
+
+        for line in lines:
+            try:
+                d = json.loads(line)
+            except Exception:
+                continue
+            if d.get("type") != "assistant":
+                continue
+            msg = d.get("message", {})
+            if not isinstance(msg, dict):
+                continue
+            usage = msg.get("usage")
+            if not isinstance(usage, dict):
+                continue
+            found = True
+            m = msg.get("model", "")
+            if m:
+                model = m
+            total_input       += usage.get("input_tokens", 0)
+            total_output      += usage.get("output_tokens", 0)
+            total_cache_read  += usage.get("cache_read_input_tokens", 0)
+            total_cache_write += usage.get("cache_creation_input_tokens", 0)
+
+        if not found:
+            return None
+
+        pricing = _get_pricing(model)
+        cost = (
+            total_input       * pricing["input"]        / 1_000_000 +
+            total_output      * pricing["output"]       / 1_000_000 +
+            total_cache_read  * pricing["cache_read"]   / 1_000_000 +
+            total_cache_write * pricing["cache_write"]  / 1_000_000
+        )
+
+        return {
+            "model":             model,
+            "input_tokens":      total_input,
+            "output_tokens":     total_output,
+            "cache_read_tokens": total_cache_read,
+            "cache_write_tokens": total_cache_write,
+            "cost_usd":          round(cost, 4),
+        }
+    except Exception:
+        return None
+
+
 def _extract_tool_result_text(content) -> str:
     """Extract plain text from tool_result content (string or list of text items)."""
     if isinstance(content, str):
@@ -875,6 +957,7 @@ async def session_stream(name: str, after: int = 0):
         last_count = after
         last_mtime = 0
         last_state = ""
+        last_stats = None
         heartbeat_counter = 0
         sent_tool_outputs = set()  # track tool_calls whose output was already sent
 
@@ -918,6 +1001,12 @@ async def session_stream(name: str, after: int = 0):
                             if tid and tid not in sent_tool_outputs:
                                 sent_tool_outputs.add(tid)
                                 yield f"event: message\ndata: {json.dumps(msg)}\n\n"
+
+                    # Emit stats if changed
+                    stats = _extract_session_stats(fp)
+                    if stats and stats != last_stats:
+                        last_stats = stats
+                        yield f"event: stats\ndata: {json.dumps(stats)}\n\n"
 
                 # Check state every 3rd iteration (~1s)
                 heartbeat_counter += 1
