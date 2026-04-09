@@ -199,6 +199,9 @@ pre code .hljs-operator{color:#c9cdd8}
 .skill-type{font-size:9px;padding:1px 4px;border-radius:3px;font-weight:500;white-space:nowrap}
 .skill-type.user{background:#10b98120;color:var(--green)}
 .skill-type.agent{background:#3b82f620;color:var(--color-read)}
+/* Stats bar */
+.stats-bar{display:none;font-size:10px;color:var(--muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0}
+.stats-bar.visible{display:inline}
 </style>
 </head>
 <body>
@@ -206,6 +209,7 @@ pre code .hljs-operator{color:#c9cdd8}
 <div class="header">
   <div class="title" id="title">AI Agent</div>
   <span class="state" id="state-display"></span>
+  <span class="stats-bar" id="stats-bar"></span>
   <button onclick="toggleSkillsPanel()" title="Available Skills">&#9889; Skills</button>
   <button onclick="refreshAndScroll()">&#8635;</button>
   <button onclick="scrollToBottom()">&#8595;</button>
@@ -477,6 +481,7 @@ let promptPaused=false;
 let promptPauseTimer=null;
 function pausePrompt(ms){
   promptPaused=true;
+  jsonlPrompt=null;
   removeInlinePrompt();
   if(promptPauseTimer)clearTimeout(promptPauseTimer);
   promptPauseTimer=setTimeout(()=>{promptPaused=false;},ms||3000);
@@ -950,6 +955,15 @@ document.body.addEventListener('touchmove',function(e){
 let eventSource=null;
 let sseConnected=false;
 
+function formatStats(s){
+  const short=s.model.replace(/^claude-/,'');
+  const fmt=n=>n>=100000?Math.round(n/1000)+'k':n>=1000?(n/1000).toFixed(1)+'k':String(n);
+  let parts=[short,'↑'+fmt(s.input_tokens),'↓'+fmt(s.output_tokens)];
+  if(s.cache_read_tokens>0)parts.push('💾'+fmt(s.cache_read_tokens));
+  const cost=s.cost_usd<0.001?'<$0.001':'$'+s.cost_usd.toFixed(3);
+  parts.push(cost);
+  return parts.join('  ');
+}
 function startSSE(){
   if(eventSource)eventSource.close();
   const url=`/api/projects/${PROJECT}/session-stream?after=${lastMsgCount}`;
@@ -962,13 +976,13 @@ function startSSE(){
       if(msg.role==='user'){
         const idx=messages.findIndex(m=>m._optimistic&&m.role==='user'&&m.text===msg.text);
         if(idx>=0){messages[idx]=msg;}else{messages.push(msg);}
+        lastMsgCount++;
       }else if(msg.role==='tool_call'&&msg.tool_use_id){
         // Update existing tool_call if it exists (output may have arrived)
         const idx=messages.findIndex(m=>m.role==='tool_call'&&m.tool_use_id===msg.tool_use_id);
-        if(idx>=0){messages[idx]=msg;}else{messages.push(msg);}
-      }else{messages.push(msg);}
+        if(idx>=0){messages[idx]=msg;}else{messages.push(msg);lastMsgCount++;}
+      }else{messages.push(msg);lastMsgCount++;}
       if(messages.length>MAX_DISPLAY*2)messages=messages.slice(-MAX_DISPLAY);
-      lastMsgCount++;
       render();
     }catch(err){}
   });
@@ -984,6 +998,15 @@ function startSSE(){
       stateEl.textContent=
         d.state==='thinking'?'thinking...':
         d.state==='waiting_text'?'ready':'';
+    }catch(err){}
+  });
+
+  eventSource.addEventListener('stats',function(e){
+    try{
+      const s=JSON.parse(e.data);
+      const bar=document.getElementById('stats-bar');
+      bar.textContent=formatStats(s);
+      bar.classList.add('visible');
     }catch(err){}
   });
 
