@@ -1004,6 +1004,7 @@ function startSSE(){
   eventSource.addEventListener('stats',function(e){
     try{
       const s=JSON.parse(e.data);
+      if(!s.input_tokens && !s.output_tokens) return;
       const bar=document.getElementById('stats-bar');
       bar.textContent=formatStats(s);
       bar.classList.add('visible');
