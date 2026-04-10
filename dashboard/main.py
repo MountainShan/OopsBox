@@ -733,13 +733,7 @@ def _extract_session_stats(filepath: Path) -> dict | None:
     """Scan JSONL file and accumulate token usage across all assistant turns.
     Returns None if no assistant entries with usage data are found."""
     try:
-        size = filepath.stat().st_size
-        if size > 500_000:
-            import subprocess as _sp
-            r = _sp.run(["tail", "-n", "2000", str(filepath)], capture_output=True, text=True)
-            lines = r.stdout.strip().split("\n") if r.returncode == 0 else []
-        else:
-            lines = filepath.open().readlines()
+        lines = filepath.open().readlines()
 
         model = ""
         total_input = 0
