@@ -155,7 +155,6 @@ def _stop_project(name: str):
         subprocess.run([str(script), name], capture_output=True)
 
 
-# Lifecycle endpoints (start/stop/send-keys) will be added in Task 7
 @router.post("/{name}/start")
 def start_project(name: str):
     registry = _load_registry()
