@@ -1,108 +1,64 @@
-/* ── terminal.js — Terminal controls module ── */
-import * as API from './api.js';
+// dashboard/static/js/terminal.js
+// Terminal toolbar: always-visible keys + expandable panel
 
-const TERM = {};
-window.TERM = TERM;
+const ALWAYS_KEYS = [
+  { label: '^C', key: 'C-c', title: 'Interrupt (Ctrl+C)' },
+  { label: '^D', key: 'C-d', title: 'EOF / Logout (Ctrl+D)' },
+  { label: 'Tab', key: 'Tab', title: 'Tab completion' },
+  { label: '↑', key: 'Up', title: 'History up' },
+  { label: '↓', key: 'Down', title: 'History down' },
+];
 
-let mouseOn = true;
+const EXTRA_KEYS = [
+  { label: '^Z', key: 'C-z', title: 'Suspend (Ctrl+Z)' },
+  { label: '^L', key: 'C-l', title: 'Clear screen (Ctrl+L)' },
+  { label: '^A', key: 'C-a', title: 'Start of line (Ctrl+A)' },
+  { label: '^E', key: 'C-e', title: 'End of line (Ctrl+E)' },
+  { label: 'Esc', key: 'Escape', title: 'Escape' },
+  { label: 'PgUp', key: 'PPage', title: 'Scroll up' },
+  { label: 'PgDn', key: 'NPage', title: 'Scroll down' },
+];
 
-// ── Init ──
-TERM.init = function() {
-  const termIframe = document.getElementById('term-iframe');
-  termIframe.src = API.TERM_URL;
+function initToolbar(projectName, containerId) {
+  const container = document.getElementById(containerId);
+  let expanded = false;
 
-  // Show local terminal tab for SSH/Container projects
-  if (API.BACKEND === 'ssh' || API.BACKEND === 'container') {
-    document.getElementById('ws-tab-local').style.display = '';
-    document.getElementById('local-iframe').src = '/system/term/';
-    document.getElementById('ws-tab-term').innerHTML =
-      `<svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> Remote`;
+  function renderKey(k) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-icon';
+    btn.title = k.title;
+    btn.textContent = k.label;
+    btn.style.cssText = 'font-family:var(--mono);font-size:12px;min-width:38px;';
+    btn.onclick = () => sendKey(projectName, k.key);
+    return btn;
   }
-};
 
-// ── Tab switching ──
-TERM.wsSwitch = function(tab) {
-  const fm = document.getElementById('file-manager');
-  const tp = document.getElementById('terminal-panel');
-  const tFiles = document.getElementById('ws-tab-files');
-  const tTerm = document.getElementById('ws-tab-term');
-  const tLocal = document.getElementById('ws-tab-local');
-  const termFrame = document.getElementById('term-iframe');
-  const localFrame = document.getElementById('local-iframe');
-  tFiles.classList.remove('on');
-  tTerm.classList.remove('on');
-  tLocal.classList.remove('on');
-  if (tab === 'files') {
-    fm.classList.remove('hidden');
-    tp.classList.add('hidden');
-    tFiles.classList.add('on');
-  } else if (tab === 'term') {
-    fm.classList.add('hidden');
-    tp.classList.remove('hidden');
-    termFrame.style.display = '';
-    localFrame.style.display = 'none';
-    tTerm.classList.add('on');
-  } else if (tab === 'local') {
-    fm.classList.add('hidden');
-    tp.classList.remove('hidden');
-    termFrame.style.display = 'none';
-    localFrame.style.display = '';
-    tLocal.classList.add('on');
+  function render() {
+    container.innerHTML = '';
+    container.style.cssText = 'display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:6px 8px;background:var(--bg2);border-bottom:1px solid var(--bg3);';
+
+    ALWAYS_KEYS.forEach(k => container.appendChild(renderKey(k)));
+
+    if (expanded) {
+      EXTRA_KEYS.forEach(k => container.appendChild(renderKey(k)));
+    }
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'btn-icon';
+    toggleBtn.title = expanded ? 'Show fewer keys' : 'Show more keys';
+    toggleBtn.textContent = expanded ? '✕' : '···';
+    toggleBtn.style.cssText = 'font-family:var(--mono);font-size:12px;min-width:38px;margin-left:4px;';
+    toggleBtn.onclick = () => { expanded = !expanded; render(); };
+    container.appendChild(toggleBtn);
   }
-};
 
-// ── Send keys via tmux ──
-TERM.sendKey = async function(key) {
-  const session = API.PROJECT === '_system' ? 'term-system' : `term-${API.PROJECT}`;
-  const keyMap = {
-    '\x03': 'C-c', '\x04': 'C-d', '\x1a': 'C-z', '\x0c': 'C-l',
-    '\t': 'Tab', '\x1b[A': 'Up', '\x1b[B': 'Down'
-  };
-  const tmuxKey = keyMap[key] || key;
+  render();
+}
+
+async function sendKey(projectName, key) {
   try {
-    await API.sendKeys(tmuxKey, session);
-  } catch (e) { }
-  const iframe = document.getElementById('term-iframe');
-  if (iframe) iframe.focus();
-};
-
-// ── Mouse toggle ──
-TERM.toggleMouse = async function() {
-  mouseOn = !mouseOn;
-  await API.toggleMouseApi(mouseOn);
-  document.getElementById('mouse-label').textContent = mouseOn ? 'Select Mode' : 'Scroll Mode';
-  document.getElementById('mouse-hint').textContent = mouseOn ? '' : 'Mouse off — long press to select text';
-  document.getElementById('mouse-toggle').classList.toggle('primary', !mouseOn);
-};
-
-// ── Copy from tmux ──
-TERM.copyFromTmux = async function() {
-  try {
-    const d = await API.getClipboard();
-    let text = (d.text || '').replace(/\n+$/, '');
-    if (!text) {
-      const d2 = await API.getTerminalOutput(50);
-      text = (d2.output || '').replace(/\n+$/, '');
-    }
-    if (!text) { alert('Nothing to copy'); return; }
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (e) {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.cssText = 'position:fixed;left:-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-    }
-    const ok = document.getElementById('copy-ok');
-    ok.classList.add('show');
-    setTimeout(() => ok.classList.remove('show'), 1500);
-    if (!mouseOn) TERM.toggleMouse();
+    await api.projects.sendKeys(projectName, key);
   } catch (e) {
-    alert('Copy failed: ' + e.message);
+    showToast('Terminal not available', true);
   }
-};
-
-export default TERM;
+}
