@@ -9,3 +9,6 @@ venv/
 node_modules/
 login.html
 test-*.html
+
+.superpowers/
+docs/superpowers/
