@@ -88,7 +88,7 @@
   <script>
     const params = new URLSearchParams(location.search);
     const PROJECT = params.get('project');
-    if (!PROJECT) location.href = '/';
+    if (!PROJECT) { location.href = '/'; throw new Error('no project'); }
 
     document.getElementById('projectBadge').textContent = PROJECT;
     document.title = `${PROJECT} — OopsBox`;
@@ -102,10 +102,10 @@
       try {
         const p = await api.projects.status(PROJECT);
         const badge = document.getElementById('statusBadge');
-        badge.innerHTML = `<span class="badge ${p.running ? 'badge-green' : 'badge-gray'}">
-          <span class="dot ${p.running ? 'dot-green' : 'dot-gray'}"></span>
-          ${p.running ? 'running' : 'stopped'}
-        </span>`;
+        const isRunning = !!p.running;
+        const cls = isRunning ? 'green' : 'gray';
+        const label = isRunning ? 'running' : 'stopped';
+        badge.innerHTML = `<span class="badge badge-${cls}"><span class="dot dot-${cls}"></span>${label}</span>`;
       } catch (_) {}
     }
     loadStatus();
