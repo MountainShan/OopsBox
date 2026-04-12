@@ -386,6 +386,7 @@
       const item = document.createElement('div');
       item.className = 'panel-item' + (name === activeProject ? ' active' : '');
       item.dataset.name = name;
+      item.style.cssText += ';-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;';
 
       const dot = document.createElement('span');
       dot.className = 'dot ' + (p.running ? 'dot-green' : 'dot-gray');
@@ -400,12 +401,14 @@
       item.addEventListener('contextmenu', e => showCtxMenu(e, name));
       let _lpTimer = null;
       item.addEventListener('touchstart', e => {
+        const t = e.touches[0];
+        const x = t.clientX, y = t.clientY;
         _lpTimer = setTimeout(() => {
           _lpTimer = null;
-          const t = e.touches[0];
-          showCtxMenu({ preventDefault: () => {}, clientX: t.clientX, clientY: t.clientY }, name);
+          e.preventDefault();
+          showCtxMenu({ preventDefault: () => {}, clientX: x, clientY: y }, name);
         }, 500);
-      }, { passive: true });
+      }, { passive: false });
       item.addEventListener('touchend', () => { if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; } });
       item.addEventListener('touchmove', () => { if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; } });
       el.appendChild(item);
