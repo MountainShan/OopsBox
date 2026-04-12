@@ -23,6 +23,7 @@ function initToolbar(projectName, containerId, projectMeta) {
   const container = document.getElementById(containerId);
   let expanded = false;
   let activeWindow = 'claude';
+  let _pollTimer = null;
 
   const windows = projectMeta?.type === 'ssh'
     ? ['claude', 'remote', 'local']
@@ -63,6 +64,7 @@ function initToolbar(projectName, containerId, projectMeta) {
 
     // tmux window tab buttons
     const winGroup = document.createElement('div');
+    winGroup.id = `wingroup-${projectName}`;
     winGroup.style.cssText = 'display:flex;gap:2px;';
     windows.forEach(win => {
       const btn = document.createElement('button');
@@ -75,7 +77,7 @@ function initToolbar(projectName, containerId, projectMeta) {
         try {
           await api.projects.selectWindow(projectName, win);
           activeWindow = win;
-          render();
+          renderWinGroup();
         } catch (e) {
           showToast(`Window "${win}" not available`, true);
         }
@@ -85,7 +87,44 @@ function initToolbar(projectName, containerId, projectMeta) {
     container.appendChild(winGroup);
   }
 
+  function renderWinGroup() {
+    const winGroup = document.getElementById(`wingroup-${projectName}`);
+    if (!winGroup) return;
+    winGroup.innerHTML = '';
+    windows.forEach(win => {
+      const btn = document.createElement('button');
+      btn.className = 'btn-icon';
+      btn.textContent = win;
+      btn.title = `Switch to ${win} window`;
+      const isActive = win === activeWindow;
+      btn.style.cssText = `font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:4px;${isActive ? 'background:var(--accent);color:#fff;opacity:1;' : ''}`;
+      btn.onclick = async () => {
+        try {
+          await api.projects.selectWindow(projectName, win);
+          activeWindow = win;
+          renderWinGroup();
+        } catch (e) {
+          showToast(`Window "${win}" not available`, true);
+        }
+      };
+      winGroup.appendChild(btn);
+    });
+  }
+
+  async function pollActiveWindow() {
+    try {
+      const status = await api.projects.status(projectName);
+      const w = status.active_window;
+      if (w && w !== activeWindow) {
+        activeWindow = w;
+        renderWinGroup();
+      }
+    } catch (_) {}
+    _pollTimer = setTimeout(pollActiveWindow, 2000);
+  }
+
   render();
+  pollActiveWindow();
 }
 
 async function sendKey(projectName, key) {

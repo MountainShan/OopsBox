@@ -49,11 +49,26 @@ def _is_running(name: str) -> bool:
         return False
 
 
+def _active_window(name: str) -> str | None:
+    result = subprocess.run(
+        ["tmux", "display-message", "-t", f"oopsbox-{name}", "-p", "#W"],
+        capture_output=True, text=True
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+    return None
+
+
 def _runtime_info(name: str) -> dict:
     pid_dir = Path(f"/tmp/oopsbox-{name}")
     port_file = pid_dir / "ttyd.port"
     port = int(port_file.read_text().strip()) if port_file.exists() else None
-    return {"running": _is_running(name), "ttyd_port": port}
+    running = _is_running(name)
+    return {
+        "running": running,
+        "ttyd_port": port,
+        "active_window": _active_window(name) if running else None,
+    }
 
 
 NAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9._-]*$')
