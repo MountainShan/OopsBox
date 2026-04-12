@@ -57,6 +57,9 @@ Create local projects (git init, CLAUDE.md, ready) or SSH remote projects (host,
 **PWA**  
 Installable on iOS and Android. Works as a full-screen app from your home screen. The UI shell loads offline; the terminal needs the server.
 
+**Settings**  
+Change username, password, Anthropic API key, base URL, git identity, and SSL paths from the web UI — click ⚙ in the sidebar. No need to restart the container for credential changes.
+
 **Auth**  
 PBKDF2-SHA256 with 600,000 iterations, session cookies, nginx `auth_request` on every protected route. Auto-generates a password on first boot if you don't set one — printed once to docker logs, stored hashed.
 
@@ -86,6 +89,7 @@ If you skip `OOPSBOX_PASSWORD`, a password is auto-generated and printed to `doc
 |---|---|---|
 | `OOPSBOX_PASSWORD` | auto-generated | Dashboard login password |
 | `OOPSBOX_USERNAME` | `admin` | Dashboard login username |
+| `ANTHROPIC_API_KEY` | — | Anthropic API key for Claude |
 | `GIT_NAME` | — | Git author name |
 | `GIT_EMAIL` | — | Git author email |
 | `SSL_CERT` | — | Path to SSL cert (inside container) |
@@ -227,6 +231,9 @@ ttyd + tmux，每個專案獨立 session。Toolbar 提供 ^C、^D、^Z、^L、Ta
 **PWA**  
 可安裝到 iOS 和 Android 主畫面，以全螢幕 app 模式開啟。UI shell 可離線載入；terminal 需要 server 連線。
 
+**設定頁面**  
+從 web UI 修改帳號密碼、Anthropic API key、base URL、git 身份、SSL 路徑——點左側欄的 ⚙。憑證變更即時生效，不需要重啟 container。
+
 **認證**  
 PBKDF2-SHA256 600,000 次迭代、session cookie、nginx `auth_request` 在每個受保護路由。第一次啟動若未設定密碼則自動產生，印一次到 docker logs，之後以雜湊儲存。
 
@@ -256,6 +263,7 @@ docker run -d \
 |---|---|---|
 | `OOPSBOX_PASSWORD` | 自動產生 | Dashboard 登入密碼 |
 | `OOPSBOX_USERNAME` | `admin` | Dashboard 登入帳號 |
+| `ANTHROPIC_API_KEY` | — | Claude 的 Anthropic API key |
 | `GIT_NAME` | — | Git 作者名稱 |
 | `GIT_EMAIL` | — | Git 作者信箱 |
 | `SSL_CERT` | — | SSL 憑證路徑（container 內） |
