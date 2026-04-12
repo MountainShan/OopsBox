@@ -1,1197 +1,198 @@
+<!-- dashboard/static/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>OopsBox</title>
-<link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#0a0c10" id="meta-theme">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="OopsBox">
-<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png?v=5">
-<link rel="apple-touch-icon" href="/static/icon-192.png?v=5">
-<link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
-/* ── Dark theme (default) ── */
-:root{
-  --bg:#0e1015;--bg2:#161920;--bg3:#1e2028;
-  --border:#252830;--text:#c8ccd5;--text-hi:#e8ecf0;--muted:#6b7080;
-  --accent:#e07840;--accent-hover:#e8935e;--green:#10b981;--red:#e05050;
-  --r:8px;
-  --safe-top:env(safe-area-inset-top,0px);
-  --safe-bottom:env(safe-area-inset-bottom,0px);
-  --sidebar:260px;
-  --iframe-bg:#0a0c10;
-  --theme-meta:#0a0c10;
-}
-
-
-body{font-family:'Comic Neue','Nunito',-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);
-  height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;
-  padding-top:var(--safe-top);padding-bottom:var(--safe-bottom);
-  -webkit-user-select:none;user-select:none;overscroll-behavior:none;font-size:15px;letter-spacing:-.01em;
-  transition:background .2s,color .2s}
-
-.ic{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.ic-sm{width:12px;height:12px}
-
-header{padding:0 20px;height:48px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--bg2);transition:background .2s,border-color .2s}
-.logo{display:flex;align-items:center;gap:8px;flex:1}
-.logo-icon{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;transform:rotate(-3deg)}
-.logo-icon svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.logo h1{font-size:17px;font-weight:700;color:var(--text-hi);letter-spacing:-.01em}
-.logo h1 span{color:var(--accent);font-weight:700;font-style:italic}
-.hdr-actions{display:flex;gap:6px;align-items:center}
-
-.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:20px;font-size:16px;font-weight:500;cursor:pointer;border:none;transition:all .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;color:var(--text)}
-.btn:hover{opacity:.88}
-.btn:active{transform:scale(.97)}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-primary:hover{background:var(--accent-hover)}
-.btn-ghost{background:transparent;border:1px solid var(--border)}
-.btn-ghost:hover{background:var(--bg3)}
-.btn-danger{background:transparent;color:var(--red);border:1px solid color-mix(in srgb,var(--red) 25%,transparent)}
-.btn-danger:hover{background:color-mix(in srgb,var(--red) 8%,transparent)}
-.btn-sm{padding:3px 8px;font-size:11px}
-.btn-icon{padding:4px;border-radius:5px;background:transparent;border:1px solid var(--border);cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all .15s}
-.btn-icon:hover{color:var(--text);background:var(--bg3)}
-
-.layout{display:flex;flex:1;overflow:hidden}
-
-.sidebar{width:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;background:var(--bg2);transition:width .2s ease,opacity .15s,background .2s,border-color .2s}
-.layout.collapsed .sidebar{width:0;opacity:0;border-right:none;pointer-events:none}
-.sidebar-tree{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 6px}
-.tree-section{margin-bottom:2px}
-.tree-head{display:flex;align-items:center;gap:4px;padding:5px 8px;cursor:pointer;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px;border-radius:4px;user-select:none;transition:all .12s}
-.tree-head:hover{background:var(--bg3);color:var(--text)}
-.tree-head svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:2.5;transition:transform .15s}
-.tree-head.collapsed svg{transform:rotate(-90deg)}
-.tree-items{overflow:hidden}
-.tree-head.collapsed+.tree-items{display:none}
-.proj{padding:6px 8px;border-radius:6px;margin-bottom:2px;cursor:pointer;transition:all .12s;border:1px dashed transparent;margin-left:6px}
-.proj:hover{background:var(--bg3);border-color:var(--border)}
-.proj:active,.proj.on{background:var(--bg3);border-color:var(--accent);border-style:solid}
-.proj-top{display:flex;align-items:center;gap:6px}
-.proj-name{font-size:12px;font-weight:600;color:var(--text-hi);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;cursor:help}
-.status-dot.running{background:var(--green);box-shadow:0 0 4px color-mix(in srgb,var(--green) 40%,transparent)}
-.status-dot.idle{background:var(--muted)}
-.status-dot[title]{position:relative}
-.proj-meta{font-size:10px;color:var(--muted);margin-top:2px;padding-left:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.empty-tree{text-align:center;color:var(--muted);padding:12px 8px;font-size:11px;font-style:italic}
-.proj{-webkit-touch-callout:none}
-
-/* Context menu */
-.ctx-menu{display:none;position:fixed;z-index:300;min-width:150px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
-html.light .ctx-menu{box-shadow:0 8px 24px rgba(0,0,0,.15)}
-.ctx-menu.open{display:block}
-.ctx-item{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:5px;font-size:12px;color:var(--text);cursor:pointer;transition:all .1s;user-select:none}
-.ctx-item:hover{background:var(--bg3);color:var(--text-hi)}
-.ctx-item.danger{color:var(--red)}
-.ctx-item.danger:hover{background:color-mix(in srgb,var(--red) 12%,transparent)}
-.ctx-sep{height:1px;background:var(--border);margin:3px 8px}
-
-.content{flex:1;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;transition:background .2s}
-.content-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);gap:8px}
-.content-empty svg{width:40px;height:40px;stroke:var(--border);stroke-width:1.2}
-.content-bar{padding:0 8px;height:28px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;flex-shrink:0;background:var(--bg2);transition:background .2s,border-color .2s}
-.content-bar .name{font-size:13px;font-weight:600;color:var(--text-hi);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.content-tabs{display:flex;gap:0;transition:background .2s}
-.ctab{padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);transition:all .12s;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:5px;border-bottom:2px solid transparent;min-height:28px}
-.ctab.on{color:var(--accent);border-bottom-color:var(--accent)}
-.ctab:not(.on):hover{color:var(--text)}
-.content-frame{flex:1;overflow:hidden}
-.content-frame iframe{width:100%;height:100%;border:none;background:var(--iframe-bg);transition:background .2s}
-
-.overlay{display:none;position:fixed;inset:0;background:var(--bg);flex-direction:column;z-index:100}
-.overlay.open{display:flex}
-.overlay-bar{padding:0 12px;height:38px;padding-top:var(--safe-top);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-shrink:0;background:var(--bg2)}
-.overlay-bar .name{font-size:13px;font-weight:600;color:var(--text-hi);flex:1}
-.overlay-frame{flex:1;overflow:hidden}
-.overlay-frame iframe{width:100%;height:100%;border:none;background:var(--iframe-bg)}
-
-.backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;padding:20px}
-html.light .backdrop{background:rgba(0,0,0,.4)}
-.backdrop.open{display:flex}
-.modal{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:340px;transition:background .2s,border-color .2s}
-.modal h2{font-size:14px;font-weight:700;color:var(--text-hi);margin-bottom:12px;display:flex;align-items:center;gap:6px}
-.field{margin-bottom:10px}
-.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500}
-.field input{width:100%;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text-hi);font-size:13px;outline:none;-webkit-appearance:none;transition:border-color .15s,background .2s}
-.field input:focus{border-color:var(--accent)}
-.ma{display:flex;gap:6px;justify-content:flex-end}
-.err{color:var(--red);font-size:12px;margin-bottom:6px;display:none}
-.spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:sp .6s linear infinite}
-@keyframes sp{to{transform:rotate(360deg)}}
-
-
-/* ── Terminal floating menu ── */
-
-/* ── System monitor ── */
-.sidebar-footer{border-top:1px solid var(--border);padding:6px 8px;flex-shrink:0;transition:border-color .2s}
-.sys-row{display:flex;align-items:center;gap:4px;margin-bottom:3px;font-size:11px;color:var(--muted)}
-.sys-row:last-child{margin-bottom:0}
-.sys-label{width:24px;flex-shrink:0;font-weight:600;font-size:12px}
-.sys-bar-bg{flex:1;height:4px;background:var(--bg);border-radius:2px;overflow:hidden}
-.sys-bar{height:100%;border-radius:2px;transition:width .5s ease,background .3s}
-.sys-bar.ok{background:var(--green)}
-.sys-bar.warn{background:#f59e0b}
-.sys-bar.crit{background:var(--red)}
-.sys-val{width:32px;text-align:right;font-variant-numeric:tabular-nums;font-size:10px}
-.sys-term-btn{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;margin-top:6px;padding:4px;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s}
-.sys-term-btn:hover{color:var(--text);background:var(--bg3)}
-
-
-/* ── Mobile phone (<480px) ── */
-@media(max-width:480px){
-  header{padding:0 10px;height:42px}
-  header h1{font-size:15px}
-  .logo-icon{width:24px;height:24px}
-  .btn-sm{padding:3px 7px;font-size:11px}
-  .sidebar{width:100%;border-right:none}
-  .content{display:none !important}
-  .sidebar-tree{padding:4px}
-  .proj{padding:6px 8px}
-  .proj-name{font-size:11px}
-  .proj-meta{font-size:9px}
-  .proj-actions{gap:2px}
-  .proj-actions .btn{font-size:10px;padding:3px 6px}
-  .sidebar-footer{padding:4px 8px}
-  .sys-row{font-size:10px}
-  .sys-term-btn{font-size:10px;padding:3px}
-  .overlay-bar{height:36px;padding:0 8px}
-  .overlay-bar .name{font-size:12px}
-  .content-tabs .ctab{padding:3px 8px;font-size:11px;gap:2px}
-  .content-tabs .ctab .ic-sm{width:10px;height:10px}
-}
-/* ── iPad/Tablet (481px-768px) ── */
-@media(min-width:481px) and (max-width:768px){
-  .sidebar{width:100%;border-right:none}
-  .content{display:none !important}
-}
-/* ── Mobile + Tablet overlay ── */
-@media(max-width:768px){
-  .content{display:none !important}
-}
-@media(min-width:769px){
-  .overlay{display:none !important}
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OopsBox</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <style>
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .project-card {
+      background: var(--bg2);
+      border: 1px solid var(--bg3);
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .project-card:hover { border-color: var(--border); }
+    .project-card.running { border-left: 3px solid var(--green); }
+    .project-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .project-name { font-weight: 600; font-size: 15px; flex: 1; }
+    .project-type { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+    .project-actions { display: flex; gap: 6px; margin-top: 12px; }
+    .stats-bar {
+      display: flex; gap: 16px;
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--bg3);
+      font-size: 12px; color: var(--text3);
+      font-family: var(--mono);
+    }
+    .stat { display: flex; gap: 5px; align-items: center; }
+    .stat-val { color: var(--text2); }
+    .header-row { display: flex; align-items: center; justify-content: space-between; }
+    h2 { font-size: 20px; }
+  </style>
 </head>
 <body>
+  <nav>
+    <span class="nav-brand">>_ <span style="color:var(--accent)">Oops</span>Box</span>
+    <span class="nav-spacer"></span>
+    <div id="statsBar" class="stat" style="font-family:var(--mono);font-size:12px;color:var(--text3)"></div>
+    <button class="btn-secondary btn-sm" onclick="api.auth.logout().then(()=>location.href='/login')">Logout</button>
+  </nav>
 
-<header>
-  <div class="logo">
-    <div class="logo-icon"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
-    <h1><span>Oops</span>Box</h1>
-    <span id="tagline" style="font-size:15px;color:var(--muted);font-style:italic;margin-left:6px">I just wanted to code on iPad</span>
-  </div>
-  <div class="hdr-actions">
-    <button class="btn btn-primary btn-sm" onclick="openModal()">+ Project</button>
-    <button class="btn btn-ghost btn-sm" onclick="openChanModal()">+ Channel</button>
-    <button class="btn-icon" onclick="doLogout()" title="Logout" style="color:var(--red)">
-      <svg class="ic" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-    </button>
-  </div>
-</header>
-
-<div class="layout">
-  <div class="sidebar">
-    <div class="sidebar-tree">
-      <div class="tree-section">
-        <div class="tree-head" onclick="this.classList.toggle('collapsed')">
-          <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-          Projects
-        </div>
-        <div class="tree-items" id="proj-list"><div class="empty-tree">nothing here yet</div></div>
-      </div>
-      <div class="tree-section">
-        <div class="tree-head" onclick="this.classList.toggle('collapsed')">
-          <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-          Channels
-        </div>
-        <div class="tree-items" id="chan-list"><div class="empty-tree">no channels</div></div>
-      </div>
+  <div class="page">
+    <div class="header-row">
+      <h2>Projects</h2>
+      <button class="btn-primary btn-sm" onclick="showCreateModal()">+ New Project</button>
     </div>
-    <div class="sidebar-footer">
-      <div class="status-legend" style="display:flex;gap:10px;padding:2px 4px 6px;font-size:10px;color:var(--muted)">
-        <span style="display:flex;align-items:center;gap:3px"><span class="status-dot running" style="width:5px;height:5px"></span>Running</span>
-        <span style="display:flex;align-items:center;gap:3px"><span class="status-dot idle" style="width:5px;height:5px"></span>Idle</span>
+
+    <div id="projectList" class="projects-grid">
+      <div class="empty-state" style="grid-column:1/-1">
+        <p style="color:var(--text3)">Loading...</p>
       </div>
-      <div class="sys-row"><span class="sys-label">🧠</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-cpu" style="width:0%"></div></div><span class="sys-val" id="val-cpu">--</span></div>
-      <div class="sys-row"><span class="sys-label">🐏</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-ram" style="width:0%"></div></div><span class="sys-val" id="val-ram">--</span></div>
-      <div class="sys-row"><span class="sys-label">💾</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-swap" style="width:0%"></div></div><span class="sys-val" id="val-swap">--</span></div>
-      <div class="sys-row"><span class="sys-label">📦</span><div class="sys-bar-bg"><div class="sys-bar ok" id="bar-disk" style="width:0%"></div></div><span class="sys-val" id="val-disk">--</span></div>
-      <button class="sys-term-btn" onclick="openSystemTerm()">
-        <svg style="width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-        System
-      </button>
     </div>
   </div>
 
-  <div class="content" id="desk-content">
-    <div class="content-empty" id="desk-empty">
-      <span style="font-size:32px">👈</span>
-      <span>pick a project from the left to get started</span>
-    </div>
-    <div id="desk-active" style="display:none;flex:1;flex-direction:column">
-      <div class="content-bar">
-        <button class="btn-icon" onclick="toggleSidebar()" title="Toggle sidebar">
-          <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-        </button>
-        <div class="name" id="desk-name"></div>
-        <div class="content-tabs">
-          <div class="ctab on" id="dt-chat" onclick="deskTab('chat')">
-            <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            AI Agent
-          </div>
-          <div class="ctab" id="dt-work" onclick="deskTab('work')">
-            <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-            Workspace
-          </div>
-        </div>
-      </div>
-      <div class="content-frame" id="desk-frame-chat"><iframe id="df-chat" src="" scrolling="no" style="overflow:hidden"></iframe></div>
-      <div class="content-frame" id="desk-frame-work" style="display:none"><iframe id="df-work" src="" allow="clipboard-read;clipboard-write"></iframe></div>
-    </div>
-  </div>
-</div>
-
-<div class="overlay" id="mob-overlay">
-  <div class="overlay-bar">
-    <div class="name" id="mob-name"></div>
-    <div class="content-tabs">
-      <div class="ctab on" id="mt-chat" onclick="mobTab('chat')">
-        <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        AI Agent
-      </div>
-      <div class="ctab" id="mt-work" onclick="mobTab('work')">
-        <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-        Workspace
-      </div>
-    </div>
-    <button class="btn-icon" onclick="closeOverlay()">
-      <svg class="ic" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-  </div>
-  <div class="overlay-frame" id="mob-frame-chat"><iframe id="mf-chat" src="" scrolling="no" style="overflow:hidden"></iframe></div>
-  <div class="overlay-frame" id="mob-frame-work" style="display:none"><iframe id="mf-work" src="" allow="clipboard-read;clipboard-write"></iframe></div>
-</div>
-
-<div class="backdrop" id="modal">
-  <div class="modal" style="max-width:400px">
-    <h2 id="modal-title">
-      <span style="font-size:16px">🎲</span>
-      New Project
-    </h2>
-    <div class="field">
-      <label id="modal-name-label">Project name</label>
-      <input id="pname" placeholder="my-project" autocapitalize="none" autocorrect="off" spellcheck="false">
-    </div>
-    <div class="field">
-      <label>Backend</label>
-      <select id="backend-select" onchange="toggleSSH()" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text-hi);font-size:15px;outline:none;-webkit-appearance:none;cursor:pointer">
-        <option value="local">Local</option>
-        <option value="ssh">SSH Remote</option>
-        <option value="container">Docker/LXC Container</option>
-      </select>
-    </div>
-    <!-- Isolation fields (hidden until feature is ready) -->
-    <div id="isolation-fields" style="display:none">
-      <div class="field" style="display:flex;align-items:center;gap:10px">
-        <label style="flex:1;margin:0">Isolation</label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);margin:0">
-          <input type="checkbox" id="isolated-check" onchange="toggleIsolation()" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
-          Run agent in container
-        </label>
-      </div>
-      <div id="resource-fields" style="display:none">
-        <div style="display:flex;gap:8px">
-          <div class="field" style="flex:1">
-            <label>Memory limit</label>
-            <input id="mem-limit" value="4g" placeholder="4g" autocapitalize="none">
-          </div>
-          <div class="field" style="flex:1">
-            <label>CPU limit</label>
-            <input id="cpu-limit" value="2.0" placeholder="2.0">
-          </div>
-        </div>
-        <div style="font-size:10px;color:var(--muted);padding:0 2px 4px">Agent runs in a Podman/Docker container with restricted filesystem access and resource limits.</div>
-      </div>
-    </div>
-    <div id="ssh-fields" style="display:none">
+  <!-- Create Project Modal -->
+  <div id="createModal" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h2>New Project</h2>
       <div class="field">
-        <label>Host</label>
-        <input id="ssh-host" placeholder="192.168.1.100" autocapitalize="none" autocorrect="off">
-      </div>
-      <div style="display:flex;gap:8px">
-        <div class="field" style="flex:2">
-          <label>Username</label>
-          <input id="ssh-user" placeholder="root" autocapitalize="none" autocorrect="off">
-        </div>
-        <div class="field" style="flex:1">
-          <label>Port</label>
-          <input id="ssh-port" value="22" type="number">
-        </div>
+        <label>Project Name</label>
+        <input type="text" id="newName" placeholder="my-project" autofocus>
       </div>
       <div class="field">
-        <label>Auth Method</label>
-        <select id="ssh-auth-select" onchange="toggleSSHAuth()" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text-hi);font-size:15px;outline:none;-webkit-appearance:none;cursor:pointer">
-          <option value="password">Password</option>
-          <option value="key">SSH Key</option>
+        <label>Type</label>
+        <select id="newType" onchange="toggleSSHFields()">
+          <option value="local">Local</option>
+          <option value="ssh">SSH Remote</option>
         </select>
       </div>
-      <div class="field" id="ssh-pass-field">
-        <label>Password</label>
-        <input id="ssh-pass" type="password" placeholder="••••••••">
+      <div id="sshFields" style="display:none">
+        <div class="field"><label>SSH Host</label><input type="text" id="sshHost" placeholder="192.168.1.100"></div>
+        <div class="field"><label>SSH User</label><input type="text" id="sshUser" placeholder="ubuntu"></div>
+        <div class="field"><label>SSH Port</label><input type="number" id="sshPort" value="22"></div>
+        <div class="field"><label>Remote Path</label><input type="text" id="remotePath" placeholder="/home/ubuntu"></div>
+        <div class="field"><label>Password (optional)</label><input type="password" id="sshPassword"></div>
       </div>
-      <div class="field" id="ssh-key-field" style="display:none">
-        <label>Private Key</label>
-        <textarea id="ssh-key" placeholder="-----BEGIN RSA PRIVATE KEY-----" style="width:100%;height:80px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text-hi);font-size:15px;font-family:monospace;outline:none;resize:vertical"></textarea>
-      </div>
-      <div class="field">
-        <label>Remote Path</label>
-        <input id="ssh-path" placeholder="/home/user" autocapitalize="none" autocorrect="off">
+      <div class="actions">
+        <button class="btn-secondary" onclick="hideCreateModal()">Cancel</button>
+        <button class="btn-primary" onclick="createProject()">Create</button>
       </div>
     </div>
-    <div id="container-fields" style="display:none">
-      <div class="field">
-        <label>Container Name</label>
-        <input id="ct-name" placeholder="my-container" autocapitalize="none" autocorrect="off">
-      </div>
-      <div style="display:flex;gap:8px">
-        <div class="field" style="flex:1">
-          <label>Type</label>
-          <select id="ct-type" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text-hi);font-size:15px;outline:none;-webkit-appearance:none;cursor:pointer">
-            <option value="docker">Docker</option>
-            <option value="lxc">LXC</option>
-          </select>
+  </div>
+
+  <script src="/static/js/api.js"></script>
+  <script>
+    async function loadProjects() {
+      const projects = await api.projects.list();
+      renderProjects(projects);
+    }
+
+    function renderProjects(projects) {
+      const el = document.getElementById('projectList');
+      if (!projects.length) {
+        el.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+          <h3>No projects yet</h3>
+          <p>Click "+ New Project" to get started</p>
+        </div>`;
+        return;
+      }
+      el.innerHTML = projects.map(p => `
+        <div class="project-card ${p.running ? 'running' : ''}" onclick="openProject('${p.name}')">
+          <div class="project-card-header">
+            <span class="project-name">${p.name}</span>
+            <span class="badge ${p.running ? 'badge-green' : 'badge-gray'}">
+              <span class="dot ${p.running ? 'dot-green' : 'dot-gray'}"></span>
+              ${p.running ? 'running' : 'stopped'}
+            </span>
+          </div>
+          <div class="project-type">${p.type}${p.ssh_host ? ` · ${p.ssh_host}` : ''}</div>
+          <div class="project-actions" onclick="event.stopPropagation()">
+            ${p.running
+              ? `<button class="btn-secondary btn-sm" onclick="stopProject('${p.name}')">Stop</button>`
+              : `<button class="btn-primary btn-sm" onclick="startProject('${p.name}')">Start</button>`
+            }
+            <button class="btn-danger btn-sm" onclick="deleteProject('${p.name}')">Delete</button>
+          </div>
         </div>
-        <div class="field" style="flex:1">
-          <label>User</label>
-          <input id="ct-user" value="root" autocapitalize="none" autocorrect="off">
-        </div>
-      </div>
-      <div class="field">
-        <label>Working Path</label>
-        <input id="ct-path" value="/root" placeholder="/root" autocapitalize="none" autocorrect="off">
-      </div>
-    </div>
-    <div class="field">
-      <label>API Key <span style="font-size:11px;color:var(--muted)">(optional)</span></label>
-      <input id="create-api-key" type="password" placeholder="Leave blank to use subscription plan" autocapitalize="none" autocorrect="off">
-      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set to use API billing. Leave empty for subscription (Max/Pro).</div>
-    </div>
-    <div class="field">
-      <label>ANTHROPIC_BASE_URL <span style="font-size:11px;color:var(--muted)">(optional, LiteLLM)</span></label>
-      <input id="create-base-url" type="text" placeholder="e.g. http://localhost:4000" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-family:monospace">
-      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set for LiteLLM proxy. Leave empty for direct Anthropic API.</div>
-    </div>
-    <div class="field" style="padding-top:8px;border-top:1px solid var(--border)">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-        <input type="checkbox" id="create-skip-perms" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
-        <span>Skip permission prompts</span>
-      </label>
-      <div style="font-size:10px;color:var(--red);margin-top:3px;padding-left:28px">Uses <code>dangerously-skip-permissions</code>. Claude won't ask before running commands.</div>
-    </div>
-    <div class="err" id="cerr"></div>
-    <div class="ma">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" id="cbtn" onclick="doCreate()">Create</button>
-    </div>
-  </div>
-</div>
-
-<!-- Channel Create Modal -->
-<div class="backdrop" id="chan-modal">
-  <div class="modal" style="max-width:380px">
-    <h2>
-      <span style="font-size:16px">📡</span>
-      New Channel
-    </h2>
-    <div class="field">
-      <label>Channel name</label>
-      <input id="chan-name" placeholder="my-bot" autocapitalize="none" autocorrect="off" spellcheck="false">
-    </div>
-    <div class="field">
-      <label>Working directory <span style="font-size:11px;color:var(--muted)">(optional)</span></label>
-      <input id="chan-workdir" placeholder="auto: ~/channels/{name}" autocapitalize="none" autocorrect="off">
-      <div style="font-size:11px;color:var(--muted);margin-top:3px">Leave empty to use ~/channels/{name}</div>
-    </div>
-    <div class="field">
-      <label>Telegram Bot Token</label>
-      <input id="chan-token" placeholder="123456:ABC-DEF..." autocapitalize="none" autocorrect="off" spellcheck="false" style="font-family:monospace">
-      <div style="font-size:11px;color:var(--muted);margin-top:3px">Get from <a href="https://t.me/BotFather" target="_blank" style="color:var(--accent)">@BotFather</a> on Telegram</div>
-    </div>
-    <div class="field">
-      <label>API Key <span style="font-size:11px;color:var(--muted)">(optional)</span></label>
-      <input id="chan-api-key" type="password" placeholder="Leave blank to use subscription plan" autocapitalize="none" autocorrect="off">
-      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set to use API billing. Leave empty for subscription (Max/Pro).</div>
-    </div>
-    <div class="field">
-      <label>ANTHROPIC_BASE_URL <span style="font-size:11px;color:var(--muted)">(optional, LiteLLM)</span></label>
-      <input id="chan-base-url" type="text" placeholder="e.g. http://localhost:4000" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-family:monospace">
-      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set for LiteLLM proxy. Leave empty for direct Anthropic API.</div>
-    </div>
-    <div class="field">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-        <input type="checkbox" id="chan-skip-perms" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
-        <span>Skip permission prompts</span>
-      </label>
-    </div>
-    <div class="err" id="chan-err"></div>
-    <div class="ma">
-      <button class="btn btn-ghost" onclick="closeChanModal()">Cancel</button>
-      <button class="btn btn-primary" id="chan-btn" onclick="doCreateChan()">Create</button>
-    </div>
-  </div>
-</div>
-
-<!-- Channel Settings Modal -->
-<div class="backdrop" id="chan-settings-modal">
-  <div class="modal" style="max-width:380px">
-    <h2 id="chan-settings-title">
-      <span style="font-size:16px">&#9881;</span>
-      Channel Settings
-    </h2>
-    <div class="field">
-      <label>Working directory</label>
-      <input id="chan-set-workdir" autocapitalize="none" autocorrect="off">
-    </div>
-    <div class="field">
-      <label>API Key <span id="chan-set-apikey-hint" style="font-size:11px;color:var(--muted)"></span></label>
-      <input id="chan-set-api-key" type="password" placeholder="Leave blank to use subscription plan" autocapitalize="none" autocorrect="off">
-      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set to use API billing. Leave empty for subscription (Max/Pro). Stored encrypted.</div>
-    </div>
-    <div class="field">
-      <label>ANTHROPIC_BASE_URL <span id="chan-set-baseurl-hint" style="font-size:11px;color:var(--muted)"></span></label>
-      <input id="chan-set-base-url" type="text" placeholder="e.g. http://localhost:4000" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-family:monospace">
-      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set for LiteLLM proxy. Leave empty for direct Anthropic API.</div>
-    </div>
-    <div class="field">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-        <input type="checkbox" id="chan-set-skip-perms" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
-        <span>Skip permission prompts</span>
-      </label>
-    </div>
-    <div class="err" id="chan-set-err"></div>
-    <div class="ma">
-      <button class="btn btn-ghost" onclick="closeChanSettings()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveChanSettings()">Save</button>
-    </div>
-  </div>
-</div>
-
-<!-- Channel Log Modal -->
-<div class="backdrop" id="chanlog-modal">
-  <div class="modal" style="max-width:600px;max-height:80vh;display:flex;flex-direction:column">
-    <h2 id="chanlog-title">
-      <span style="font-size:16px">📡</span>
-      Channel Log
-    </h2>
-    <pre id="chanlog-output" style="flex:1;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;color:var(--text);max-height:50vh"></pre>
-    <div class="ma" style="margin-top:10px">
-      <button class="btn btn-ghost" onclick="closeChanLog()">Close</button>
-      <button class="btn btn-ghost" onclick="refreshChanLog()">Refresh</button>
-    </div>
-  </div>
-</div>
-
-<!-- Project Settings Modal -->
-<div class="backdrop" id="settings-modal">
-  <div class="modal" style="max-width:400px">
-    <h2 id="settings-title">
-      <span style="font-size:16px">&#9881;</span>
-      Project Settings
-    </h2>
-    <div class="field">
-      <label>Backend</label>
-      <div id="set-backend" style="padding:8px 0;font-size:15px;color:var(--text-hi)"></div>
-    </div>
-    <div id="set-ssh-fields" style="display:none">
-      <div class="field">
-        <label>Host</label>
-        <input id="set-ssh-host" autocapitalize="none" autocorrect="off">
-      </div>
-      <div class="field" style="display:flex;gap:8px">
-        <div style="flex:1">
-          <label>Username</label>
-          <input id="set-ssh-user" autocapitalize="none" autocorrect="off">
-        </div>
-        <div style="width:80px">
-          <label>Port</label>
-          <input id="set-ssh-port" type="number">
-        </div>
-      </div>
-      <div class="field">
-        <label>Auth Method</label>
-        <select id="set-ssh-auth" onchange="toggleSetAuth()" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text-hi);font-size:15px;outline:none;-webkit-appearance:none;cursor:pointer">
-          <option value="password">Password</option>
-          <option value="key">SSH Key</option>
-        </select>
-      </div>
-      <div class="field" id="set-pass-field">
-        <label>Password <span id="set-pass-hint" style="font-size:11px;color:var(--muted)"></span></label>
-        <input id="set-ssh-pass" type="password" placeholder="Leave blank to keep current">
-      </div>
-      <div class="field" id="set-key-field" style="display:none">
-        <label>Private Key</label>
-        <textarea id="set-ssh-key" placeholder="-----BEGIN RSA PRIVATE KEY-----" style="width:100%;height:80px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text-hi);font-size:15px;font-family:monospace;outline:none;resize:vertical"></textarea>
-      </div>
-      <div class="field">
-        <label>Remote Path</label>
-        <input id="set-ssh-path" autocapitalize="none" autocorrect="off">
-      </div>
-    </div>
-    <div class="field" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
-      <label>API Key <span id="set-apikey-hint" style="font-size:11px;color:var(--muted)"></span></label>
-      <input id="set-api-key" type="password" placeholder="Leave blank to use subscription plan" autocapitalize="none" autocorrect="off">
-      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set a per-project API key to use API billing. Leave empty to use your subscription (Max/Pro). Stored encrypted.</div>
-    </div>
-    <div class="field">
-      <label>ANTHROPIC_BASE_URL <span id="set-baseurl-hint" style="font-size:11px;color:var(--muted)"></span></label>
-      <input id="set-base-url" type="text" placeholder="e.g. http://localhost:4000" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-family:monospace">
-      <div style="font-size:10px;color:var(--muted);margin-top:3px">Set for LiteLLM proxy. Leave empty for direct Anthropic API.</div>
-    </div>
-    <div class="field" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-        <input type="checkbox" id="set-skip-perms" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
-        <span>Skip permission prompts</span>
-      </label>
-      <div style="font-size:12px;color:var(--muted);margin-top:4px;padding-left:28px">
-        Uses <code>dangerously-skip-permissions</code>. Claude won't ask before editing files or running commands. Requires restart.
-      </div>
-    </div>
-    <div class="err" id="set-err"></div>
-    <div class="ma">
-      <button class="btn btn-ghost" onclick="closeSettings()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSettings()">Save</button>
-    </div>
-  </div>
-</div>
-
-
-<script>
-// ── Clean up service worker (was causing refresh loops) ──
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));
-  caches.keys().then(ks=>ks.forEach(k=>caches.delete(k)));
-}
-
-/* ── Theme + Vibe ── */
-/* ── Text — self-deprecating, because this whole thing is an accident ── */
-const T={
-  empty:[
-    'such empty. much void. wow. 🐕',
-    'no projects. only regrets.',
-    '404: productivity not found',
-    '*tumbleweed rolls by* 🌵',
-    'this was supposed to be a simple script',
-  ],
-  emptyMain:[
-    '👈 pick something. or don\'t. I\'m a div, not your boss.',
-    '👈 it\'s dangerous to code alone. take this terminal.',
-    '👈 one does not simply walk into production.',
-    '👈 I just wanted to code on iPad. now there\'s a whole dashboard.',
-  ],
-  running:[
-    'somehow alive','it works™','not broken yet 🤞',
-    'LGTM 👍','powered by caffeine ☕','don\'t touch it.',
-    'surviving','compiles. probably.','ship it! 🚀',
-  ],
-  idle:[
-    '💤 sleeping','😴 napping','🦥 chilling','💤 offline',
-    '⏸ paused','🧊 frozen','😴 zzz',
-  ],
-  delConfirm:n=>`yeet "${n}" into /dev/null? no ctrl+z in real life.`,
-};
-function tRand(key){const v=T[key];return Array.isArray(v)?v[Math.floor(Math.random()*v.length)]:v;}
-
-let projects=[], selected=null;
-const isMobile=()=>window.innerWidth<=768;
-function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-
-function toggleSidebar(){document.querySelector('.layout').classList.toggle('collapsed')}
-
-function toggleSSH(){
-  const val=document.getElementById('backend-select').value;
-  document.getElementById('ssh-fields').style.display=val==='ssh'?'block':'none';
-  document.getElementById('container-fields').style.display=val==='container'?'block':'none';
-  // Isolation hidden until feature is ready
-  // document.getElementById('isolation-fields').style.display=val==='local'?'block':'none';
-}
-function toggleIsolation(){
-  const on=document.getElementById('isolated-check').checked;
-  document.getElementById('resource-fields').style.display=on?'block':'none';
-}
-function toggleSSHAuth(){
-  const key=document.getElementById('ssh-auth-select').value==='key';
-  document.getElementById('ssh-pass-field').style.display=key?'none':'block';
-  document.getElementById('ssh-key-field').style.display=key?'block':'none';
-}
-
-async function load(){
-  try{
-    const r=await fetch('/api/projects',{redirect:'error'});
-    if(!r.ok)return;
-    const d=await r.json();
-    projects=d.projects||[];
-    renderList();
-  }catch(e){}
-}
-
-function renderList(){
-  const el=document.getElementById('proj-list');
-  const mainEmpty=document.getElementById('desk-empty');
-  if(mainEmpty)mainEmpty.innerHTML=`<span>${tRand('emptyMain')}</span>`;
-  if(!projects.length){el.innerHTML=`<div class="empty-tree">${tRand('empty')}</div>`;return;}
-  el.innerHTML=projects.map(p=>`
-    <div class="proj${selected===p.name?' on':''}" onclick="selectProj('${esc(p.name)}')"
-         oncontextmenu="showCtx(event,'${esc(p.name)}','project')"
-         ontouchstart="lpStart(event,'${esc(p.name)}','project')" ontouchend="lpCancel()" ontouchmove="lpCancel()">
-      <div class="proj-top">
-        <span class="status-dot ${p.status}" title="${p.status==='running'?'Running':'Idle'}"></span>
-        <div class="proj-name">${esc(p.name)}</div>
-      </div>
-      <div class="proj-meta">${p.backend==='ssh'?'🔗 '+p.ssh_user+'@'+p.ssh_host+' · ':p.backend==='container'?'📦 '+p.container_name+' ('+p.container_type+') · ':''}${p.status==='running'?tRand('running'):tRand('idle')}</div>
-    </div>`).join('');
-}
-
-function selectProj(name){
-  selected=name;renderList();
-  const p=projects.find(x=>x.name===name);
-  if(!p||p.status!=='running')return;
-  openView(name,p.code_port,p.ttyd_port);
-}
-
-let deskCurrent=null;
-function openDesktop(name,cp,tp,tab){
-  const changed=!deskCurrent||deskCurrent.name!==name;
-  deskCurrent={name,cp,tp};
-  document.getElementById('desk-empty').style.display='none';
-  document.getElementById('desk-active').style.display='flex';
-  document.getElementById('desk-name').textContent=name;
-  document.getElementById('dt-chat').style.display='';
-  if(changed){
-    document.getElementById('df-chat').src=`/static/chat.html?project=${name}&v=${Date.now()}`;
-    document.getElementById('df-work').src=`/static/editor.html?project=${name}&termUrl=${encodeURIComponent('/proj/'+name+'/term/')}&v=${Date.now()}`;
-  }
-  deskTab(tab||'chat');
-}
-function deskTab(t){
-  document.getElementById('dt-work').classList.toggle('on',t==='work');
-  document.getElementById('dt-chat').classList.toggle('on',t==='chat');
-  document.getElementById('desk-frame-work').style.display=t==='work'?'flex':'none';
-  document.getElementById('desk-frame-chat').style.display=t==='chat'?'flex':'none';
-  if(t==='chat'&&deskCurrent){
-    const f=document.getElementById('df-chat');
-    if(!f.src||f.src==='about:blank'||f.src===location.href)
-      f.src=`/static/chat.html?project=${deskCurrent.name}&v=${Date.now()}`;
-  }
-  if(t==='work'&&deskCurrent){
-    const f=document.getElementById('df-work');
-    if(!f.src||f.src==='about:blank'||f.src===location.href)
-      f.src=`/static/editor.html?project=${deskCurrent.name}&termUrl=${encodeURIComponent('/proj/'+deskCurrent.name+'/term/')}&v=${Date.now()}`;
-  }
-}
-
-let mobCurrent=null;
-function openOverlay(name,cp,tp,tab){
-  mobCurrent={name,cp,tp};
-  document.getElementById('mob-name').textContent=name==='_system'?'System':name;
-  document.getElementById('mf-chat').src=`/static/chat.html?project=${name}&v=${Date.now()}`;
-  const termUrl=name==='_system'?'/system/term/':`/proj/${name}/term/`;
-  document.getElementById('mf-work').src=`/static/editor.html?project=${name}&termUrl=${encodeURIComponent(termUrl)}&v=${Date.now()}`;
-  document.getElementById('mob-overlay').classList.add('open');
-  mobTab(tab||'chat');
-}
-function mobTab(t){
-  document.getElementById('mt-work').classList.toggle('on',t==='work');
-  document.getElementById('mt-chat').classList.toggle('on',t==='chat');
-  document.getElementById('mob-frame-work').style.display=t==='work'?'flex':'none';
-  document.getElementById('mob-frame-chat').style.display=t==='chat'?'flex':'none';
-  if(t==='chat'&&mobCurrent){
-    const f=document.getElementById('mf-chat');
-    if(!f.src||f.src==='about:blank'||f.src===location.href)
-      f.src=`/static/chat.html?project=${mobCurrent.name}&v=${Date.now()}`;
-  }
-  if(t==='work'&&mobCurrent){
-    const f=document.getElementById('mf-work');
-    if(!f.src||f.src==='about:blank'||f.src===location.href)
-      f.src=`/static/editor.html?project=${mobCurrent.name}&termUrl=${encodeURIComponent('/proj/'+mobCurrent.name+'/term/')}&v=${Date.now()}`;
-  }
-}
-function closeOverlay(){
-  document.getElementById('mob-overlay').classList.remove('open');
-  document.getElementById('mf-chat').src='';document.getElementById('mf-work').src='';
-  mobCurrent=null;
-}
-
-function openView(name,cp,tp,tab){
-  selected=name;renderList();
-  if(isMobile()) openOverlay(name,cp,tp,tab||'work');
-  else openDesktop(name,cp,tp,tab||'work');
-}
-
-async function act(action,name){
-  await fetch(`/api/projects/${name}/${action}`,{method:'POST'});
-  if(action==='stop'){
-    if(deskCurrent&&deskCurrent.name===name){
-      document.getElementById('desk-active').style.display='none';
-      document.getElementById('desk-empty').style.display='flex';
-      document.getElementById('df-chat').src='';document.getElementById('df-work').src='';
-      deskCurrent=null;
+      `).join('');
     }
-    if(mobCurrent&&mobCurrent.name===name) closeOverlay();
-    if(selected===name) selected=null;
-  }
-  load();
-}
-async function del(name){
-  if(!confirm(T.delConfirm(name)))return;
-  await fetch(`/api/projects/${name}`,{method:'DELETE'});
-  if(deskCurrent&&deskCurrent.name===name){
-    document.getElementById('desk-active').style.display='none';
-    document.getElementById('desk-empty').style.display='flex';
-    deskCurrent=null;
-  }
-  if(mobCurrent&&mobCurrent.name===name) closeOverlay();
-  if(selected===name) selected=null;
-  load();
-}
 
-function openModal(){
-  document.getElementById('modal').classList.add('open');
-  document.getElementById('pname').value='';
-  document.getElementById('cerr').style.display='none';
-  document.getElementById('backend-select').value='local';
-  document.getElementById('ssh-fields').style.display='none';
-  document.getElementById('container-fields').style.display='none';
-  document.getElementById('ct-name').value='';
-  document.getElementById('ct-type').value='docker';
-  document.getElementById('ct-user').value='root';
-  document.getElementById('ct-path').value='/root';
-  // Isolation hidden until feature is ready
-  document.getElementById('isolation-fields').style.display='none';
-  document.getElementById('isolated-check').checked=false;
-  document.getElementById('resource-fields').style.display='none';
-  document.getElementById('mem-limit').value='4g';
-  document.getElementById('cpu-limit').value='2.0';
-  document.getElementById('create-api-key').value='';
-  document.getElementById('create-base-url').value='';
-  document.getElementById('create-skip-perms').checked=false;
-  setTimeout(()=>document.getElementById('pname').focus(),100);
-}
-function closeModal(){document.getElementById('modal').classList.remove('open')}
-document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
-
-/* ── Project Settings ── */
-let settingsProject=null;
-async function openSettings(name){
-  settingsProject=name;
-  document.getElementById('settings-title').innerHTML='<span style="font-size:16px">&#9881;</span> '+name+' Settings';
-  document.getElementById('set-err').style.display='none';
-  try{
-    const r=await fetch(`/api/projects/${name}/settings`);
-    const meta=await r.json();
-    const bt=meta.backend==='ssh'?'SSH Remote':meta.backend==='container'?`Container (${meta.container_type||'docker'})`:'Local';
-    document.getElementById('set-backend').textContent=bt;
-    document.getElementById('set-ssh-fields').style.display='none';
-    if(meta.backend==='ssh'){
-      document.getElementById('set-ssh-fields').style.display='block';
-      document.getElementById('set-ssh-host').value=meta.ssh_host||'';
-      document.getElementById('set-ssh-user').value=meta.ssh_user||'';
-      document.getElementById('set-ssh-port').value=meta.ssh_port||22;
-      document.getElementById('set-ssh-auth').value=meta.ssh_auth||'password';
-      document.getElementById('set-ssh-pass').value='';
-      document.getElementById('set-pass-hint').textContent=meta.has_password?'(password set)':'(no password)';
-      document.getElementById('set-ssh-key').value=meta.ssh_key||'';
-      document.getElementById('set-ssh-path').value=meta.remote_path||'';
-      toggleSetAuth();
+    function openProject(name) {
+      window.location.href = `/workspace?project=${encodeURIComponent(name)}`;
     }
-    document.getElementById('set-skip-perms').checked=!!meta.skip_permissions;
-    document.getElementById('set-api-key').value='';
-    document.getElementById('set-apikey-hint').textContent=meta.has_api_key?'(API key set — using API billing)':'(not set — using subscription plan)';
-    document.getElementById('set-base-url').value=meta.anthropic_base_url||'';
-    document.getElementById('set-baseurl-hint').textContent=meta.anthropic_base_url?'(set: '+meta.anthropic_base_url+')':'(not set — direct Anthropic API)';
-  }catch(e){
-    document.getElementById('set-backend').textContent='Error loading settings';
-  }
-  document.getElementById('settings-modal').classList.add('open');
-}
-function closeSettings(){document.getElementById('settings-modal').classList.remove('open');settingsProject=null}
-document.getElementById('settings-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSettings()});
-function toggleSetAuth(){
-  const key=document.getElementById('set-ssh-auth').value==='key';
-  document.getElementById('set-pass-field').style.display=key?'none':'block';
-  document.getElementById('set-key-field').style.display=key?'block':'none';
-}
-async function saveSettings(){
-  if(!settingsProject)return;
-  const err=document.getElementById('set-err');
-  const body={skip_permissions:document.getElementById('set-skip-perms').checked};
-  const apiKey=document.getElementById('set-api-key').value;
-  if(apiKey)body.api_key=apiKey;
-  const baseUrl=document.getElementById('set-base-url').value.trim();
-  body.anthropic_base_url=baseUrl;
-  if(document.getElementById('set-ssh-fields').style.display!=='none'){
-    body.ssh_host=document.getElementById('set-ssh-host').value.trim();
-    body.ssh_port=parseInt(document.getElementById('set-ssh-port').value)||22;
-    body.ssh_user=document.getElementById('set-ssh-user').value.trim();
-    body.ssh_auth=document.getElementById('set-ssh-auth').value;
-    const pass=document.getElementById('set-ssh-pass').value;
-    if(pass)body.ssh_pass=pass;
-    if(body.ssh_auth==='key')body.ssh_key=document.getElementById('set-ssh-key').value;
-    body.remote_path=document.getElementById('set-ssh-path').value.trim();
-    if(!body.ssh_host||!body.ssh_user){
-      err.textContent='Host and username are required';err.style.display='block';return;
+
+    async function startProject(name) {
+      try {
+        await api.projects.start(name);
+        await loadProjects();
+      } catch (e) { showToast(e.message, true); }
     }
-  }
-  try{
-    const r=await fetch(`/api/projects/${settingsProject}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!r.ok){const d=await r.json();throw new Error(d.detail||'Failed');}
-    closeSettings();load();
-  }catch(e){err.textContent=e.message;err.style.display='block';}
-}
 
-async function doCreate(){
-  const name=document.getElementById('pname').value.trim();
-  const err=document.getElementById('cerr');
-  const btn=document.getElementById('cbtn');
-  if(!name||!/^[a-zA-Z0-9._-]{2,40}$/.test(name)){
-    err.textContent='Letters, numbers, dots, underscores, hyphens (2\u201340 chars)';
-    err.style.display='block';return;
-  }
-  const backend=document.getElementById('backend-select').value;
-  const body={name,backend};
-  const createKey=document.getElementById('create-api-key').value.trim();
-  if(createKey)body.api_key=createKey;
-  const createBaseUrl=document.getElementById('create-base-url').value.trim();
-  if(createBaseUrl)body.anthropic_base_url=createBaseUrl;
-  if(backend==='local'&&document.getElementById('isolated-check').checked){
-    body.isolated=true;
-    body.mem_limit=document.getElementById('mem-limit').value.trim()||'4g';
-    body.cpu_limit=document.getElementById('cpu-limit').value.trim()||'2.0';
-  }
-  if(backend==='ssh'){
-    body.ssh_host=document.getElementById('ssh-host').value.trim();
-    body.ssh_port=parseInt(document.getElementById('ssh-port').value)||22;
-    body.ssh_user=document.getElementById('ssh-user').value.trim();
-    body.ssh_auth=document.getElementById('ssh-auth-select').value;
-    if(body.ssh_auth==='password') body.ssh_pass=document.getElementById('ssh-pass').value;
-    else body.ssh_key=document.getElementById('ssh-key').value;
-    body.remote_path=document.getElementById('ssh-path').value.trim();
-    if(!body.ssh_host||!body.ssh_user){
-      err.textContent='Host and username are required';
-      err.style.display='block';return;
+    async function stopProject(name) {
+      try {
+        await api.projects.stop(name);
+        await loadProjects();
+      } catch (e) { showToast(e.message, true); }
     }
-  }
-  if(backend==='container'){
-    body.container_name=document.getElementById('ct-name').value.trim();
-    body.container_type=document.getElementById('ct-type').value;
-    body.container_user=document.getElementById('ct-user').value.trim()||'root';
-    body.container_path=document.getElementById('ct-path').value.trim()||'/root';
-    if(!body.container_name){
-      err.textContent='Container name is required';
-      err.style.display='block';return;
+
+    async function deleteProject(name) {
+      if (!confirm(`Delete project "${name}"? This cannot be undone.`)) return;
+      try {
+        await api.projects.delete(name);
+        await loadProjects();
+      } catch (e) { showToast(e.message, true); }
     }
-  }
-  if(document.getElementById('create-skip-perms').checked) body.skip_permissions=true;
-  btn.innerHTML='<span class="spin"></span> Creating...';btn.disabled=true;
-  try{
-    const r=await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!r.ok){const d=await r.json();throw new Error(d.detail||'Failed');}
-    closeModal();load();
-  }catch(e){err.textContent=e.message;err.style.display='block';}
-  finally{btn.innerHTML='Create';btn.disabled=false;}
-}
 
-load();
-setInterval(load,5000);
-
-/* ── Channels ── */
-let channels=[];
-async function loadChannels(){
-  try{
-    const r=await fetch('/api/channels',{redirect:'error'});
-    if(!r.ok)return;
-    const d=await r.json();
-    channels=d.channels||[];
-    renderChannels();
-  }catch(e){}
-}
-function renderChannels(){
-  const el=document.getElementById('chan-list');
-  if(!channels.length){el.innerHTML='<div class="empty-tree">no channels</div>';return;}
-  el.innerHTML=channels.map(c=>`
-    <div class="proj"
-         oncontextmenu="showCtx(event,'${esc(c.name)}','channel')"
-         ontouchstart="lpStart(event,'${esc(c.name)}','channel')" ontouchend="lpCancel()" ontouchmove="lpCancel()">
-      <div class="proj-top">
-        <span class="status-dot ${c.status}"></span>
-        <div class="proj-name">📡 ${esc(c.name)}</div>
-      </div>
-      <div class="proj-meta">${c.status==='running'?tRand('running'):tRand('idle')}</div>
-    </div>`).join('');
-}
-async function chanAct(action,name){
-  await fetch(`/api/channels/${name}/${action}`,{method:'POST'});
-  loadChannels();
-}
-async function delChan(name){
-  if(!confirm('Delete channel '+name+'?'))return;
-  await fetch(`/api/channels/${name}`,{method:'DELETE'});
-  loadChannels();
-}
-function openChanModal(){
-  document.getElementById('chan-modal').classList.add('open');
-  document.getElementById('chan-name').value='';
-  document.getElementById('chan-api-key').value='';
-  document.getElementById('chan-base-url').value='';
-  document.getElementById('chan-err').style.display='none';
-  setTimeout(()=>document.getElementById('chan-name').focus(),100);
-}
-function closeChanModal(){document.getElementById('chan-modal').classList.remove('open')}
-document.getElementById('chan-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeChanModal()});
-
-async function doCreateChan(){
-  const name=document.getElementById('chan-name').value.trim();
-  const err=document.getElementById('chan-err');
-  if(!name||!/^[a-zA-Z0-9._-]{2,40}$/.test(name)){
-    err.textContent='2-40 chars: letters, numbers, dots, underscores, hyphens';
-    err.style.display='block';return;
-  }
-  const token=document.getElementById('chan-token').value.trim();
-  if(!token){
-    err.textContent='Telegram Bot Token is required';err.style.display='block';return;
-  }
-  const chanKey=document.getElementById('chan-api-key').value.trim();
-  const chanBaseUrl=document.getElementById('chan-base-url').value.trim();
-  const body={
-    name,
-    workdir:document.getElementById('chan-workdir').value.trim()||'',
-    skip_permissions:document.getElementById('chan-skip-perms').checked,
-    telegram_token:token
-  };
-  if(chanKey)body.api_key=chanKey;
-  if(chanBaseUrl)body.anthropic_base_url=chanBaseUrl;
-  const btn=document.getElementById('chan-btn');
-  btn.innerHTML='Creating...';btn.disabled=true;
-  try{
-    const r=await fetch('/api/channels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!r.ok){const d=await r.json();throw new Error(d.detail||'Failed');}
-    closeChanModal();loadChannels();
-  }catch(e){err.textContent=e.message;err.style.display='block';}
-  finally{btn.innerHTML='Create';btn.disabled=false;}
-}
-
-/* ── Channel Settings ── */
-let chanSettingsName=null;
-async function openChanSettings(name){
-  chanSettingsName=name;
-  document.getElementById('chan-settings-title').innerHTML='<span style="font-size:16px">&#9881;</span> '+name+' Settings';
-  document.getElementById('chan-set-err').style.display='none';
-  try{
-    const r=await fetch(`/api/channels/${name}/settings`);
-    const meta=await r.json();
-    document.getElementById('chan-set-workdir').value=meta.workdir||'';
-    document.getElementById('chan-set-api-key').value='';
-    document.getElementById('chan-set-apikey-hint').textContent=meta.has_api_key?'(API key set — using API billing)':'(not set — using subscription plan)';
-    document.getElementById('chan-set-base-url').value=meta.anthropic_base_url||'';
-    document.getElementById('chan-set-baseurl-hint').textContent=meta.anthropic_base_url?'(set: '+meta.anthropic_base_url+')':'(not set — direct Anthropic API)';
-    document.getElementById('chan-set-skip-perms').checked=!!meta.skip_permissions;
-  }catch(e){
-    document.getElementById('chan-set-workdir').value='';
-  }
-  document.getElementById('chan-settings-modal').classList.add('open');
-}
-function closeChanSettings(){document.getElementById('chan-settings-modal').classList.remove('open');chanSettingsName=null;}
-document.getElementById('chan-settings-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeChanSettings()});
-async function saveChanSettings(){
-  if(!chanSettingsName)return;
-  const err=document.getElementById('chan-set-err');
-  const body={
-    workdir:document.getElementById('chan-set-workdir').value.trim(),
-    skip_permissions:document.getElementById('chan-set-skip-perms').checked
-  };
-  const apiKey=document.getElementById('chan-set-api-key').value;
-  if(apiKey)body.api_key=apiKey;
-  const baseUrl=document.getElementById('chan-set-base-url').value.trim();
-  body.anthropic_base_url=baseUrl;
-  try{
-    const r=await fetch(`/api/channels/${chanSettingsName}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!r.ok){const d=await r.json();throw new Error(d.detail||'Failed');}
-    closeChanSettings();loadChannels();
-  }catch(e){err.textContent=e.message;err.style.display='block';}
-}
-
-let chanLogName=null;
-function viewChanLog(name){
-  chanLogName=name;
-  document.getElementById('chanlog-title').innerHTML='<span style="font-size:16px">📡</span> '+name+' Log';
-  document.getElementById('chanlog-modal').classList.add('open');
-  refreshChanLog();
-}
-function closeChanLog(){document.getElementById('chanlog-modal').classList.remove('open');chanLogName=null}
-document.getElementById('chanlog-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeChanLog()});
-async function refreshChanLog(){
-  if(!chanLogName)return;
-  const r=await fetch(`/api/channels/${chanLogName}/log?lines=100`).catch(()=>null);
-  if(!r||!r.ok)return;
-  const d=await r.json();
-  const el=document.getElementById('chanlog-output');
-  el.textContent=d.output||'(no output)';
-  el.scrollTop=el.scrollHeight;
-}
-
-loadChannels();
-setInterval(loadChannels,5000);
-
-/* ── Fix iPad keyboard scroll in iframe ── */
-window.addEventListener('scroll',()=>window.scrollTo(0,0));
-document.body.style.overflow='hidden';
-document.body.style.position='fixed';
-document.body.style.width='100%';
-document.body.style.height='100%';
-
-/* ── Terminal helpers ── */
-function _projName(){return deskCurrent?deskCurrent.name:(mobCurrent?mobCurrent.name:null)}
-function sendCtrlC(){const n=_projName();if(n)fetch(`/api/projects/${n}/send-keys?keys=C-c`,{method:'POST'})}
-function sendCtrlD(){const n=_projName();if(n)fetch(`/api/projects/${n}/send-keys?keys=C-d`,{method:'POST'})}
-function sendTab(){const n=_projName();if(n)fetch(`/api/projects/${n}/send-keys?keys=Tab`,{method:'POST'})}
-function sendUp(){const n=_projName();if(n)fetch(`/api/projects/${n}/send-keys?keys=Up`,{method:'POST'})}
-function sendDown(){const n=_projName();if(n)fetch(`/api/projects/${n}/send-keys?keys=Down`,{method:'POST'})}
-function sendEnterKey(){const n=_projName();if(n)fetch(`/api/projects/${n}/send-keys?keys=Enter`,{method:'POST'})}
-
-/* ── System monitor ── */
-function barClass(pct){return pct<60?'ok':pct<80?'warn':'crit'}
-async function loadSys(){
-  try{
-  const r=await fetch('/api/system',{redirect:'error'});
-  if(!r.ok)return;
-  const s=await r.json();
-  for(const [k,v] of [['cpu',s.cpu],['ram',s.ram],['swap',s.swap],['disk',s.disk]]){
-    const bar=document.getElementById('bar-'+k);
-    const val=document.getElementById('val-'+k);
-    if(!bar||!val)continue;
-    const pct=v.percent||0;
-    bar.style.width=pct+'%';
-    bar.className='sys-bar '+barClass(pct);
-    if(k==='cpu') val.textContent=pct+'%';
-    else if(k==='ram') val.textContent=(v.used_mb/1024).toFixed(1)+'G';
-    else if(k==='swap') val.textContent=v.total_mb>0?(v.used_mb/1024).toFixed(1)+'G':'0';
-    else if(k==='disk') val.textContent=v.used_gb+'G';
-  }
-  }catch(e){}
-}
-async function doLogout(){
-  await fetch('/api/auth/logout',{method:'POST'});
-  location.href='/login';
-}
-
-function openSystemTerm(){
-  if(isMobile()){
-    openOverlay('_system',null,null,'chat');
-  } else {
-    deskCurrent={name:'_system',cp:null,tp:null};
-    document.getElementById('desk-empty').style.display='none';
-    document.getElementById('desk-active').style.display='flex';
-    document.getElementById('desk-name').textContent='System';
-    document.getElementById('df-chat').src=`/static/chat.html?project=_system&v=${Date.now()}`;
-    document.getElementById('df-work').src=`/static/editor.html?project=_system&termUrl=${encodeURIComponent('/system/term/')}&v=${Date.now()}`;
-    document.getElementById('dt-chat').style.display='';
-    deskTab('chat');
-  }
-}
-function openCodeServer(){
-  window.open('/code-server/','_blank');
-}
-loadSys();
-setInterval(loadSys,3000);
-
-// ── Context menu ──
-let ctxTarget=null, ctxType=null;
-let longPressTimer=null;
-
-function showCtx(e,name,type){
-  e.preventDefault();
-  ctxTarget=name;ctxType=type;
-  const menu=document.getElementById('ctx-menu');
-  let html='';
-  if(type==='project'){
-    const p=projects.find(x=>x.name===name);
-    if(p&&p.status==='running'){
-      html+=`<div class="ctx-item" onclick="ctxDo('enter')">▶ Enter</div>`;
-      html+=`<div class="ctx-item" onclick="ctxDo('stop')">■ Stop</div>`;
-    }else{
-      html+=`<div class="ctx-item" onclick="ctxDo('start')">▶ Start</div>`;
+    function showCreateModal() { document.getElementById('createModal').style.display = 'flex'; }
+    function hideCreateModal() { document.getElementById('createModal').style.display = 'none'; }
+    function toggleSSHFields() {
+      const show = document.getElementById('newType').value === 'ssh';
+      document.getElementById('sshFields').style.display = show ? 'block' : 'none';
     }
-    html+=`<div class="ctx-item" onclick="ctxDo('settings')">⚙ Settings</div>`;
-    html+=`<div class="ctx-sep"></div>`;
-    html+=`<div class="ctx-item danger" onclick="ctxDo('delete')">🗑 Delete</div>`;
-  }else if(type==='channel'){
-    const c=channels.find(x=>x.name===name);
-    if(c&&c.status==='running'){
-      html+=`<div class="ctx-item" onclick="ctxDo('log')">📋 Log</div>`;
-      html+=`<div class="ctx-item" onclick="ctxDo('stop')">■ Stop</div>`;
-    }else{
-      html+=`<div class="ctx-item" onclick="ctxDo('start')">▶ Start</div>`;
+
+    async function createProject() {
+      const name = document.getElementById('newName').value.trim();
+      const type = document.getElementById('newType').value;
+      if (!name) return;
+      const data = { name, type };
+      if (type === 'ssh') {
+        data.ssh_host = document.getElementById('sshHost').value;
+        data.ssh_user = document.getElementById('sshUser').value;
+        data.ssh_port = parseInt(document.getElementById('sshPort').value) || 22;
+        data.remote_path = document.getElementById('remotePath').value;
+        data.ssh_password = document.getElementById('sshPassword').value || null;
+      }
+      try {
+        await api.projects.create(data);
+        hideCreateModal();
+        await loadProjects();
+        showToast(`Project "${name}" created`);
+      } catch (e) { showToast(e.message, true); }
     }
-    html+=`<div class="ctx-item" onclick="ctxDo('chan-settings')">⚙ Settings</div>`;
-    html+=`<div class="ctx-sep"></div>`;
-    html+=`<div class="ctx-item danger" onclick="ctxDo('delete')">🗑 Delete</div>`;
-  }
-  menu.innerHTML=html;
-  // Position
-  const x=e.clientX||e.touches?.[0]?.clientX||100;
-  const y=e.clientY||e.touches?.[0]?.clientY||100;
-  menu.style.left=Math.min(x,window.innerWidth-170)+'px';
-  menu.style.top=Math.min(y,window.innerHeight-200)+'px';
-  menu.classList.add('open');
-}
-function hideCtx(){document.getElementById('ctx-menu').classList.remove('open');ctxTarget=null;}
-document.addEventListener('click',hideCtx);
-document.addEventListener('scroll',hideCtx,true);
 
-function ctxDo(action){
-  const name=ctxTarget,type=ctxType;
-  hideCtx();
-  if(!name)return;
-  if(type==='project'){
-    const p=projects.find(x=>x.name===name);
-    if(action==='enter'&&p) openView(name,p.code_port,p.ttyd_port);
-    else if(action==='start') act('start',name);
-    else if(action==='stop') act('stop',name);
-    else if(action==='settings') openSettings(name);
-    else if(action==='delete') del(name);
-  }else if(type==='channel'){
-    if(action==='start') chanAct('start',name);
-    else if(action==='stop') chanAct('stop',name);
-    else if(action==='log') viewChanLog(name);
-    else if(action==='chan-settings') openChanSettings(name);
-    else if(action==='delete') delChan(name);
-  }
-}
+    async function loadStats() {
+      try {
+        const s = await api.system.stats();
+        document.getElementById('statsBar').textContent =
+          `CPU ${s.cpu_percent.toFixed(0)}%  RAM ${(s.ram.used/1e9).toFixed(1)}/${(s.ram.total/1e9).toFixed(1)}GB  Disk ${(s.disk.used/1e9).toFixed(0)}/${(s.disk.total/1e9).toFixed(0)}GB`;
+      } catch (_) {}
+    }
 
-// Long-press for iPad (no right-click)
-function lpStart(e,name,type){
-  longPressTimer=setTimeout(()=>{
-    longPressTimer=null;
-    // Fake contextmenu event with touch coords
-    const touch=e.touches?.[0]||e;
-    showCtx({preventDefault:()=>{},clientX:touch.clientX,clientY:touch.clientY},name,type);
-  },500);
-}
-function lpCancel(){if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}}
-
-// ── #9 Session & state UX ──
-// (restoreLastProject removed — was causing HTTPS refresh loop
-//  by auto-loading iframes that triggered page-level navigation)
-
-</script>
-<div class="ctx-menu" id="ctx-menu"></div>
+    loadProjects();
+    loadStats();
+    setInterval(loadProjects, 10000);
+    setInterval(loadStats, 5000);
+  </script>
 </body>
 </html>
