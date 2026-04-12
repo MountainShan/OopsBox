@@ -137,7 +137,10 @@ class WriteRequest(BaseModel):
 def list_directory(project: str, path: str = ""):
     meta = _get_meta(project)
     abs_path = _resolve_remote(meta, path)
-    ssh, sftp = _open_sftp(meta)
+    try:
+        ssh, sftp = _open_sftp(meta)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"SSH connection failed: {e}")
     try:
         _sftp_makedirs(sftp, abs_path)
         attrs = sftp.listdir_attr(abs_path)
@@ -167,7 +170,10 @@ def list_directory(project: str, path: str = ""):
 def read_file(project: str, path: str):
     meta = _get_meta(project)
     abs_path = _resolve_remote(meta, path)
-    ssh, sftp = _open_sftp(meta)
+    try:
+        ssh, sftp = _open_sftp(meta)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"SSH connection failed: {e}")
     try:
         buf = io.BytesIO()
         sftp.getfo(abs_path, buf)
@@ -190,19 +196,18 @@ def download_file(project: str, path: str):
     abs_path = _resolve_remote(meta, path)
     filename = abs_path.split("/")[-1]
 
-    ssh, sftp = _open_sftp(meta)
+    try:
+        ssh, sftp = _open_sftp(meta)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"SSH connection failed: {e}")
     try:
         buf = io.BytesIO()
         sftp.getfo(abs_path, buf)
         buf.seek(0)
         data = buf.read()
     except FileNotFoundError:
-        sftp.close()
-        ssh.close()
         raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
-        sftp.close()
-        ssh.close()
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         sftp.close()
@@ -220,7 +225,10 @@ def download_file(project: str, path: str):
 def delete(project: str, req: PathRequest):
     meta = _get_meta(project)
     abs_path = _resolve_remote(meta, req.path)
-    ssh, sftp = _open_sftp(meta)
+    try:
+        ssh, sftp = _open_sftp(meta)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"SSH connection failed: {e}")
     try:
         attr = sftp.stat(abs_path)
         is_dir = stat.S_ISDIR(attr.st_mode) if attr.st_mode else False
@@ -255,7 +263,10 @@ def _sftp_rmtree(sftp: paramiko.SFTPClient, path: str):
 def rename(project: str, req: RenameRequest):
     meta = _get_meta(project)
     abs_path = _resolve_remote(meta, req.path)
-    ssh, sftp = _open_sftp(meta)
+    try:
+        ssh, sftp = _open_sftp(meta)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"SSH connection failed: {e}")
     try:
         parent = abs_path.rsplit("/", 1)[0] if "/" in abs_path else ""
         new_abs = (parent + "/" + req.new_name) if parent else req.new_name
@@ -279,7 +290,10 @@ def rename(project: str, req: RenameRequest):
 def mkdir(project: str, req: PathRequest):
     meta = _get_meta(project)
     abs_path = _resolve_remote(meta, req.path)
-    ssh, sftp = _open_sftp(meta)
+    try:
+        ssh, sftp = _open_sftp(meta)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"SSH connection failed: {e}")
     try:
         sftp.mkdir(abs_path)
         return {"ok": True}
@@ -298,7 +312,10 @@ def mkdir(project: str, req: PathRequest):
 def write_file(project: str, req: WriteRequest):
     meta = _get_meta(project)
     abs_path = _resolve_remote(meta, req.path)
-    ssh, sftp = _open_sftp(meta)
+    try:
+        ssh, sftp = _open_sftp(meta)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"SSH connection failed: {e}")
     try:
         data = req.content.encode("utf-8")
         buf = io.BytesIO(data)
@@ -340,7 +357,10 @@ async def upload(project: str, path: str = "", file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Path traversal not allowed")
 
     content = await file.read()
-    ssh, sftp = _open_sftp(meta)
+    try:
+        ssh, sftp = _open_sftp(meta)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"SSH connection failed: {e}")
     try:
         buf = io.BytesIO(content)
         sftp.putfo(buf, dest_path)

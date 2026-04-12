@@ -121,7 +121,7 @@ function _setBody(mode, content) {
 async function _openMonaco(project, filePath, ext) {
   await _ensureMonaco();
   const r = await fetch(`${_viewerApiBase}/${project}/read?path=${encodeURIComponent(filePath)}`, { credentials: 'same-origin' });
-  if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
   const { content } = await r.json();
 
   if (_monacoEditor) { _monacoEditor.dispose(); _monacoEditor = null; }
@@ -163,7 +163,7 @@ function _extToLang(ext) {
 async function _openMarkdown(project, filePath) {
   await _ensureMarked();
   const r = await fetch(`${_viewerApiBase}/${project}/read?path=${encodeURIComponent(filePath)}`, { credentials: 'same-origin' });
-  if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
   const { content } = await r.json();
 
   _mdSourceMode = false;
@@ -282,7 +282,7 @@ async function viewerSave() {
       credentials: 'same-origin',
       body: JSON.stringify({ path: _viewerPath, content }),
     });
-    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
     if (_viewerMode === 'markdown') {
       document.getElementById('viewerOverlay').dataset.mdContent = content;
     }
