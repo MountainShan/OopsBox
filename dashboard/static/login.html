@@ -14,7 +14,8 @@
   <meta name="apple-mobile-web-app-title" content="OopsBox">
   <link rel="stylesheet" href="/static/css/app.css">
   <style>
-    body { display: flex; align-items: center; justify-content: center; }
+    body { display: flex; align-items: center; justify-content: center;
+           padding: env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px); }
     .login-box {
       width: 100%; max-width: 360px; padding: 20px;
     }
