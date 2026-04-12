@@ -37,6 +37,3 @@ def index():
     return _html("index.html")
 
 
-@app.get("/workspace")
-def workspace():
-    return _html("workspace.html")

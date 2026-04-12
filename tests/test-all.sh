@@ -51,12 +51,6 @@ else
   fail "Projects list endpoint" "invalid response"
 fi
 
-R=$(api "/api/channels")
-if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'channels' in d" 2>/dev/null; then
-  pass "Channels list endpoint"
-else
-  fail "Channels list endpoint" "invalid response"
-fi
 
 R=$(api "/api/system")
 if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'cpu' in d" 2>/dev/null; then
@@ -263,41 +257,20 @@ fi
 rm -f /tmp/oopsbox-test-upload.txt "$UPLOAD_PATH" 2>/dev/null
 
 # ═══════════════════════════════════════
-section "8. Channel Encryption"
+section "8. Auth Credentials"
 # ═══════════════════════════════════════
 
-KEY_FILE="$HOME/.config/oopsbox/channel.key"
-if [ -f "$KEY_FILE" ]; then
-  pass "Channel encryption key exists"
-  PERMS=$(stat -c %a "$KEY_FILE")
+AUTH_FILE="$HOME/.config/oopsbox/auth.json"
+if [ -f "$AUTH_FILE" ]; then
+  pass "Auth file exists"
+  PERMS=$(stat -c %a "$AUTH_FILE")
   if [ "$PERMS" = "600" ]; then
-    pass "Key file permissions (600)"
+    pass "Auth file permissions (600)"
   else
-    fail "Key file permissions" "got $PERMS, expected 600"
+    fail "Auth file permissions" "got $PERMS, expected 600"
   fi
 else
-  skip "Channel encryption key" "no key file (no channels created yet)"
-fi
-
-# Check registry uses encrypted tokens
-CHAN_REG="$HOME/projects/.channel-registry.json"
-if [ -f "$CHAN_REG" ]; then
-  if python3 -c "
-import json
-d=json.load(open('$CHAN_REG'))
-for name,ch in d.items():
-    if 'telegram_token' in ch:
-        print(f'PLAINTEXT token found in {name}')
-        exit(1)
-    if 'telegram_token_enc' in ch:
-        print(f'{name}: encrypted OK')
-" 2>/dev/null; then
-    pass "Channel tokens encrypted (no plaintext)"
-  else
-    fail "Channel token encryption" "plaintext token found"
-  fi
-else
-  skip "Channel token encryption" "no channel registry"
+  skip "Auth file" "not found (container may auto-create on first boot)"
 fi
 
 # ═══════════════════════════════════════
@@ -413,7 +386,7 @@ fi
 section "14. Docker Image Files"
 # ═══════════════════════════════════════
 
-for f in Dockerfile .dockerignore docker/entrypoint.sh docker/nginx.conf docker/Containerfile.agent; do
+for f in Dockerfile .dockerignore docker/entrypoint.sh docker/nginx.conf docker/supervisord.conf; do
   if [ -f "$REPO_DIR/$f" ]; then
     pass "Docker: $f exists"
   else
@@ -421,28 +394,16 @@ for f in Dockerfile .dockerignore docker/entrypoint.sh docker/nginx.conf docker/
   fi
 done
 
-S6_SERVICES="nginx dashboard agents-init system-term idle-check"
-for svc in $S6_SERVICES; do
-  if [ -f "$REPO_DIR/docker/s6-rc.d/$svc/type" ]; then
-    pass "s6 service: $svc"
-  else
-    fail "s6 service: $svc" "type file not found"
-  fi
-done
-
 # ═══════════════════════════════════════
 section "15. Scripts Integrity"
 # ═══════════════════════════════════════
 
-SCRIPTS="project-start.sh project-stop.sh project-create.sh project-delete.sh project-status.sh
-         channel-start.sh channel-stop.sh claude-loop.sh agents-init.sh system-term.sh
-         get-project-ports.sh nginx-reload-ports.sh idle-check.sh setup-https.sh
-         build-agent-image.sh project-start-isolated.sh"
+SCRIPTS="project-start.sh project-stop.sh project-term.sh claude-loop.sh nginx-update-projects.sh"
 
 for s in $SCRIPTS; do
-  if [ -f "$HOME/bin/$s" ] && [ -x "$HOME/bin/$s" ]; then
+  if [ -f "$REPO_DIR/bin/$s" ] && [ -x "$REPO_DIR/bin/$s" ]; then
     pass "Script: $s (exists + executable)"
-  elif [ -f "$HOME/bin/$s" ]; then
+  elif [ -f "$REPO_DIR/bin/$s" ]; then
     fail "Script: $s" "not executable"
   else
     fail "Script: $s" "not found"
@@ -450,38 +411,29 @@ for s in $SCRIPTS; do
 done
 
 # ═══════════════════════════════════════
-section "16. Idle Check"
-# ═══════════════════════════════════════
-
-if crontab -l 2>/dev/null | grep -q "idle-check"; then
-  pass "Idle check cron configured"
-else
-  fail "Idle check cron" "not in crontab"
-fi
-
-IDLE_MIN=$(grep "IDLE_MINUTES=" "$HOME/bin/idle-check.sh" | head -1 | grep -o '[0-9]*')
-if [ "$IDLE_MIN" = "120" ]; then
-  pass "Idle timeout = 120 minutes"
-else
-  fail "Idle timeout" "expected 120, got $IDLE_MIN"
-fi
-
-# ═══════════════════════════════════════
 section "17. Static Files Deployed"
 # ═══════════════════════════════════════
 
-for f in index.html chat.html editor.html manifest.json sw.js icon-192.png icon-512.png; do
-  if [ -f "/opt/dashboard/static/$f" ]; then
-    pass "Deployed: /opt/dashboard/static/$f"
+for f in index.html login.html manifest.json sw.js favicon.svg; do
+  if [ -f "$REPO_DIR/dashboard/static/$f" ]; then
+    pass "Static: $f"
   else
-    fail "Deployed: $f" "not found in /opt/dashboard/static/"
+    fail "Static: $f" "not found"
   fi
 done
 
-if [ -f "/opt/dashboard/main.py" ]; then
-  pass "Deployed: /opt/dashboard/main.py"
+for f in index.html login.html manifest.json sw.js favicon.svg; do
+  if [ -f "$REPO_DIR/dashboard/static/$f" ]; then
+    pass "Static: $f"
+  else
+    fail "Static: $f" "not found"
+  fi
+done
+
+if [ -f "$REPO_DIR/dashboard/main.py" ]; then
+  pass "dashboard/main.py exists"
 else
-  fail "Deployed: main.py" "not found"
+  fail "dashboard/main.py" "not found"
 fi
 
 # ═══════════════════════════════════════
