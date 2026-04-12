@@ -2,6 +2,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME=/oopsbox
 ENV NODE_VERSION=22.14.0
+ENV CLAUDE_CODE_NO_FLICKER=1
 
 WORKDIR /oopsbox
 
@@ -14,9 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     jq \
     sshpass \
+    openssh-client \
     git \
     curl \
     wget \
+    vim \
     openssl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*

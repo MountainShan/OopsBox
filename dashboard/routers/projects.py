@@ -164,6 +164,29 @@ def _stop_project(name: str):
         subprocess.run([str(script), name], capture_output=True)
 
 
+class UpdateProjectRequest(BaseModel):
+    ssh_host: Optional[str] = None
+    ssh_port: Optional[int] = None
+    ssh_user: Optional[str] = None
+    ssh_password: Optional[str] = None
+    remote_path: Optional[str] = None
+
+@router.put("/{name}")
+def update_project(name: str, req: UpdateProjectRequest):
+    registry = _load_registry()
+    if name not in registry:
+        raise HTTPException(status_code=404, detail="Project not found")
+    meta = registry[name]
+    if req.ssh_host is not None: meta["ssh_host"] = req.ssh_host
+    if req.ssh_port is not None: meta["ssh_port"] = req.ssh_port
+    if req.ssh_user is not None: meta["ssh_user"] = req.ssh_user
+    if req.ssh_password is not None: meta["ssh_password"] = req.ssh_password
+    if req.remote_path is not None: meta["remote_path"] = req.remote_path
+    registry[name] = meta
+    _save_registry(registry)
+    return meta
+
+
 @router.post("/{name}/start")
 def start_project(name: str):
     registry = _load_registry()
@@ -205,7 +228,7 @@ def send_keys(name: str, req: SendKeysRequest):
     if name not in registry:
         raise HTTPException(status_code=404, detail="Project not found")
     result = subprocess.run(
-        ["tmux", "send-keys", "-t", f"agents:{name}", req.keys, ""],
+        ["tmux", "send-keys", "-t", f"oopsbox-{name}", req.keys, ""],
         capture_output=True, text=True
     )
     if result.returncode != 0:
@@ -223,9 +246,59 @@ def send_text(name: str, req: SendTextRequest):
     if name not in registry:
         raise HTTPException(status_code=404, detail="Project not found")
     result = subprocess.run(
-        ["tmux", "send-keys", "-t", f"agents:{name}", req.text, "Enter"],
+        ["tmux", "send-keys", "-t", f"oopsbox-{name}", req.text, "Enter"],
         capture_output=True, text=True
     )
     if result.returncode != 0:
         raise HTTPException(status_code=500, detail="Terminal not available")
     return {"ok": True}
+
+
+class MouseRequest(BaseModel):
+    enabled: bool
+
+@router.post("/{name}/mouse")
+def set_mouse(name: str, req: MouseRequest):
+    registry = _load_registry()
+    if name not in registry:
+        raise HTTPException(status_code=404, detail="Project not found")
+    val = "on" if req.enabled else "off"
+    result = subprocess.run(
+        ["tmux", "set-option", "-t", f"oopsbox-{name}", "mouse", val],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail="tmux not available")
+    return {"mouse": val}
+
+
+class SelectWindowRequest(BaseModel):
+    window: str
+
+
+@router.post("/{name}/select-window")
+def select_window(name: str, req: SelectWindowRequest):
+    registry = _load_registry()
+    if name not in registry:
+        raise HTTPException(status_code=404, detail="Project not found")
+    result = subprocess.run(
+        ["tmux", "select-window", "-t", f"oopsbox-{name}:{req.window}"],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail="Window not found")
+    return {"ok": True}
+
+
+@router.get("/{name}/clipboard")
+def get_clipboard(name: str):
+    registry = _load_registry()
+    if name not in registry:
+        raise HTTPException(status_code=404, detail="Project not found")
+    result = subprocess.run(
+        ["tmux", "show-buffer", "-t", f"oopsbox-{name}"],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise HTTPException(status_code=404, detail="Clipboard empty")
+    return {"text": result.stdout}

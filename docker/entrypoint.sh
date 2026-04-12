@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 export HOME="/oopsbox"
+export CLAUDE_CODE_NO_FLICKER=1
 
 echo "==> OopsBox v2 starting..."
 

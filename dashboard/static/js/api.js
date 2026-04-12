@@ -14,7 +14,11 @@ async function request(method, path, body = null) {
   }
   if (!r.ok) {
     const err = await r.json().catch(() => ({ detail: r.statusText }));
-    throw new Error(err.detail || r.statusText);
+    const detail = err.detail;
+    const msg = Array.isArray(detail)
+      ? detail.map(d => `${d.loc?.slice(-1)[0] ?? 'field'}: ${d.msg}`).join(', ')
+      : (detail || r.statusText);
+    throw new Error(msg);
   }
   return r.json();
 }
@@ -39,6 +43,9 @@ const api = {
     stop: (n) => api.post(`/api/projects/${n}/stop`),
     status: (n) => api.get(`/api/projects/${n}/status`),
     sendKeys: (n, keys) => api.post(`/api/projects/${n}/send-keys`, { keys }),
+    clipboard: (n) => api.get(`/api/projects/${n}/clipboard`),
+    mouse: (n, enabled) => api.post(`/api/projects/${n}/mouse`, { enabled }),
+    selectWindow: (n, window) => api.post(`/api/projects/${n}/select-window`, { window }),
   },
   files: {
     list: (p, path = '') => api.get(`/api/files/${p}?path=${encodeURIComponent(path)}`),
@@ -48,6 +55,7 @@ const api = {
     rename: (p, path, new_name) => api.post(`/api/files/${p}/rename`, { path, new_name }),
     mkdir: (p, path) => api.post(`/api/files/${p}/mkdir`, { path }),
     downloadUrl: (p, path) => `/api/files/${p}/download?path=${encodeURIComponent(path)}`,
+    write: (p, path, content) => api.put(`/api/files/${p}/write`, { path, content }),
   },
   system: {
     stats: () => api.get('/api/system'),

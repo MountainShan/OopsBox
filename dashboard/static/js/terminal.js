@@ -19,9 +19,14 @@ const EXTRA_KEYS = [
   { label: 'PgDn', key: 'NPage', title: 'Scroll down' },
 ];
 
-function initToolbar(projectName, containerId) {
+function initToolbar(projectName, containerId, projectMeta) {
   const container = document.getElementById(containerId);
   let expanded = false;
+  let activeWindow = 'claude';
+
+  const windows = projectMeta?.type === 'ssh'
+    ? ['claude', 'remote', 'local']
+    : ['claude', 'shell'];
 
   function renderKey(k) {
     const btn = document.createElement('button');
@@ -50,6 +55,34 @@ function initToolbar(projectName, containerId) {
     toggleBtn.style.cssText = 'font-family:var(--mono);font-size:12px;min-width:38px;margin-left:4px;';
     toggleBtn.onclick = () => { expanded = !expanded; render(); };
     container.appendChild(toggleBtn);
+
+    // Spacer
+    const spacer = document.createElement('div');
+    spacer.style.cssText = 'flex:1;';
+    container.appendChild(spacer);
+
+    // tmux window tab buttons
+    const winGroup = document.createElement('div');
+    winGroup.style.cssText = 'display:flex;gap:2px;';
+    windows.forEach(win => {
+      const btn = document.createElement('button');
+      btn.className = 'btn-icon';
+      btn.textContent = win;
+      btn.title = `Switch to ${win} window`;
+      const isActive = win === activeWindow;
+      btn.style.cssText = `font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:4px;${isActive ? 'background:var(--accent);color:#fff;opacity:1;' : ''}`;
+      btn.onclick = async () => {
+        try {
+          await api.projects.selectWindow(projectName, win);
+          activeWindow = win;
+          render();
+        } catch (e) {
+          showToast(`Window "${win}" not available`, true);
+        }
+      };
+      winGroup.appendChild(btn);
+    });
+    container.appendChild(winGroup);
   }
 
   render();

@@ -3,233 +3,607 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>OopsBox</title>
+
+  <!-- Icons -->
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
+
+  <!-- PWA -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#09090b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OopsBox">
+  <meta name="mobile-web-app-capable" content="yes">
+
   <link rel="stylesheet" href="/static/css/app.css">
   <style>
-    .projects-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 12px;
-      margin-top: 20px;
+    /* ── Activity bar ─────────────────────────────── */
+    .activity-bar {
+      width: 44px; flex-shrink: 0;
+      background: #0d0d10;
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 6px 0; gap: 2px; z-index: 10;
     }
-    .project-card {
+    .activity-brand {
+      width: 32px; height: 32px; border-radius: 6px;
+      background: var(--bg3); display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: 11px; font-weight: 700;
+      color: var(--accent); cursor: default; margin-bottom: 4px; flex-shrink: 0;
+      user-select: none;
+    }
+    .activity-btn {
+      width: 32px; height: 32px; border-radius: 6px;
+      background: none; border: none; color: var(--text3);
+      font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; flex-shrink: 0;
+    }
+    .activity-btn:hover { background: var(--bg3); color: var(--text); opacity: 1; }
+    .activity-btn.active { color: var(--accent); background: var(--bg3); }
+    .activity-spacer { flex: 1; }
+    .activity-divider { width: 24px; height: 1px; background: var(--border); margin: 4px 0; }
+
+    /* ── Project panel ────────────────────────────── */
+    .project-panel {
+      width: 180px; flex-shrink: 0;
       background: var(--bg2);
-      border: 1px solid var(--bg3);
-      border-radius: var(--radius);
-      padding: 16px;
-      cursor: pointer;
-      transition: border-color 0.15s;
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      transition: width 0.2s ease; overflow: hidden;
     }
-    .project-card:hover { border-color: var(--border); }
-    .project-card.running { border-left: 3px solid var(--green); }
-    .project-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .project-name { font-weight: 600; font-size: 15px; flex: 1; }
-    .project-type { font-size: 11px; color: var(--text3); font-family: var(--mono); }
-    .project-actions { display: flex; gap: 6px; margin-top: 12px; }
-    .stats-bar {
-      display: flex; gap: 16px;
-      padding: 10px 20px;
-      background: var(--bg2);
-      border-bottom: 1px solid var(--bg3);
-      font-size: 12px; color: var(--text3);
-      font-family: var(--mono);
+    .project-panel.collapsed { width: 0; border-right: none; }
+    .panel-header {
+      padding: 8px 12px 6px;
+      font-size: 11px; font-weight: 600;
+      color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px;
+      flex-shrink: 0; white-space: nowrap;
     }
-    .stat { display: flex; gap: 5px; align-items: center; }
-    .stat-val { color: var(--text2); }
-    .header-row { display: flex; align-items: center; justify-content: space-between; }
-    h2 { font-size: 20px; }
+    .panel-list { flex: 1; overflow-y: auto; padding: 0 4px; }
+    .panel-item {
+      display: flex; align-items: center; gap: 7px;
+      padding: 6px 8px; border-radius: 5px;
+      cursor: pointer; color: var(--text2); white-space: nowrap;
+      user-select: none;
+    }
+    .panel-item:hover { background: var(--bg3); }
+    .panel-item.active { background: var(--bg3); color: var(--text); }
+    .panel-item-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    .panel-footer { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; white-space: nowrap; }
+
+    /* ── Main area ────────────────────────────────── */
+    .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+    .main-topbar {
+      flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+      padding: 0 12px; height: 40px;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+    }
+    .main-project-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }
+    .main-content { flex: 1; position: relative; overflow: hidden; }
+
+    .workspace-panel {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+    }
+    .workspace-panel.hidden { display: none; }
+    .term-frame { flex: 1; border: none; background: #000; }
+
+    .files-panel {
+      position: absolute; inset: 0; z-index: 10;
+      overflow: hidden; background: var(--bg);
+      display: flex;
+    }
+    .files-panel.hidden { display: none; }
+    .file-pane {
+      display: flex; flex-direction: column;
+      flex: 1; overflow: hidden; padding: 14px;
+      min-width: 0;
+    }
+    .file-pane + .file-pane { border-left: 1px solid var(--border); }
+    .file-pane.hidden { display: none; }
+    .file-pane-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px; gap: 8px;
+    }
+    .file-pane-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; white-space: nowrap; }
+    .file-list { flex: 1; overflow-y: auto; }
+
+    /* ── Context menu ─────────────────────────────── */
+    .ctx-item { padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; color: var(--text2); white-space: nowrap; }
+    .ctx-item:hover { background: var(--bg3); color: var(--text); }
+    .ctx-item.ctx-danger:hover { background: #450a0a; color: #fca5a5; }
   </style>
 </head>
-<body>
-  <nav>
-    <span class="nav-brand">>_ <span style="color:var(--accent)">Oops</span>Box</span>
-    <span class="nav-spacer"></span>
-    <div id="statsBar" class="stat" style="font-family:var(--mono);font-size:12px;color:var(--text3)"></div>
-    <button class="btn-secondary btn-sm" onclick="api.auth.logout().then(()=>location.href='/login')">Logout</button>
-  </nav>
+<body class="app-body">
+<div class="app-layout">
 
-  <div class="page">
-    <div class="header-row">
-      <h2>Projects</h2>
-      <button class="btn-primary btn-sm" onclick="showCreateModal()">+ New Project</button>
+  <!-- ── Activity bar (always visible) ─────────────── -->
+  <div class="activity-bar">
+    <div class="activity-brand" title="OopsBox">&gt;_</div>
+    <div class="activity-divider"></div>
+    <button class="activity-btn" id="panelToggleBtn" onclick="togglePanel()" title="Toggle project list">☰</button>
+    <div class="activity-spacer"></div>
+    <button class="activity-btn" onclick="openAddModal()" title="New project" style="font-size:18px;font-weight:300;">+</button>
+    <button class="activity-btn" onclick="api.auth.logout().then(()=>location.href='/login')" title="Logout" style="font-size:13px;">⏏</button>
+  </div>
+
+  <!-- ── Project panel (collapsible) ───────────────── -->
+  <div class="project-panel" id="projectPanel">
+    <div class="panel-header">Projects</div>
+    <div class="panel-list" id="panelList">
+      <div style="color:var(--text3);padding:10px 8px;font-size:12px;">Loading…</div>
     </div>
-
-    <div id="projectList" class="projects-grid">
-      <div class="empty-state" style="grid-column:1/-1">
-        <p style="color:var(--text3)">Loading...</p>
-      </div>
+    <div class="panel-footer">
+      <button class="btn-secondary" style="width:100%;font-size:12px;" onclick="openAddModal()">+ New Project</button>
     </div>
   </div>
 
-  <!-- Create Project Modal -->
-  <div id="createModal" class="modal-overlay" style="display:none">
-    <div class="modal">
-      <h2>New Project</h2>
-      <div class="field">
-        <label>Project Name</label>
-        <input type="text" id="newName" placeholder="my-project" autofocus>
+  <!-- ── Main area ──────────────────────────────────── -->
+  <div class="main-area">
+    <div class="main-topbar" id="mainTopbar" style="display:none">
+      <span class="main-project-name" id="topbarName"></span>
+      <div class="tabs" style="width:170px">
+        <div class="tab active" id="tabTerminal" onclick="switchTab('terminal')">Terminal</div>
+        <div class="tab" id="tabFiles" onclick="switchTab('files')">Files</div>
       </div>
-      <div class="field">
-        <label>Type</label>
-        <select id="newType" onchange="toggleSSHFields()">
-          <option value="local">Local</option>
-          <option value="ssh">SSH Remote</option>
-        </select>
-      </div>
-      <div id="sshFields" style="display:none">
-        <div class="field"><label>SSH Host</label><input type="text" id="sshHost" placeholder="192.168.1.100"></div>
-        <div class="field"><label>SSH User</label><input type="text" id="sshUser" placeholder="ubuntu"></div>
-        <div class="field"><label>SSH Port</label><input type="number" id="sshPort" value="22"></div>
-        <div class="field"><label>Remote Path</label><input type="text" id="remotePath" placeholder="/home/ubuntu"></div>
-        <div class="field"><label>Password (optional)</label><input type="password" id="sshPassword"></div>
-      </div>
-      <div class="actions">
-        <button class="btn-secondary" onclick="hideCreateModal()">Cancel</button>
-        <button class="btn-primary" onclick="createProject()">Create</button>
-      </div>
+      <span class="nav-spacer"></span>
+      <div id="topbarStatus"></div>
     </div>
-  </div>
 
-  <script src="/static/js/api.js"></script>
-  <script>
-    function escHtml(s) {
-      return String(s ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
+    <div class="main-content" id="mainContent">
+      <div class="empty-state" id="emptyState"
+           style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <h3>No project selected</h3>
+        <p style="margin-top:6px;color:var(--text3)">Pick one from the panel or create a new one.</p>
+      </div>
 
-    async function loadProjects() {
-      try {
-        const projects = await api.projects.list();
-        renderProjects(projects);
-      } catch (e) {
-        showToast('Failed to load projects: ' + e.message, true);
-      }
-    }
+      <!-- workspace panels injected here -->
 
-    function renderProjects(projects) {
-      const el = document.getElementById('projectList');
-      if (!projects.length) {
-        el.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
-          <h3>No projects yet</h3>
-          <p>Click "+ New Project" to get started</p>
-        </div>`;
-        return;
-      }
-      el.innerHTML = projects.map(p => `
-        <div class="project-card ${p.running ? 'running' : ''}" data-name="${escHtml(p.name)}" role="button" tabindex="0">
-          <div class="project-card-header">
-            <span class="project-name">${escHtml(p.name)}</span>
-            <span class="badge ${p.running ? 'badge-green' : 'badge-gray'}">
-              <span class="dot ${p.running ? 'dot-green' : 'dot-gray'}"></span>
-              ${p.running ? 'running' : 'stopped'}
-            </span>
+      <div id="filesPanel" class="files-panel hidden">
+        <!-- Local pane -->
+        <div class="file-pane" id="localPane">
+          <div class="file-pane-header">
+            <span class="file-pane-label">📁 Local</span>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              <button class="btn-secondary btn-sm" onclick="goUp('local')">↑ Up</button>
+              <button class="btn-secondary btn-sm" onclick="loadFiles('local')" title="Refresh">↺</button>
+              <button class="btn-secondary btn-sm" onclick="newFile('local')">+ File</button>
+              <button class="btn-secondary btn-sm" onclick="newFolder('local')">+ Folder</button>
+              <label class="btn-secondary btn-sm">Upload
+                <input type="file" id="uploadInputLocal" multiple style="display:none" onchange="uploadFiles(this,'local')">
+              </label>
+            </div>
           </div>
-          <div class="project-type">${escHtml(p.type)}${p.ssh_host ? ` · ${escHtml(p.ssh_host)}` : ''}</div>
-          <div class="project-actions">
-            ${p.running
-              ? `<button class="btn-secondary btn-sm" data-action="stop" data-name="${escHtml(p.name)}">Stop</button>`
-              : `<button class="btn-primary btn-sm" data-action="start" data-name="${escHtml(p.name)}">Start</button>`
-            }
-            <button class="btn-danger btn-sm" data-action="delete" data-name="${escHtml(p.name)}">Delete</button>
-          </div>
+          <div class="breadcrumb" id="breadcrumbLocal"></div>
+          <div class="file-list" id="fileListLocal"></div>
         </div>
-      `).join('');
+        <!-- Remote pane (SSH projects only) -->
+        <div class="file-pane hidden" id="remotePane">
+          <div class="file-pane-header">
+            <span class="file-pane-label">🌐 Remote</span>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              <button class="btn-secondary btn-sm" onclick="goUp('remote')">↑ Up</button>
+              <button class="btn-secondary btn-sm" onclick="loadFiles('remote')" title="Refresh">↺</button>
+              <button class="btn-secondary btn-sm" onclick="newFile('remote')">+ File</button>
+              <button class="btn-secondary btn-sm" onclick="newFolder('remote')">+ Folder</button>
+              <label class="btn-secondary btn-sm">Upload
+                <input type="file" id="uploadInputRemote" multiple style="display:none" onchange="uploadFiles(this,'remote')">
+              </label>
+            </div>
+          </div>
+          <div class="breadcrumb" id="breadcrumbRemote"></div>
+          <div class="file-list" id="fileListRemote"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-      // Attach event listeners (no inline onclick strings with user data)
-      el.querySelectorAll('.project-card').forEach(card => {
-        card.addEventListener('click', e => {
-          if (!e.target.closest('.project-actions')) openProject(card.dataset.name);
-        });
-      });
-      el.querySelectorAll('[data-action]').forEach(btn => {
-        btn.addEventListener('click', e => {
-          e.stopPropagation();
-          const name = btn.dataset.name;
-          if (btn.dataset.action === 'start') startProject(name);
-          else if (btn.dataset.action === 'stop') stopProject(name);
-          else if (btn.dataset.action === 'delete') deleteProject(name);
-        });
-      });
+<!-- ── Right-click context menu ──────────────────── -->
+<div id="ctxMenu" style="position:fixed;display:none;z-index:1000;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.6);">
+  <div class="ctx-item" id="ctxStart">▶ Start</div>
+  <div class="ctx-item" id="ctxStop">■ Stop</div>
+  <div style="height:1px;background:var(--border);margin:3px 0;"></div>
+  <div class="ctx-item" id="ctxEdit">✎ Edit</div>
+  <div class="ctx-item ctx-danger" id="ctxDelete">✕ Delete</div>
+</div>
+
+<!-- ── Add Project Modal ─────────────────────────── -->
+<div id="addModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h2>New Project</h2>
+    <div class="field"><label>Project Name</label><input type="text" id="newName" placeholder="my-project" autocomplete="off"></div>
+    <div class="field">
+      <label>Type</label>
+      <select id="newType" onchange="toggleSSHFields()">
+        <option value="local">Local</option>
+        <option value="ssh">SSH Remote</option>
+      </select>
+    </div>
+    <div id="sshFields" style="display:none">
+      <div class="field"><label>SSH Host</label><input type="text" id="sshHost" placeholder="192.168.1.100"></div>
+      <div class="field"><label>SSH User</label><input type="text" id="sshUser" placeholder="ubuntu"></div>
+      <div class="field"><label>SSH Port</label><input type="number" id="sshPort" value="22"></div>
+      <div class="field"><label>Remote Path</label><input type="text" id="remotePath" placeholder="/home/ubuntu"></div>
+      <div class="field"><label>Password</label><input type="password" id="sshPassword"></div>
+    </div>
+    <div class="actions">
+      <button class="btn-secondary" onclick="closeAddModal()">Cancel</button>
+      <button class="btn-primary" onclick="createProject()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Project Modal ─────────────────────────── -->
+<div id="editModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h2>Edit Project</h2>
+    <div id="editLocalMsg" style="color:var(--text3);font-size:12px;margin-bottom:12px;display:none;">Local projects have no editable connection settings.</div>
+    <div id="editSSHFields">
+      <div class="field"><label>SSH Host</label><input type="text" id="editHost"></div>
+      <div class="field"><label>SSH User</label><input type="text" id="editUser"></div>
+      <div class="field"><label>SSH Port</label><input type="number" id="editPort"></div>
+      <div class="field"><label>Remote Path</label><input type="text" id="editRemote"></div>
+      <div class="field"><label>Password</label><input type="password" id="editPass" placeholder="leave blank to keep current"></div>
+    </div>
+    <div class="actions">
+      <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button class="btn-primary" id="editSaveBtn" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── File viewer overlay ──────────────────────── -->
+<div id="viewerOverlay" class="viewer-overlay hidden">
+  <div class="viewer-topbar">
+    <span id="viewerTitle" class="viewer-title"></span>
+    <div style="display:flex;gap:6px;align-items:center;margin-left:auto;">
+      <button class="btn-secondary btn-sm" id="viewerMdToggle" style="display:none" onclick="toggleMdMode()">Source</button>
+      <button class="btn-primary btn-sm" id="viewerSave" style="display:none" onclick="viewerSave()">Save</button>
+      <a id="viewerDownloadLink" class="btn-secondary btn-sm" style="text-decoration:none;" download>Download</a>
+      <button class="btn-secondary btn-sm" onclick="closeViewer()">✕ Close</button>
+    </div>
+  </div>
+  <div class="viewer-body">
+    <div id="viewerLoading" style="display:none;align-items:center;justify-content:center;height:100%;color:var(--text3);font-family:var(--mono);font-size:13px;">Loading…</div>
+    <div id="viewerError"   style="display:none;align-items:center;justify-content:center;height:100%;color:#fca5a5;padding:20px;text-align:center;"></div>
+    <div id="monacoContainer" style="display:none;height:100%;"></div>
+    <div id="mdPreview"     class="md-preview" style="display:none;"></div>
+    <div id="imgViewer"     style="display:none;align-items:center;justify-content:center;height:100%;overflow:auto;padding:20px;background:var(--bg);">
+      <img id="imgViewerImg" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px;">
+    </div>
+    <iframe id="pdfViewer"  style="display:none;width:100%;height:100%;border:none;"></iframe>
+    <div id="binaryViewer"  style="display:none;align-items:center;justify-content:center;height:100%;"></div>
+  </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/terminal.js"></script>
+<script src="/static/js/files.js"></script>
+<script src="/static/js/viewer.js"></script>
+<script>
+  let activeProject = null;
+  let activeTab = 'terminal';
+  let projectData = {};
+  let ctxProject = null;
+  let panelOpen = true;
+
+  // ── Init ────────────────────────────────────────
+  async function init() {
+    await loadProjects();
+    setInterval(pollStatus, 6000);
+  }
+
+  async function loadProjects() {
+    try {
+      const list = await api.projects.list();
+      projectData = {};
+      list.forEach(p => projectData[p.name] = p);
+      renderPanel();
+    } catch (e) { showToast('Failed to load projects', true); }
+  }
+
+  // ── Project panel ────────────────────────────────
+  function togglePanel() {
+    panelOpen = !panelOpen;
+    document.getElementById('projectPanel').classList.toggle('collapsed', !panelOpen);
+    document.getElementById('panelToggleBtn').classList.toggle('active', panelOpen);
+  }
+
+  function renderPanel() {
+    const el = document.getElementById('panelList');
+    el.innerHTML = '';
+    const names = Object.keys(projectData);
+    if (!names.length) {
+      el.innerHTML = '<div style="color:var(--text3);padding:10px 8px;font-size:12px;">No projects yet</div>';
+      return;
     }
+    names.forEach(name => {
+      const p = projectData[name];
+      const item = document.createElement('div');
+      item.className = 'panel-item' + (name === activeProject ? ' active' : '');
+      item.dataset.name = name;
 
-    function openProject(name) {
-      window.location.href = `/workspace?project=${encodeURIComponent(name)}`;
+      const dot = document.createElement('span');
+      dot.className = 'dot ' + (p.running ? 'dot-green' : 'dot-gray');
+
+      const label = document.createElement('span');
+      label.className = 'panel-item-name';
+      label.textContent = name;
+
+      item.appendChild(dot);
+      item.appendChild(label);
+      item.addEventListener('click', () => activateProject(name));
+      item.addEventListener('contextmenu', e => showCtxMenu(e, name));
+      el.appendChild(item);
+    });
+  }
+
+  // ── Activate project ──────────────────────────────
+  async function activateProject(name) {
+    if (activeProject === name) return;
+    if (activeProject) {
+      const prev = document.getElementById('wp-' + activeProject);
+      if (prev) prev.classList.add('hidden');
     }
+    activeProject = name;
+    document.querySelectorAll('.panel-item')
+      .forEach(el => el.classList.toggle('active', el.dataset.name === name));
 
-    async function startProject(name) {
-      try {
-        await api.projects.start(name);
-        await loadProjects();
-      } catch (e) { showToast(e.message, true); }
+    if (!name) {
+      document.getElementById('emptyState').style.display = 'flex';
+      document.getElementById('mainTopbar').style.display = 'none';
+      document.getElementById('filesPanel').classList.add('hidden');
+      return;
     }
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('mainTopbar').style.display = 'flex';
+    document.getElementById('topbarName').textContent = name;
+    refreshStatusBadge();
 
-    async function stopProject(name) {
-      try {
-        await api.projects.stop(name);
-        await loadProjects();
-      } catch (e) { showToast(e.message, true); }
+    if (!document.getElementById('wp-' + name)) createWorkspacePanel(name);
+    applyTab();
+  }
+
+  function createWorkspacePanel(name) {
+    const panel = document.createElement('div');
+    panel.className = 'workspace-panel hidden';
+    panel.id = 'wp-' + name;
+
+    const toolbarEl = document.createElement('div');
+    toolbarEl.id = 'toolbar-' + name;
+
+    const iframe = document.createElement('iframe');
+    iframe.className = 'term-frame';
+    iframe.id = 'frame-' + name;
+    iframe.setAttribute('allow', 'clipboard-read; clipboard-write');
+
+    panel.appendChild(toolbarEl);
+    panel.appendChild(iframe);
+    document.getElementById('mainContent').insertBefore(panel, document.getElementById('filesPanel'));
+    initToolbar(name, 'toolbar-' + name, projectData[name]);
+    return panel;
+  }
+
+  // ── Tab switching ─────────────────────────────────
+  function switchTab(tab) {
+    activeTab = tab;
+    document.getElementById('tabTerminal').classList.toggle('active', tab === 'terminal');
+    document.getElementById('tabFiles').classList.toggle('active', tab === 'files');
+    applyTab();
+  }
+
+  function applyTab() {
+    if (!activeProject) return;
+    const panel = document.getElementById('wp-' + activeProject);
+    const filesPanel = document.getElementById('filesPanel');
+    if (activeTab === 'terminal') {
+      if (panel) panel.classList.remove('hidden');
+      filesPanel.classList.add('hidden');
+      startTerminalIfNeeded(activeProject);
+    } else {
+      if (panel) panel.classList.add('hidden');
+      filesPanel.classList.remove('hidden');
+      const p = projectData[activeProject];
+      initFiles(activeProject, p?.type || 'local');
     }
+  }
 
-    async function deleteProject(name) {
-      if (!confirm(`Delete project "${name}"? This cannot be undone.`)) return;
-      try {
-        await api.projects.delete(name);
-        await loadProjects();
-      } catch (e) { showToast(e.message, true); }
-    }
+  async function startTerminalIfNeeded(name) {
+    const iframe = document.getElementById('frame-' + name);
+    if (!iframe || iframe.src.includes('/terminal/')) return;
 
-    function showCreateModal() { document.getElementById('createModal').style.display = 'flex'; }
-    function hideCreateModal() { document.getElementById('createModal').style.display = 'none'; }
-    function toggleSSHFields() {
-      const show = document.getElementById('newType').value === 'ssh';
-      document.getElementById('sshFields').style.display = show ? 'block' : 'none';
-    }
+    const p = projectData[name];
+    if (p && !p.running) {
+      showOverlay(name, 'Starting…');
+      try { await api.projects.start(name); }
+      catch (e) { showOverlay(name, 'Failed: ' + e.message); return; }
 
-    async function createProject() {
-      const name = document.getElementById('newName').value.trim();
-      const type = document.getElementById('newType').value;
-      if (!name) return;
-      const data = { name, type };
-      if (type === 'ssh') {
-        data.ssh_host = document.getElementById('sshHost').value;
-        data.ssh_user = document.getElementById('sshUser').value;
-        data.ssh_port = parseInt(document.getElementById('sshPort').value) || 22;
-        data.remote_path = document.getElementById('remotePath').value;
-        data.ssh_password = document.getElementById('sshPassword').value || null;
+      for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        try { const s = await api.projects.status(name); if (s.running) break; } catch (_) {}
+        showOverlay(name, 'Starting' + '.'.repeat((i % 3) + 1));
       }
-      try {
-        await api.projects.create(data);
-        hideCreateModal();
-        document.getElementById('newName').value = '';
-        document.getElementById('newType').value = 'local';
-        document.getElementById('sshHost').value = '';
-        document.getElementById('sshUser').value = '';
-        document.getElementById('sshPort').value = '22';
-        document.getElementById('remotePath').value = '';
-        document.getElementById('sshPassword').value = '';
-        document.getElementById('sshFields').style.display = 'none';
-        await loadProjects();
-        showToast(`Project "${name}" created`);
-      } catch (e) { showToast(e.message, true); }
+      projectData[name] = { ...p, running: true };
+      renderPanel();
+      refreshStatusBadge();
     }
+    hideOverlay(name);
+    iframe.src = '/terminal/' + name + '/';
+  }
 
-    async function loadStats() {
+  function showOverlay(name, msg) {
+    let ov = document.getElementById('ov-' + name);
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'ov-' + name;
+      ov.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--text3);font-size:13px;font-family:var(--mono);z-index:5;';
+      const panel = document.getElementById('wp-' + name);
+      if (panel) panel.appendChild(ov);
+    }
+    ov.textContent = msg;
+    ov.style.display = 'flex';
+  }
+  function hideOverlay(name) {
+    const ov = document.getElementById('ov-' + name);
+    if (ov) ov.style.display = 'none';
+  }
+
+  // ── Status polling ────────────────────────────────
+  async function pollStatus() {
+    for (const name of Object.keys(projectData)) {
       try {
-        const s = await api.system.stats();
-        document.getElementById('statsBar').textContent =
-          `CPU ${s.cpu_percent.toFixed(0)}%  RAM ${(s.ram.used/1e9).toFixed(1)}/${(s.ram.total/1e9).toFixed(1)}GB  Disk ${(s.disk.used/1e9).toFixed(0)}/${(s.disk.total/1e9).toFixed(0)}GB`;
+        const s = await api.projects.status(name);
+        projectData[name] = { ...projectData[name], running: !!s.running };
       } catch (_) {}
     }
+    renderPanel();
+    if (activeProject) refreshStatusBadge();
+  }
 
-    loadProjects();
-    loadStats();
-    setInterval(loadProjects, 10000);
-    setInterval(loadStats, 5000);
-  </script>
+  async function refreshStatusBadge() {
+    if (!activeProject) return;
+    try {
+      const p = await api.projects.status(activeProject);
+      const isRunning = !!p.running;
+      const cls = isRunning ? 'green' : 'gray';
+      const label = isRunning ? 'running' : 'stopped';
+      document.getElementById('topbarStatus').innerHTML =
+        `<span class="badge badge-${cls}"><span class="dot dot-${cls}"></span>${label}</span>`;
+    } catch (_) {}
+  }
+
+  // ── Context menu ──────────────────────────────────
+  function showCtxMenu(e, name) {
+    e.preventDefault();
+    ctxProject = name;
+    const p = projectData[name];
+    document.getElementById('ctxStart').style.display = p?.running ? 'none' : 'block';
+    document.getElementById('ctxStop').style.display = p?.running ? 'block' : 'none';
+    const menu = document.getElementById('ctxMenu');
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    menu.style.display = 'block';
+    requestAnimationFrame(() => {
+      const r = menu.getBoundingClientRect();
+      if (r.right > window.innerWidth) menu.style.left = (e.clientX - r.width) + 'px';
+      if (r.bottom > window.innerHeight) menu.style.top = (e.clientY - r.height) + 'px';
+    });
+  }
+
+  function hideCtxMenu() { document.getElementById('ctxMenu').style.display = 'none'; ctxProject = null; }
+  document.addEventListener('click', hideCtxMenu);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu(); });
+
+  document.getElementById('ctxStart').addEventListener('click', async () => {
+    const name = ctxProject; hideCtxMenu();
+    try { await api.projects.start(name); await loadProjects(); showToast('Started ' + name); }
+    catch (e) { showToast(e.message, true); }
+  });
+  document.getElementById('ctxStop').addEventListener('click', async () => {
+    const name = ctxProject; hideCtxMenu();
+    try { await api.projects.stop(name); await loadProjects(); showToast('Stopped ' + name); }
+    catch (e) { showToast(e.message, true); }
+  });
+  document.getElementById('ctxEdit').addEventListener('click', () => {
+    const name = ctxProject; hideCtxMenu(); openEditModal(name);
+  });
+  document.getElementById('ctxDelete').addEventListener('click', async () => {
+    const name = ctxProject; hideCtxMenu();
+    if (!confirm('Delete "' + name + '"?')) return;
+    try {
+      await api.projects.delete(name);
+      document.getElementById('wp-' + name)?.remove();
+      delete projectData[name];
+      if (activeProject === name) {
+        activeProject = null;
+        document.getElementById('mainTopbar').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'flex';
+        document.getElementById('filesPanel').classList.add('hidden');
+      }
+      await loadProjects();
+      showToast('Deleted ' + name);
+    } catch (e) { showToast(e.message, true); }
+  });
+
+  // ── Add project ───────────────────────────────────
+  function openAddModal() {
+    document.getElementById('addModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('newName').focus(), 50);
+  }
+  function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
+  function toggleSSHFields() {
+    document.getElementById('sshFields').style.display =
+      document.getElementById('newType').value === 'ssh' ? 'block' : 'none';
+  }
+  async function createProject() {
+    const name = document.getElementById('newName').value.trim();
+    const type = document.getElementById('newType').value;
+    if (!name) return showToast('Name is required', true);
+    const data = { name, type };
+    if (type === 'ssh') {
+      data.ssh_host = document.getElementById('sshHost').value.trim();
+      data.ssh_user = document.getElementById('sshUser').value.trim();
+      data.ssh_port = parseInt(document.getElementById('sshPort').value) || 22;
+      data.remote_path = document.getElementById('remotePath').value.trim();
+      data.ssh_password = document.getElementById('sshPassword').value || null;
+    }
+    try {
+      await api.projects.create(data);
+      closeAddModal();
+      ['newName','sshHost','sshUser','sshPassword','remotePath'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('sshPort').value = '22';
+      document.getElementById('newType').value = 'local';
+      document.getElementById('sshFields').style.display = 'none';
+      await loadProjects();
+      activateProject(name);
+      showToast('Project "' + name + '" created');
+    } catch (e) { showToast(e.message, true); }
+  }
+
+  // ── Edit project ──────────────────────────────────
+  function openEditModal(name) {
+    const p = projectData[name];
+    const isSSH = p?.type === 'ssh';
+    document.getElementById('editLocalMsg').style.display = isSSH ? 'none' : 'block';
+    document.getElementById('editSSHFields').style.display = isSSH ? 'block' : 'none';
+    document.getElementById('editSaveBtn').style.display = isSSH ? '' : 'none';
+    if (isSSH) {
+      document.getElementById('editHost').value = p.ssh_host || '';
+      document.getElementById('editUser').value = p.ssh_user || '';
+      document.getElementById('editPort').value = p.ssh_port || 22;
+      document.getElementById('editRemote').value = p.remote_path || '';
+      document.getElementById('editPass').value = '';
+    }
+    document.getElementById('editModal').classList.remove('hidden');
+    document.getElementById('editModal').dataset.name = name;
+  }
+  function closeEditModal() { document.getElementById('editModal').classList.add('hidden'); }
+  async function saveEdit() {
+    const name = document.getElementById('editModal').dataset.name;
+    const data = {
+      ssh_host: document.getElementById('editHost').value.trim(),
+      ssh_user: document.getElementById('editUser').value.trim(),
+      ssh_port: parseInt(document.getElementById('editPort').value) || 22,
+      remote_path: document.getElementById('editRemote').value.trim(),
+    };
+    const pass = document.getElementById('editPass').value;
+    if (pass) data.ssh_password = pass;
+    try {
+      await api.put('/api/projects/' + encodeURIComponent(name), data);
+      await loadProjects();
+      closeEditModal();
+      showToast('Saved');
+    } catch (e) { showToast(e.message, true); }
+  }
+
+  init();
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+  }
+</script>
 </body>
 </html>
