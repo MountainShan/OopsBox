@@ -57,6 +57,23 @@ function initToolbar(projectName, containerId, projectMeta) {
     toggleBtn.onclick = () => { expanded = !expanded; render(); };
     container.appendChild(toggleBtn);
 
+    // Copy buffer button
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn-icon';
+    copyBtn.title = 'Copy tmux buffer to clipboard\n(enter copy mode with ^[, select text, press Enter, then tap this)';
+    copyBtn.textContent = '⎘';
+    copyBtn.style.cssText = 'font-family:var(--mono);font-size:13px;min-width:32px;margin-left:4px;';
+    copyBtn.onclick = async () => {
+      try {
+        const { text } = await api.projects.clipboard(projectName);
+        await navigator.clipboard.writeText(text);
+        showToast('Copied to clipboard');
+      } catch (e) {
+        showToast('Nothing in buffer (use ^[ to enter copy mode, select, Enter)', true);
+      }
+    };
+    container.appendChild(copyBtn);
+
     // Spacer
     const spacer = document.createElement('div');
     spacer.style.cssText = 'flex:1;';
