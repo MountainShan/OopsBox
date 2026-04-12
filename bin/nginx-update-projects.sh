@@ -4,6 +4,7 @@ set -euo pipefail
 
 CONF_FILE="/etc/nginx/conf.d/oopsbox-projects.conf"
 TMP_FILE="$(mktemp)"
+trap 'rm -f "$TMP_FILE"' EXIT
 
 # For each running project, add a location block
 for PID_DIR in /tmp/oopsbox-*/; do
@@ -16,6 +17,8 @@ for PID_DIR in /tmp/oopsbox-*/; do
   cat >> "$TMP_FILE" <<EOF
 
 location /terminal/${NAME}/ {
+    auth_request /api/auth/verify;
+    error_page 401 = @login_redirect;
     proxy_pass http://127.0.0.1:${PORT}/terminal/${NAME}/;
     proxy_http_version 1.1;
     proxy_set_header Upgrade \$http_upgrade;

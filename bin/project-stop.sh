@@ -8,8 +8,8 @@ echo "[stop] $NAME"
 
 if [ -f "$PID_DIR/ttyd.pid" ]; then
   PID=$(cat "$PID_DIR/ttyd.pid")
-  # Validate PID belongs to ttyd before killing
-  if kill -0 "$PID" 2>/dev/null && grep -q ttyd /proc/"$PID"/cmdline 2>/dev/null; then
+  # Validate numeric PID and that it belongs to ttyd before killing
+  if [[ "$PID" =~ ^[0-9]+$ ]] && kill -0 "$PID" 2>/dev/null && grep -q ttyd /proc/"$PID"/cmdline 2>/dev/null; then
     kill "$PID" 2>/dev/null || true
   fi
   rm -f "$PID_DIR/ttyd.pid"

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+[[ $# -ge 1 ]] || { echo "Usage: $(basename "$0") <project-name> [type]" >&2; exit 1; }
 NAME="$1"
 TYPE="${2:-local}"
 
