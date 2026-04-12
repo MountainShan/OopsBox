@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+[[ $# -ge 1 ]] || { echo "Usage: $(basename "$0") <project-name>" >&2; exit 1; }
 NAME="$1"
 WORKDIR="${HOME}/projects/${NAME}"
 PID_DIR="/tmp/oopsbox-${NAME}"
@@ -41,4 +42,4 @@ echo $! > "$PID_DIR/ttyd.pid"
 # Update nginx config and reload
 "$HOME/bin/nginx-update-projects.sh"
 
-echo "[start] $NAME — done (ttyd pid: $(cat $PID_DIR/ttyd.pid))"
+echo "[start] $NAME — done (ttyd pid: $(cat "$PID_DIR/ttyd.pid"))"

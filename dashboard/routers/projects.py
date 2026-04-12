@@ -1,5 +1,5 @@
 # dashboard/routers/projects.py
-import json, os, re, subprocess, shutil
+import json, os, re, subprocess, shutil, signal
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Literal
@@ -38,8 +38,15 @@ def _save_registry(data: dict):
 
 
 def _is_running(name: str) -> bool:
-    pid_dir = Path(f"/tmp/oopsbox-{name}")
-    return (pid_dir / "ttyd.pid").exists()
+    pid_file = Path(f"/tmp/oopsbox-{name}") / "ttyd.pid"
+    if not pid_file.exists():
+        return False
+    try:
+        pid = int(pid_file.read_text().strip())
+        os.kill(pid, 0)
+        return True
+    except (ValueError, ProcessLookupError, PermissionError):
+        return False
 
 
 def _runtime_info(name: str) -> dict:
@@ -140,7 +147,9 @@ def delete_project(name: str):
     if _is_running(name):
         _stop_project(name)
 
-    project_dir = Path(registry[name]["path"])
+    project_dir = Path(registry[name]["path"]).resolve()
+    if not project_dir.is_relative_to(_projects_root.resolve()):
+        raise HTTPException(status_code=500, detail="Project path is outside projects root")
     if project_dir.exists():
         shutil.rmtree(project_dir)
 
@@ -192,6 +201,9 @@ class SendKeysRequest(BaseModel):
 
 @router.post("/{name}/send-keys")
 def send_keys(name: str, req: SendKeysRequest):
+    registry = _load_registry()
+    if name not in registry:
+        raise HTTPException(status_code=404, detail="Project not found")
     result = subprocess.run(
         ["tmux", "send-keys", "-t", f"agents:{name}", req.keys, ""],
         capture_output=True, text=True
@@ -207,6 +219,9 @@ class SendTextRequest(BaseModel):
 
 @router.post("/{name}/send-text")
 def send_text(name: str, req: SendTextRequest):
+    registry = _load_registry()
+    if name not in registry:
+        raise HTTPException(status_code=404, detail="Project not found")
     result = subprocess.run(
         ["tmux", "send-keys", "-t", f"agents:{name}", req.text, "Enter"],
         capture_output=True, text=True

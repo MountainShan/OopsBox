@@ -11,7 +11,7 @@ WORKDIR="${HOME}/projects/${NAME}"
 [ -d "$WORKDIR" ] && { echo "ERROR: project '$NAME' already exists" >&2; exit 1; }
 
 mkdir -p "$WORKDIR"
-cd "$WORKDIR"
+cd "$WORKDIR" || { echo "ERROR: cannot cd to $WORKDIR" >&2; exit 1; }
 git init -q
 
 cat > CLAUDE.md <<EOF

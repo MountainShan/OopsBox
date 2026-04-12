@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
+[[ $# -ge 1 ]] || { echo "Usage: $(basename "$0") <project-name>" >&2; exit 1; }
 NAME="$1"
+
+[[ "$NAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]*$ ]] || {
+  echo "ERROR: invalid name '$NAME'" >&2; exit 1
+}
+
 WORKDIR="${HOME}/projects/${NAME}"
 REGISTRY="${HOME}/projects/.project-registry.json"
 

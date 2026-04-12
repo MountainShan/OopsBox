@@ -3,8 +3,9 @@
 set -euo pipefail
 
 CONF_FILE="/etc/nginx/conf.d/oopsbox-projects.conf"
-: > "$CONF_FILE"
+TMP_FILE="$(mktemp)"
 
+# For each running project, add a location block
 for PID_DIR in /tmp/oopsbox-*/; do
   [ -d "$PID_DIR" ] || continue
   NAME=$(basename "$PID_DIR" | sed 's/^oopsbox-//')
@@ -12,7 +13,7 @@ for PID_DIR in /tmp/oopsbox-*/; do
   [ -f "$PORT_FILE" ] || continue
   PORT=$(cat "$PORT_FILE")
 
-  cat >> "$CONF_FILE" <<EOF
+  cat >> "$TMP_FILE" <<EOF
 
 location /terminal/${NAME}/ {
     proxy_pass http://127.0.0.1:${PORT}/terminal/${NAME}/;
@@ -26,4 +27,5 @@ location /terminal/${NAME}/ {
 EOF
 done
 
+mv "$TMP_FILE" "$CONF_FILE"
 nginx -s reload 2>/dev/null || true
