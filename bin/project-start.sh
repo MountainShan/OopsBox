@@ -24,9 +24,11 @@ if ! tmux has-session -t agents 2>/dev/null; then
   tmux new-session -d -s agents -n system
 fi
 
-# Create project window in tmux
+# Create project window in tmux and launch claude loop
 if ! tmux list-windows -t agents -F '#W' 2>/dev/null | grep -q "^${NAME}$"; then
   tmux new-window -t agents -n "$NAME" -c "$WORKDIR"
+  tmux send-keys -t "agents:${NAME}" \
+    "exec $HOME/bin/claude-loop.sh '${NAME}' '${WORKDIR}'" Enter
 fi
 
 # Start ttyd for this project
