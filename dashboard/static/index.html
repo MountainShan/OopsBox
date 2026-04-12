@@ -398,6 +398,16 @@
       item.appendChild(label);
       item.addEventListener('click', () => activateProject(name));
       item.addEventListener('contextmenu', e => showCtxMenu(e, name));
+      let _lpTimer = null;
+      item.addEventListener('touchstart', e => {
+        _lpTimer = setTimeout(() => {
+          _lpTimer = null;
+          const t = e.touches[0];
+          showCtxMenu({ preventDefault: () => {}, clientX: t.clientX, clientY: t.clientY }, name);
+        }, 500);
+      }, { passive: true });
+      item.addEventListener('touchend', () => { if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; } });
+      item.addEventListener('touchmove', () => { if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; } });
       el.appendChild(item);
     });
   }
