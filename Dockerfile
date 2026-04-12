@@ -22,7 +22,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Non-root user (uid 1000 matches typical host user; home at /oopsbox)
-RUN useradd -u 1000 -d /oopsbox -s /bin/bash oopsbox && \
+# Ubuntu 24.04 base image ships an 'ubuntu' user at uid 1000 — remove it first
+RUN userdel -r ubuntu 2>/dev/null || true && \
+    useradd -u 1000 -d /oopsbox -s /bin/bash oopsbox && \
     echo 'oopsbox ALL=(root) NOPASSWD: /usr/sbin/nginx -s reload' \
       > /etc/sudoers.d/oopsbox && \
     chmod 440 /etc/sudoers.d/oopsbox
