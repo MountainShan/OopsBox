@@ -1,19 +1,15 @@
-# >_ OopsBox
+# >_ OopsBox v2
 
 [English](#english) | [繁體中文](#繁體中文)
 
 <p align="center">
-  <img src="docs/screenshots/icon.png" width="120" alt="OopsBox icon">
+  <em>I just wanted to code on iPad. Somehow I ended up building a platform. Then I deleted half of it and called it v2.</em><br>
+  <em>我只是想在 iPad 上寫 code。結果做了個平台。然後把一半功能砍掉，說這叫 v2。</em>
 </p>
 
 <p align="center">
-  <em>I just wanted to code on iPad. Now there's a whole platform. oops.</em><br>
-  <em>我只是想在 iPad 上寫 code。然後它就失控了。oops。</em>
-</p>
-
-<p align="center">
-  <strong>⚠️ Permanently under construction. I keep saying "just one more feature" and it keeps being a lie. Nothing is stable, everything is on fire, and somehow it still works. Use at your own risk — I do, and I'm not sure that's a recommendation.</strong><br><br>
-  <strong>⚠️ 永久施工中。我一直說「就再加一個功能」然後每次都是謊話。沒有東西是穩定的，到處都在著火，但它不知怎麼還能跑。使用風險自負 — 我自己每天都在用，但我不確定這算不算推薦。</strong>
+  <strong>⚠️ This is v2. We removed the AI chat. We removed Telegram. We removed the code editor. We removed s6-overlay. We removed the install script. We called it "simplification." We're choosing to be proud of this.</strong><br><br>
+  <strong>⚠️ 這是 v2。我們砍掉了 AI 對話。砍掉了 Telegram。砍掉了 code editor。砍掉了 s6-overlay。砍掉了安裝腳本。我們稱之為「簡化」。我們選擇為此感到驕傲。</strong>
 </p>
 
 ---
@@ -22,135 +18,111 @@
 
 I just wanted to code on iPad.
 
-Somehow I ended up building a whole web-based dev platform. It runs AI coding agents, manages SSH connections, edits files, monitors your server — all from a browser. On an iPad. On a bus. Sometimes from Telegram because I have no self-control.
+Somehow that turned into a web-based dev platform with AI agent chat, Telegram bots, a code editor, encrypted token storage, and s6-overlay managing 14 processes. It was impressive. It was also held together with shell scripts and hope.
 
-It wasn't planned. It just... happened. And it refuses to stop growing. I've tried to stop adding features. I failed. Multiple times. The Telegram integration was supposed to be a joke.
+So I rewrote it. I deleted everything I'd been "meaning to clean up." I removed features I was "definitely going to use." I replaced s6-overlay with supervisord because the only thing scarier than managing your own process supervisor is pretending you know how s6 works.
+
+This is OopsBox v2. It does less. It works better. I'm coping.
 
 ### what even is this
 
-A web dashboard that lets you run AI coding agents (Claude Code, Codex, whatever) on a remote server and control everything from your iPad, phone, or any browser. You get a terminal with actual control key buttons (because try typing Ctrl+C on an iPad keyboard, I dare you), a file manager, an AI agent chat with interactive prompts, a code editor that doesn't choke on large files, Telegram bot integration, encrypted token storage, and system monitoring — because once you start adding features, the project develops a mind of its own.
+A Docker-based web dashboard for running coding agents (Claude Code, Codex, etc.) on a remote server and controlling everything from a browser — iPad, phone, laptop, whatever. You get a terminal with actual control key buttons (because try pressing Ctrl+C on an iPad, I dare you), a file manager, project management for local and SSH remotes, and system stats because watching CPU go brrr while your agent rewrites your codebase is the modern campfire experience.
 
-Think of it as a side project that ate my weekends and became sentient. It now has crash recovery, auto-restart loops, and session persistence. It's harder to kill than I'd like to admit.
+The AI chat is gone. The Telegram bot is gone. The code editor is gone. What remains is what I actually use every day and maintain without crying. Progress.
 
-### screenshots
+### what's left (the feature list that survived the purge)
 
-| AI Agent Chat | File Manager |
-|:---:|:---:|
-| ![AI Agent](docs/screenshots/Agent.png) | ![File Manager](docs/screenshots/file_manager.png) |
-
-| Terminal | Channel Setup |
-|:---:|:---:|
-| ![Terminal](docs/screenshots/terminal.png) | ![Channel Setup](docs/screenshots/Channel_setup.png) |
-
-| Create Project (Local) | Create Project (SSH Remote) |
-|:---:|:---:|
-| ![Local](docs/screenshots/local_create.png) | ![SSH Remote](docs/screenshots/ssh.png) |
-
-| Mobile Dashboard | Mobile AI Agent |
-|:---:|:---:|
-| <img src="docs/screenshots/mobile_dashboard.png" width="300"> | <img src="docs/screenshots/mobile_agent.png" width="300"> |
-
-| Login |
-|:---:|
-| ![Login](docs/screenshots/login.png) |
-
-### the accidental feature list
-
-- **AI Agent chat** — talk to your coding agent without fighting with terminal IME on iPad. auto-restart loop keeps it running even when you accidentally Ctrl+C it. interactive yes/no and checkbox prompts rendered as clickable buttons — because parsing tmux output with your eyeballs at 2am is a skill I no longer want. session persistence via `--resume` so your conversation survives reboots, crashes, and your questionable life choices.
-- **Web terminal** — ttyd + tmux, with actual ^C, ^D, ^Z, ^L, Tab, and arrow buttons in the toolbar. because Apple thinks iPad users don't need a proper terminal. per-project sessions that auto-respawn when you inevitably Ctrl+D yourself out. the terminal is now harder to kill than a cockroach.
-- **Workspace** — file manager + terminal in tab view. the file manager finally grew up and learned how to be a real file manager. right-click context menus, multi-select with checkboxes (Ctrl+click, Shift+click, the whole civilized experience), drag-and-drop upload with progress bars, rename, delete, new folder, copy/cut/paste, column sorting, search — basically everything FileZilla does minus the FTP part and plus the existential dread of building it myself. single-click selects, double-click opens, because I finally stopped pretending that "click to open" was acceptable UX. oh and there's a batch action bar now. select 47 files and delete them all at once. power.
-- **Code editor** — syntax highlighting, Markdown preview with Mermaid, file upload/download, image preview. sliding window for large files so your browser doesn't file a restraining order. the whole thing got refactored from a 760-line single-file nightmare into proper ES modules because even I have standards (low ones, but they exist).
-- **Skills panel** — the AI Agent page now has a ⚡ Skills button that shows all installed Claude Code plugins and skills. filter them, see which ones you can invoke vs which ones the AI triggers automatically. click one to insert it into the input box. I added this because I kept forgetting what skills I installed, which is the software equivalent of buying groceries you already have at home.
-- **Telegram Channels** — connect Claude Code to Telegram via `--channels`. your AI agent becomes a Telegram bot. tokens encrypted with AES-256-CBC because storing API keys in plaintext is how you end up on Hacker News for the wrong reasons. channels auto-start on boot because I got tired of manually starting them every time the server decided to take a nap.
-- **Docker deployment** — `docker run -p 8080:80 oopsbox` and you're done. the whole platform in one container, managed by s6-overlay because apparently I now have opinions about process supervisors. pass your API key via `-e ANTHROPIC_API_KEY`, set a password with `-e OOPSBOX_PASSWORD`, mount some volumes for persistence, and pretend you planned this all along.
-- **SSH remote projects** — your agent runs here, executes commands over there. editor uses SFTP. it works better than it should, which frankly makes me nervous.
-- **System monitor** — CPU, RAM, swap, disk — because watching CPU go brrr while your AI agent rewrites your codebase is the modern equivalent of watching a campfire.
-- **Crash recovery** — dashboard auto-restarts via systemd (`Restart=always`, because `on-failure` was too optimistic). terminals respawn on exit. Claude agents auto-resume sessions. this thing is basically a zombie — you can kill it but it keeps coming back.
-- **Login auth** — hashed password storage, session tokens, HTTP-only cookies. the bare minimum to keep random people from using your AI agents to mine crypto or whatever.
-- **Idle auto-shutdown** — projects idle for 2 hours get stopped automatically. channels are exempt because Telegram bots don't believe in sleep.
-- **PWA support** — add to home screen for an app-like experience. now with a proper icon instead of a Minecraft chest. we're growing up.
-- **Responsive** — works on phone, iPad, desktop. clamp() everywhere. the CSS is a war crime but it renders correctly and I will not apologize.
+- **Web terminal** — ttyd + tmux, one per project. Toolbar has ^C, ^D, ^Z, ^L, Tab, arrow keys, and an expandable extra-keys panel — because Apple decided iPad users don't need a real keyboard and I've decided to spite them. Per-project sessions backed by tmux windows. Starts when you start the project. Stops when you stop it. Does what it says.
+- **File manager** — browse directories, upload files, download files, rename things, delete things, create folders. Double-click to descend. "Up" button to go up. Breadcrumb navigation. File type icons because life is too short for 📄 everything. No drag-and-drop, no context menus, no right-click — we are in a season of restraint.
+- **Project management** — create local projects (git init, CLAUDE.md, registry entry — done) or SSH remote projects (runs here, executes there via paramiko, works better than it should, makes me nervous). Start to launch ttyd + tmux. Stop to clean up. Delete to nuke the registry (files stay — not our problem).
+- **System stats** — CPU, RAM, disk in the nav bar. Refreshes every 5 seconds. Exists so you can watch your server suffer in real time while Claude rewrites things.
+- **Login auth** — PBKDF2-SHA256 with 600,000 iterations, session cookies, nginx `auth_request`. The minimum viable security layer. Random password generated on first boot if you don't set one, printed to docker logs, gone from logs on restart, stored hashed forever. Very normal.
+- **Docker-only** — no install script, no systemd, no bare metal option. One container. supervisord manages nginx + uvicorn. Mount your volumes, pass your env vars, pretend you planned this.
 
 ### quick start
-
-You have two options. pick your poison.
-
-#### Option A: Docker (recommended, because why install things when containers exist)
 
 ```bash
 docker run -d \
   --name oopsbox \
   -p 8080:80 \
   -e OOPSBOX_PASSWORD=yourpassword \
-  -e ANTHROPIC_API_KEY=sk-ant-... \
   -e GIT_NAME="Your Name" \
   -e GIT_EMAIL="you@example.com" \
   -v oopsbox-projects:/oopsbox/projects \
   -v oopsbox-config:/oopsbox/.config/oopsbox \
   -v oopsbox-claude:/oopsbox/.claude \
-  -v oopsbox-channels:/oopsbox/channels \
   oopsbox
 ```
 
-That's it. Open `http://localhost:8080/` and oops, you have a platform.
+Open `http://localhost:8080`. Log in. You now have a platform. Oops.
 
-If you skip `OOPSBOX_PASSWORD`, it generates a random one and prints it to the container logs — check `docker logs oopsbox` to find it. This is either a security feature or laziness. Both.
+If you skip `OOPSBOX_PASSWORD`, it auto-generates one and prints it to `docker logs oopsbox`. Once. Check immediately. It's not printed again. I'm not sure if this is a security feature or a "read the docs" tax. Probably both.
 
 | Environment Variable | Required | Description |
 |---|---|---|
 | `OOPSBOX_PASSWORD` | No (auto-generated) | Dashboard login password |
 | `OOPSBOX_USERNAME` | No (default: `admin`) | Dashboard login username |
-| `ANTHROPIC_API_KEY` | No (not needed for Claude Max) | Anthropic API key |
 | `GIT_NAME` | No | Git author name |
 | `GIT_EMAIL` | No | Git author email |
+| `SSL_CERT` | No | Path to SSL cert (inside container) |
+| `SSL_KEY` | No | Path to SSL key (inside container) |
 
 | Volume | Container Path | What it stores |
 |---|---|---|
-| `oopsbox-projects` | `/oopsbox/projects` | Your project files and registries |
+| `oopsbox-projects` | `/oopsbox/projects` | Your project files and registry |
 | `oopsbox-config` | `/oopsbox/.config/oopsbox` | Auth, encryption keys |
 | `oopsbox-claude` | `/oopsbox/.claude` | Claude CLI sessions and settings |
-| `oopsbox-channels` | `/oopsbox/channels` | Telegram channel data |
 
-#### Option B: Bare metal (for people who like to live dangerously)
+Alternatively, mount a `config.yaml` at `/oopsbox/config.yaml`:
 
-```bash
-git clone https://github.com/MountainShan/OopsBox.git
-cd OopsBox
-./install.sh
+```yaml
+auth:
+  username: admin
+  password: yourpassword
+git:
+  name: Your Name
+  email: you@example.com
+ssl:
+  cert: /path/to/cert.pem
+  key: /path/to/key.pem
 ```
 
-The installer sets up credentials, git config, systemd services, nginx, and everything else. It asks you two questions (username/password and git config), installs a bunch of packages, and then pretends it was your idea all along.
+Env vars take priority over config.yaml. Config.yaml takes priority over defaults. Defaults are "admin" and "please set a password."
 
-Then open `http://<your-ip>/` and oops, you have a platform.
-
-##### you'll need
-
-- Ubuntu 24.04 (probably works on other things, haven't tried, prayers optional)
-- Python 3.12+
-- An AI coding agent CLI (Claude Code, Codex, etc.)
-- An API key or subscription for said agent
-
-##### what it installs
+### how it works
 
 ```
-System:  tmux, ttyd, nginx, jq, sshpass, git
-Python:  fastapi, uvicorn, paramiko, python-multipart, aiofiles
+browser → nginx → FastAPI (auth_request on protected routes)
+               → uvicorn (FastAPI routers: auth, projects, files, system)
+               → ttyd per project (proxied at /terminal/<project>/)
+
+all projects share one tmux session ("agents"):
+  agents session
+  ├── project-name window (ttyd attaches here)
+  └── another-project window
+
+supervisord manages:
+  - nginx
+  - uvicorn (port 5000)
+  that's it. two processes. i'm proud of us.
 ```
 
-#### tested on
+nginx handles auth via `auth_request /api/auth/verify` — every request to `/`, `/workspace`, `/terminal/*`, and `/api/*` (except login endpoints) requires a valid session cookie. If you're not logged in, you get redirected to `/login`. This is the security model. It is what it is.
 
-**Server:**
+### project types
+
+**Local** — git repo lives on the server. Start it and you get a tmux window + ttyd terminal pointed at it. Claude Code, tmux, your shell — the holy trinity.
+
+**SSH** — your Docker container connects to a remote server via paramiko. Agent runs locally, executes commands over there. Editor will eventually use SFTP (it's on the list). It works surprisingly well and I remain suspicious of it.
+
+### tested on
 
 | Environment | Status |
 |---|---|
-| Ubuntu 24.04 LTS (x86_64) | ✅ works |
-| Debian 12 | 🤷 probably works |
+| Docker on Ubuntu 24.04 | ✅ works |
+| Docker on Debian 12 | 🤷 probably |
 | Proxmox VM | ✅ works |
-| Bare metal | ✅ works |
-| Docker | ✅ works (finally, it only took forever) |
-| LXC | 🤷 untested |
-
-**Client:**
+| That one machine with the weird routing tables | ✅ works (required one `ip route` command and a brief identity crisis) |
 
 | Device / Browser | Status |
 |---|---|
@@ -159,67 +131,35 @@ Python:  fastapi, uvicorn, paramiko, python-multipart, aiofiles
 | Chrome | ✅ works |
 | Firefox | ✅ works |
 
-### how it works (roughly)
-
-```
-browser → nginx → FastAPI dashboard
-                → ttyd terminals (per project, each backed by tmux)
-                → system terminal
-
-all AI agents share one tmux session ("agents"):
-  agents session
-  ├── system window (system agent via claude-loop.sh)
-  ├── project-name window (per-project agent)
-  └── chan-name window (per-channel agent)
-
-session recovery:
-  claude-loop.sh uses --resume <session-id> to persist conversations
-  sessions resumed by name from ~/.claude/sessions/*.json
-  terminals use tmux remain-on-exit + respawn hooks
-  dashboard uses systemd Restart=always
-  basically everything auto-heals. it's like wolverine but uglier.
-```
-
-The AI Agent tab reads Claude's JSONL session files and renders messages in a chat bubble UI with markdown and syntax highlighting. Interactive prompts (yes/no, numbered choices, checkboxes) become clickable buttons. The Workspace tab has a file manager and terminal you can switch between. Click a file → modal editor opens. Done editing → close it. No tabs, no complexity, no existential crisis.
-
-### project types
-
-**Local** — agent runs on the box, has full access, does its thing.
-
-**SSH** — connects to a remote server. agent stays here, runs commands over SSH. CLAUDE.md tells it how. editor uses SFTP. supports password and key auth. it works better than it should.
-
-### channels (didn't know what to build, seemed useful, so I built it)
-
-I didn't really know what to build next. Then I thought — what if my AI agent could talk to me on Telegram? Seemed useful. So I built it. Now your Claude Code instance becomes a Telegram bot. You chat with it on Telegram, it codes on your server. From the dashboard, click `+ Channel`, paste your BotFather token (stored encrypted, you're welcome), and start it. Claude auto-configures the Telegram plugin, you pair with a code, and somehow you're now coding from Telegram on a bus. I'm not sure if this is innovation or a cry for help.
-
-The channel runs with `--dangerously-skip-permissions` because there's no UI to click "allow" on Telegram. Yes, it's called "dangerously" for a reason. No, I don't want to talk about it. Channels auto-start on boot and are immune to idle shutdown because bots don't need work-life balance.
-
 ### FAQ
 
-**Q: Is this production ready?**
-A: this question implies I had a plan. I did not.
+**Q: Where did the AI chat go?**  
+A: We removed it. It was beautiful. It had auto-restart loops and interactive prompt buttons and session persistence via `--resume`. It's gone now. We don't talk about it.
 
-**Q: Should I use this?**
-A: I use it daily, which is either a recommendation or a warning depending on your risk tolerance.
+**Q: Where did Telegram go?**  
+A: Same place. We're not ready to discuss this.
 
-**Q: Why did you build this?**
-A: I wanted to type `ls` on my iPad without wanting to throw it across the room. Somehow that turned into encrypted Telegram bots with AES-256-CBC and auto-healing tmux sessions.
+**Q: Where did the code editor go?**  
+A: We recommend using Claude Code to edit your files. This is a reasonable position and not at all a justification for removing 800 lines of editor code.
 
-**Q: Why does the UI say "somehow alive"?**
-A: because between the auto-restarts, crash recovery, and session persistence, I'm genuinely surprised it's still running. every day it boots is a small miracle.
+**Q: Is this production ready?**  
+A: This question implies I had a plan. The plan was "I wanted to code on iPad." Everything else was an accident.
 
-**Q: What's the icon?**
-A: a terminal prompt on an orange square. we upgraded from the Minecraft chest. character development.
+**Q: Should I use this?**  
+A: I use it daily. Whether that's a recommendation or a warning depends on your relationship with risk.
 
-**Q: Can I code from Telegram now?**
-A: yes. I'm sorry. I'm so sorry.
+**Q: Why v2 and not just a fix?**  
+A: v1 had s6-overlay, 14 supervised processes, a Telegram bot, AES-256-CBC encrypted tokens, a code editor with Mermaid support, and a Skills panel. It was, frankly, a lot. v2 has supervisord and two processes. This is called growth.
 
-**Q: What's next?**
-A: I don't know and I'm scared to find out. last time I said "just one more feature" I ended up with encrypted token storage and systemd crash recovery.
+**Q: Will you add back the features you removed?**  
+A: No. Absolutely not. Don't tempt me. I have a problem.
+
+**Q: What's next?**  
+A: I don't know. Last time I answered this question I ended up with encrypted Telegram bots. I'm taking a moment.
 
 ### license
 
-MIT — do whatever you want with it. if it breaks, that's on you. I just wanted to code on iPad, and now I have a platform with auto-healing terminals and encrypted Telegram bots. send help.
+MIT — do whatever you want. If it breaks, that's between you and Docker. I just wanted to type `ls` on an iPad without wanting to throw it, and somehow I've built and then rebuilt an entire platform twice. Send help. Or don't. I'll probably be fine. I'll add a feature.
 
 ---
 
@@ -227,135 +167,111 @@ MIT — do whatever you want with it. if it breaks, that's on you. I just wanted
 
 我只是想在 iPad 上寫 code。
 
-結果意外地做出了一整個網頁開發平台。可以跑 AI coding agent、管 SSH 連線、編輯檔案、監控伺服器 — 全部在瀏覽器裡搞定。有時候還用 Telegram 寫 code，因為我顯然沒有自制力。
+結果做了個有 AI 對話、Telegram bot、code editor、加密 token 儲存、s6-overlay 管 14 個 process 的網頁開發平台。很壯觀。也是用 shell script 和信念撐著的。
 
-這不在計劃中。就是... 莫名其妙變成這樣了。我試過停止加功能。我失敗了。很多次。Telegram 整合本來只是開玩笑的。
+所以我重寫了它。把「遲早要清的技術債」全刪了。把「之後一定會用到的功能」都砍了。把 s6-overlay 換成 supervisord，因為比自己管 process supervisor 更可怕的只有假裝你懂 s6 在幹嘛。
+
+這是 OopsBox v2。功能變少了。跑得更穩了。我在自我調適。
 
 ### 這到底是什麼
 
-一個網頁 dashboard，讓你在遠端 server 上跑 AI coding agent（Claude Code、Codex 之類的），然後用 iPad、手機或任何瀏覽器操控它。Terminal 有實體控制鍵按鈕（因為你在 iPad 鍵盤上試試按 Ctrl+C 看看），檔案管理器、AI agent 對話介面有互動按鈕、code editor 大檔案不會卡、Telegram bot 整合、加密 token 儲存，還有系統監控 — 因為一旦開始加功能，專案就會自己長出腦子。
+一個 Docker 架設的網頁 dashboard，讓你在遠端 server 上跑 coding agent（Claude Code、Codex 等），然後從瀏覽器控制一切 — iPad、手機、電腦，都行。你會得到一個有實體控制鍵按鈕的 terminal（因為在 iPad 上按 Ctrl+C 是一種折磨，而我選擇反抗），一個檔案管理器，本機和 SSH 遠端的專案管理，還有系統監控，因為看 AI agent 重寫你的 codebase 時 CPU 跑起來是現代版的看營火。
 
-就當作一個吃掉我所有週末的副專案，然後它變成了有自我意識的東西。它現在有 crash recovery、自動重啟、session 持久化。比我願意承認的還難殺死。
+AI 對話不見了。Telegram bot 不見了。Code editor 不見了。剩下的是我每天真的在用、而且維護時不會哭的東西。這叫進步。
 
-### 截圖
+### 倖存下來的功能
 
-| AI Agent 對話 | 檔案管理器 |
-|:---:|:---:|
-| ![AI Agent](docs/screenshots/Agent.png) | ![File Manager](docs/screenshots/file_manager.png) |
-
-| Terminal | Channel 設定 |
-|:---:|:---:|
-| ![Terminal](docs/screenshots/terminal.png) | ![Channel Setup](docs/screenshots/Channel_setup.png) |
-
-| 建立專案（Local） | 建立專案（SSH Remote） |
-|:---:|:---:|
-| ![Local](docs/screenshots/local_create.png) | ![SSH Remote](docs/screenshots/ssh.png) |
-
-| 手機版 Dashboard | 手機版 AI Agent |
-|:---:|:---:|
-| <img src="docs/screenshots/mobile_dashboard.png" width="300"> | <img src="docs/screenshots/mobile_agent.png" width="300"> |
-
-| 登入 |
-|:---:|
-| ![Login](docs/screenshots/login.png) |
-
-### 意外產生的功能
-
-- **AI Agent 對話** — 在 iPad 上跟你的 coding agent 講話，不用跟 terminal 的輸入法打架。自動重啟循環讓它一直跑，就算你不小心 Ctrl+C 也沒關係。互動式 yes/no 和 checkbox 直接渲染成可點擊的按鈕 — 因為凌晨兩點用肉眼在 tmux 裡解析文字是我不再想擁有的技能。Session 用 `--resume` 保持連續性，你的對話能撐過重開機、crash、以及你那些令人質疑的人生決定。
-- **Web terminal** — ttyd + tmux，toolbar 上有 ^C、^D、^Z、^L、Tab 和方向鍵按鈕。因為 Apple 覺得 iPad 使用者不需要真正的 terminal。每個專案獨立 session，shell 退出會自動重生。這個 terminal 現在比蟑螂還難殺。
-- **Workspace** — 檔案管理器 + terminal 用 tab 切換。檔案管理器終於長大了，學會當一個真正的檔案管理器。右鍵選單、checkbox 多選（Ctrl+點、Shift+點，整套文明人的體驗）、拖放上傳帶進度條、重新命名、刪除、新資料夾、複製/剪下/貼上、欄位排序、搜尋 — 基本上 FileZilla 能做的都做了，少了 FTP 多了自己從零造輪子的存在危機。單擊選取、雙擊開啟，因為我終於不再假裝「點一下就開啟」是可接受的 UX 了。對了現在還有批次操作列，選 47 個檔案一次全刪。權力的感覺。
-- **Code editor** — 語法高亮、Markdown 預覽支援 Mermaid、檔案上傳下載、圖片預覽。大檔案用滑動視窗，讓你的瀏覽器不會申請保護令。整個東西從 760 行的單檔噩夢重構成正經的 ES modules，因為就連我也有標準（很低，但它存在）。
-- **Skills 面板** — AI Agent 頁面現在有一個 ⚡ Skills 按鈕，顯示所有已安裝的 Claude Code 插件和技能。可以過濾、看哪些是你能手動呼叫的、哪些是 AI 自動觸發的。點一下就插入輸入框。我加這個功能是因為我一直忘記自己裝了什麼 skill，這在軟體世界裡等同於買了家裡已經有的菜。
-- **Telegram Channels** — 透過 `--channels` 把 Claude Code 接上 Telegram。Token 用 AES-256-CBC 加密，因為明碼存 API key 就是你上 Hacker News 頭版但原因是壞的那種。Channel 開機自動啟動，因為我受夠了每次 server 打盹就要手動開。
-- **Docker 部署** — `docker run -p 8080:80 oopsbox` 搞定。整個平台塞在一個 container 裡，用 s6-overlay 管理，因為我現在居然對 process supervisor 有意見了。用 `-e ANTHROPIC_API_KEY` 傳 API key，用 `-e OOPSBOX_PASSWORD` 設密碼，掛幾個 volume 做持久化，然後假裝這一切都是計劃好的。
-- **SSH 遠端專案** — agent 在這台跑，指令在那台執行。editor 用 SFTP。支援密碼和金鑰認證。它運作得比它應該有的還好，這讓我很緊張。
-- **系統監控** — CPU、RAM、swap、磁碟 — 因為看 AI agent 重寫你的 codebase 時 CPU 跑起來，是現代版的看營火。
-- **Crash recovery** — Dashboard 用 systemd 自動重啟（`Restart=always`，因為 `on-failure` 太樂觀了）。Terminal 退出會重生。Claude agent 自動恢復 session。這東西基本上是殭屍 — 你殺得死它但它會一直回來。
-- **登入驗證** — 雜湊密碼儲存、session token、HTTP-only cookies。最基本的防護，讓路人甲不要用你的 AI agent 去挖礦還是幹嘛的。
-- **閒置自動停止** — 閒置超過 2 小時的專案會自動停止。Channel 不受影響，因為 Telegram bot 不相信睡眠這種事。
-- **PWA 支援** — 加到主畫面，像 app 一樣使用。現在有正經的 icon 了，不再是 Minecraft 箱子。我們在成長。
-- **自適應介面** — 手機、iPad、桌機都行。到處都是 clamp()。CSS 是一場戰爭犯罪但它正確渲染了，我不會道歉。
+- **Web terminal** — ttyd + tmux，每個專案一個。Toolbar 有 ^C、^D、^Z、^L、Tab、方向鍵，還有一個可展開的額外按鍵面板 — 因為 Apple 決定 iPad 使用者不需要真正的鍵盤，而我決定跟他們作對。專案各有獨立的 tmux 視窗。啟動專案就有 terminal。停止就清掉。說到做到。
+- **檔案管理器** — 瀏覽目錄、上傳、下載、重命名、刪除、建資料夾。雙擊進入。「Up」按鈕返回上層。麵包屑導航。有副檔名圖示，因為人生太短，不想把一切都顯示成 📄。沒有拖放、沒有右鍵選單 — 我們正在過克制的季節。
+- **專案管理** — 建立本機專案（git init、CLAUDE.md、registry 登記，完成）或 SSH 遠端專案（在本地跑、透過 paramiko 在遠端執行，效果比它應有的還好，讓我覺得不安）。啟動就開 ttyd + tmux，停止就清理，刪除就從 registry 移除（檔案留著，不關我們的事）。
+- **系統監控** — CPU、RAM、磁碟顯示在 nav bar。每 5 秒更新。讓你能即時看到 Claude 在重寫東西時 server 有多痛苦。
+- **登入驗證** — PBKDF2-SHA256 600,000 次迭代、session cookie、nginx `auth_request`。最低限度的安全層。第一次啟動若未設密碼，自動產生隨機密碼印到 docker logs，重啟後不會再印，但永遠以雜湊形式儲存。非常正常的流程。
+- **Docker 限定** — 沒有安裝腳本，沒有 systemd，沒有裸機選項。一個 container。supervisord 管 nginx + uvicorn。掛 volume、傳 env var、假裝這一切都是計劃好的。
 
 ### 快速開始
-
-兩種方式，選一個。
-
-#### 方法 A：Docker（推薦，因為有 container 幹嘛還要手動裝）
 
 ```bash
 docker run -d \
   --name oopsbox \
   -p 8080:80 \
   -e OOPSBOX_PASSWORD=你的密碼 \
-  -e ANTHROPIC_API_KEY=sk-ant-... \
   -e GIT_NAME="你的名字" \
   -e GIT_EMAIL="you@example.com" \
   -v oopsbox-projects:/oopsbox/projects \
   -v oopsbox-config:/oopsbox/.config/oopsbox \
   -v oopsbox-claude:/oopsbox/.claude \
-  -v oopsbox-channels:/oopsbox/channels \
   oopsbox
 ```
 
-就這樣。打開 `http://localhost:8080/`，oops，你有一個平台了。
+打開 `http://localhost:8080`。登入。你現在有一個平台了。Oops。
 
-如果沒設 `OOPSBOX_PASSWORD`，它會自動產生一個隨機密碼然後印在 container log 裡 — 用 `docker logs oopsbox` 看。這是安全功能還是偷懶。兩者都是。
+如果沒設 `OOPSBOX_PASSWORD`，它會自動產生一個然後印在 `docker logs oopsbox` 裡。只印一次。請立刻去看。我不確定這算安全設計還是「自己去讀 log」的懲罰。兩者都是。
 
 | 環境變數 | 必填 | 說明 |
 |---|---|---|
 | `OOPSBOX_PASSWORD` | 否（自動產生） | Dashboard 登入密碼 |
 | `OOPSBOX_USERNAME` | 否（預設：`admin`） | Dashboard 登入帳號 |
-| `ANTHROPIC_API_KEY` | 否（Claude Max 不需要） | Anthropic API key |
 | `GIT_NAME` | 否 | Git 作者名稱 |
 | `GIT_EMAIL` | 否 | Git 作者信箱 |
+| `SSL_CERT` | 否 | SSL 憑證路徑（container 內） |
+| `SSL_KEY` | 否 | SSL 金鑰路徑（container 內） |
 
 | Volume | 容器路徑 | 存什麼 |
 |---|---|---|
 | `oopsbox-projects` | `/oopsbox/projects` | 你的專案檔案和 registry |
 | `oopsbox-config` | `/oopsbox/.config/oopsbox` | 認證、加密金鑰 |
 | `oopsbox-claude` | `/oopsbox/.claude` | Claude CLI session 和設定 |
-| `oopsbox-channels` | `/oopsbox/channels` | Telegram channel 資料 |
 
-#### 方法 B：裸機安裝（給喜歡危險生活的人）
+或者掛一個 `config.yaml` 到 `/oopsbox/config.yaml`：
 
-```bash
-git clone https://github.com/MountainShan/OopsBox.git
-cd OopsBox
-./install.sh
+```yaml
+auth:
+  username: admin
+  password: 你的密碼
+git:
+  name: 你的名字
+  email: you@example.com
+ssl:
+  cert: /path/to/cert.pem
+  key: /path/to/key.pem
 ```
 
-安裝程式會問你兩個問題（帳密和 git 設定），裝一堆套件，然後假裝這一切都是你的主意。
+環境變數優先於 config.yaml，config.yaml 優先於預設值，預設值是 `admin` 和「拜託去設個密碼」。
 
-然後打開 `http://<你的IP>/`，oops，你有一個平台了。
-
-##### 你需要
-
-- Ubuntu 24.04（其他的大概也行，沒試過，祈禱可選）
-- Python 3.12+
-- 一個 AI coding agent CLI（Claude Code、Codex 等）
-- 對應的 API key 或訂閱
-
-##### 會裝什麼
+### 大概怎麼運作的
 
 ```
-系統套件：tmux, ttyd, nginx, jq, sshpass, git
-Python：  fastapi, uvicorn, paramiko, python-multipart, aiofiles
+瀏覽器 → nginx → FastAPI（受保護路由全走 auth_request）
+               → uvicorn（FastAPI router：auth、projects、files、system）
+               → 每個專案一個 ttyd（代理在 /terminal/<project>/）
+
+所有專案共用一個 tmux session（"agents"）：
+  agents session
+  ├── project-name 視窗（ttyd 連到這裡）
+  └── another-project 視窗
+
+supervisord 管的：
+  - nginx
+  - uvicorn（port 5000）
+  就這兩個。兩個 process。我們為此感到驕傲。
 ```
 
-#### 測試過的平台
+nginx 透過 `auth_request /api/auth/verify` 處理認證 — 所有對 `/`、`/workspace`、`/terminal/*`、`/api/*`（除了登入端點）的請求都需要有效的 session cookie。沒登入就被導到 `/login`。這就是安全模型。就這樣。
 
-**Server：**
+### 專案類型
+
+**本機** — git repo 住在 server 上。啟動就得到一個 tmux 視窗和指向它的 ttyd terminal。Claude Code、tmux、你的 shell — 神聖三位一體。
+
+**SSH 遠端** — Docker container 透過 paramiko 連到遠端 server。Agent 在本地跑，指令在那邊執行。效果出乎意料地好，這讓我很緊張。
+
+### 測試過的平台
 
 | 環境 | 狀態 |
 |---|---|
-| Ubuntu 24.04 LTS (x86_64) | ✅ 能用 |
-| Debian 12 | 🤷 大概能用 |
+| Docker on Ubuntu 24.04 | ✅ 能用 |
+| Docker on Debian 12 | 🤷 大概行 |
 | Proxmox VM | ✅ 能用 |
-| 實體機 | ✅ 能用 |
-| Docker | ✅ 能用（終於，只花了一輩子） |
-| LXC | 🤷 沒測過 |
-
-**Client：**
+| 那台路由表很奇怪的機器 | ✅ 能用（需要一個 `ip route` 指令和短暫的身份危機） |
 
 | 裝置 / 瀏覽器 | 狀態 |
 |---|---|
@@ -364,64 +280,32 @@ Python：  fastapi, uvicorn, paramiko, python-multipart, aiofiles
 | Chrome | ✅ 能用 |
 | Firefox | ✅ 能用 |
 
-### 大概怎麼運作的
-
-```
-瀏覽器 → nginx → FastAPI dashboard
-               → ttyd terminal（每個專案一個，各自有 tmux session）
-               → 系統 terminal
-
-所有 AI agent 共用一個 tmux session（"agents"）：
-  agents session
-  ├── system 視窗（系統 agent，透過 claude-loop.sh）
-  ├── project-name 視窗（每個專案的 agent）
-  └── chan-name 視窗（每個 channel 的 agent）
-
-復活機制：
-  claude-loop.sh 用 --resume <session-id> 保持對話連續性
-  Session 用名字從 ~/.claude/sessions/*.json 裡找回來
-  Terminal 用 tmux remain-on-exit + respawn hooks
-  Dashboard 用 systemd Restart=always
-  基本上所有東西都會自動復活。像金鋼狼但是比較醜。
-```
-
-AI Agent 分頁讀取 Claude 的 JSONL session 檔案，用聊天氣泡 UI 渲染訊息，支援 markdown 和語法高亮。互動式提示（yes/no、編號選項、checkbox）變成可點擊的按鈕。Workspace 分頁有檔案管理器和 terminal 可以切換。點檔案 → modal 編輯器打開。改完 → 關掉。沒有 tab 系統，沒有複雜度，沒有存在危機。
-
-### 專案類型
-
-**本機** — agent 在這台機器上跑，有完整存取權。
-
-**SSH 遠端** — 連到遠端 server。agent 留在這裡，透過 SSH 執行指令。CLAUDE.md 會教它怎麼做。editor 用 SFTP。支援密碼和金鑰認證。運作得比它應該有的還好。
-
-### Channels（不知道要做什麼，反正覺得有用就做了）
-
-不知道接下來要做什麼功能。然後我想 — 如果我的 AI agent 能在 Telegram 上跟我聊天呢？感覺有用。就做了。現在你的 Claude Code 變成 Telegram bot。你在 Telegram 上聊天，它在 server 上寫 code。從 dashboard 按 `+ Channel`，貼上 BotFather 的 token（加密儲存，不客氣），啟動。Claude 會自動設定 Telegram plugin，你用配對碼連上，然後不知怎麼你就在公車上用 Telegram 寫 code 了。我不確定這是創新還是求救訊號。
-
-Channel 帶著 `--dangerously-skip-permissions` 跑，因為 Telegram 上沒有地方讓你按「允許」。對，它叫「dangerously」是有原因的。不，我不想談這件事。Channel 開機自動啟動，而且不受閒置停止影響，因為 bot 不需要 work-life balance。
-
 ### 常見問題
 
-**問：這能上 production 嗎？**
-答：這個問題暗示我有計劃。我沒有。
+**問：AI 對話去哪了？**  
+答：砍掉了。它很美。有自動重啟循環、互動提示按鈕、`--resume` session 持久化。現在不見了。我們不談這個。
 
-**問：我該用這個嗎？**
+**問：Telegram 去哪了？**  
+答：同上。我們尚未準備好面對這個話題。
+
+**問：Code editor 去哪了？**  
+答：我們建議用 Claude Code 來編輯你的檔案。這是一個合理的立場，完全不是為砍掉 800 行 editor 程式碼找理由。
+
+**問：這能上 production 嗎？**  
+答：這個問題暗示我有計劃。計劃是「想在 iPad 上寫 code」。其他都是意外。
+
+**問：我該用這個嗎？**  
 答：我每天都在用，這算推薦還是警告取決於你的風險承受度。
 
-**問：你為什麼做這個？**
-答：我只是想在 iPad 上打 `ls` 不會想把它摔出去。結果不知怎麼就變成了有 AES-256-CBC 加密 Telegram bot 和自動復活 tmux session 的東西。
+**問：為什麼叫 v2 而不是直接修？**  
+答：v1 有 s6-overlay、14 個受管 process、Telegram bot、AES-256-CBC 加密 token、Mermaid 的 code editor、和 Skills 面板。說實話，有點太多了。v2 有 supervisord 和兩個 process。這叫成長。
 
-**問：為什麼 UI 上寫「不知怎麼還活著」？**
-答：因為在各種自動重啟、crash recovery 和 session 持久化之間，我是真心驚訝它還在跑。它每天開機都是一個小奇蹟。
+**問：你會把砍掉的功能加回來嗎？**  
+答：不會。絕對不會。不要試探我。我有問題。
 
-**問：Icon 是什麼？**
-答：橘色方塊上的 terminal 提示符。從 Minecraft 箱子升級了。角色成長。
-
-**問：現在可以用 Telegram 寫 code 了？**
-答：對。我很抱歉。我真的很抱歉。
-
-**問：下一步是什麼？**
-答：我不知道而且我很害怕。上次我說「就再加一個功能」，結果就多了加密 token 儲存和 systemd crash recovery。
+**問：下一步是什麼？**  
+答：我不知道。上次我回答這個問題，結果冒出了加密 Telegram bot。我先暫停一下。
 
 ### 授權
 
-MIT — 愛怎麼用就怎麼用。壞了不關我事。我只是想在 iPad 上寫 code，然後現在我有一個帶自動復活 terminal 和加密 Telegram bot 的平台。救救我。
+MIT — 愛怎麼用就怎麼用。壞了不關我的事。我只是想在 iPad 上打 `ls` 不會想把它摔出去，然後我把一整個平台建了又重建了兩次。救救我。或者不救也行。我大概沒事的。我去加個功能。
