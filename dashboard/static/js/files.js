@@ -1,4 +1,13 @@
 // dashboard/static/js/files.js
+function escHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let _project = null;
 let _currentPath = '';
 
@@ -15,22 +24,34 @@ async function loadFiles(path = _currentPath) {
     renderFiles(data.files);
     renderBreadcrumb(path);
   } catch (e) {
-    document.getElementById('fileList').innerHTML =
-      `<div style="color:#fca5a5">${e.message}</div>`;
+    const errDiv = document.createElement('div');
+    errDiv.style.color = '#fca5a5';
+    errDiv.textContent = e.message;
+    document.getElementById('fileList').replaceChildren(errDiv);
   }
 }
 
 function renderBreadcrumb(path) {
   const el = document.getElementById('breadcrumb');
+  el.innerHTML = '';
+
+  const rootSpan = document.createElement('span');
+  rootSpan.textContent = _project;
+  rootSpan.onclick = () => loadFiles('');
+  el.appendChild(rootSpan);
+
   const parts = path ? path.split('/').filter(Boolean) : [];
-  let html = `<span onclick="loadFiles('')">${_project}</span>`;
   let built = '';
   for (const part of parts) {
     built += (built ? '/' : '') + part;
+    const sep = document.createTextNode(' / ');
+    el.appendChild(sep);
+    const span = document.createElement('span');
+    span.textContent = part;
     const p = built;
-    html += ` / <span onclick="loadFiles('${p}')">${part}</span>`;
+    span.onclick = () => loadFiles(p);
+    el.appendChild(span);
   }
-  el.innerHTML = html;
 }
 
 function renderFiles(files) {
@@ -42,17 +63,38 @@ function renderFiles(files) {
   el.innerHTML = files.map(f => {
     const icon = f.is_dir ? '📁' : getIcon(f.name);
     const size = f.is_dir ? '' : formatSize(f.size);
-    return `<div class="file-item" ondblclick="${f.is_dir ? `loadFiles('${f.path}')` : `downloadFile('${f.path}')`}">
+    return `<div class="file-item" data-path="${escHtml(f.path)}" data-name="${escHtml(f.name)}" data-isdir="${f.is_dir ? '1' : '0'}">
       <span class="icon">${icon}</span>
-      <span class="name">${f.name}</span>
-      <span class="size">${size}</span>
+      <span class="name">${escHtml(f.name)}</span>
+      <span class="size">${escHtml(size)}</span>
       <span class="actions">
-        ${!f.is_dir ? `<button class="btn-icon" title="Download" onclick="event.stopPropagation();downloadFile('${f.path}')">↓</button>` : ''}
-        <button class="btn-icon" title="Rename" onclick="event.stopPropagation();renameFile('${f.path}','${f.name}')">✎</button>
-        <button class="btn-icon" style="color:#fca5a5" title="Delete" onclick="event.stopPropagation();deleteFile('${f.path}','${f.name}')">✕</button>
+        ${!f.is_dir ? `<button class="btn-icon" title="Download" data-action="download">↓</button>` : ''}
+        <button class="btn-icon" title="Rename" data-action="rename">✎</button>
+        <button class="btn-icon" style="color:#fca5a5" title="Delete" data-action="delete">✕</button>
       </span>
     </div>`;
   }).join('');
+
+  // Attach event listeners using data-* attributes (no inline JS strings with user data)
+  el.querySelectorAll('.file-item').forEach(item => {
+    const path = item.dataset.path;
+    const name = item.dataset.name;
+    const isDir = item.dataset.isdir === '1';
+
+    item.addEventListener('dblclick', () => {
+      if (isDir) loadFiles(path);
+      else downloadFile(path);
+    });
+
+    const btn = item.querySelector('[data-action="download"]');
+    if (btn) btn.addEventListener('click', e => { e.stopPropagation(); downloadFile(path); });
+
+    const renameBtn = item.querySelector('[data-action="rename"]');
+    if (renameBtn) renameBtn.addEventListener('click', e => { e.stopPropagation(); renameFile(path, name); });
+
+    const deleteBtn = item.querySelector('[data-action="delete"]');
+    if (deleteBtn) deleteBtn.addEventListener('click', e => { e.stopPropagation(); deleteFile(path, name); });
+  });
 }
 
 function getIcon(name) {
@@ -92,6 +134,7 @@ async function renameFile(path, name) {
   try {
     await api.files.rename(_project, path, newName);
     await loadFiles();
+    showToast(`Renamed to "${newName}"`);
   } catch (e) { showToast(e.message, true); }
 }
 
@@ -108,6 +151,7 @@ async function newFolder() {
 async function uploadFiles(input) {
   const files = Array.from(input.files);
   if (!files.length) return;
+  let succeeded = 0;
   for (const file of files) {
     const formData = new FormData();
     formData.append('file', file);
@@ -119,9 +163,10 @@ async function uploadFiles(input) {
         credentials: 'same-origin',
       });
       if (!r.ok) throw new Error((await r.json()).detail || 'Upload failed');
+      succeeded++;
     } catch (e) { showToast(`${file.name}: ${e.message}`, true); }
   }
   input.value = '';
   await loadFiles();
-  showToast(`Uploaded ${files.length} file(s)`);
+  if (succeeded > 0) showToast(`Uploaded ${succeeded} of ${files.length} file(s)`);
 }
