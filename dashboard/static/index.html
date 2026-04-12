@@ -386,6 +386,7 @@
       const item = document.createElement('div');
       item.className = 'panel-item' + (name === activeProject ? ' active' : '');
       item.dataset.name = name;
+      item.style.cssText += ';-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;';
 
       const dot = document.createElement('span');
       dot.className = 'dot ' + (p.running ? 'dot-green' : 'dot-gray');
@@ -397,7 +398,24 @@
       item.appendChild(dot);
       item.appendChild(label);
       item.addEventListener('click', () => activateProject(name));
-      item.addEventListener('contextmenu', e => showCtxMenu(e, name));
+      item.addEventListener('contextmenu', e => { e.preventDefault(); showCtxMenu(e, name); });
+      let _lpTimer = null;
+      let _lpFired = false;
+      item.addEventListener('touchstart', e => {
+        _lpFired = false;
+        const t = e.touches[0];
+        const x = t.clientX, y = t.clientY;
+        _lpTimer = setTimeout(() => {
+          _lpTimer = null;
+          _lpFired = true;
+          showCtxMenu({ preventDefault: () => {}, clientX: x, clientY: y }, name);
+        }, 500);
+      }, { passive: false });
+      item.addEventListener('touchend', e => {
+        if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
+        if (_lpFired) { e.preventDefault(); _lpFired = false; }
+      });
+      item.addEventListener('touchmove', () => { if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; } });
       el.appendChild(item);
     });
   }
