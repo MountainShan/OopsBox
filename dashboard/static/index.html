@@ -125,6 +125,7 @@
     <button class="activity-btn" id="panelToggleBtn" onclick="togglePanel()" title="Toggle project list">☰</button>
     <div class="activity-spacer"></div>
     <button class="activity-btn" onclick="openAddModal()" title="New project" style="font-size:18px;font-weight:300;">+</button>
+    <button class="activity-btn" onclick="openSettingsModal()" title="Settings" style="font-size:15px;">⚙</button>
     <button class="activity-btn" onclick="api.auth.logout().then(()=>location.href='/login')" title="Logout" style="font-size:13px;">⏏</button>
   </div>
 
@@ -252,6 +253,65 @@
     <div class="actions">
       <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
       <button class="btn-primary" id="editSaveBtn" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Settings Modal ───────────────────────────── -->
+<div id="settingsModal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:480px;max-height:80vh;overflow-y:auto;">
+    <h2>Settings</h2>
+
+    <!-- Auth -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:10px;">Login Credentials</div>
+      <div class="field"><label>New Username</label><input type="text" id="cfgUsername" autocomplete="off" placeholder="leave blank to keep current"></div>
+      <div class="field"><label>Current Password <span style="color:#fca5a5">*</span></label><input type="password" id="cfgCurrentPw" autocomplete="current-password"></div>
+      <div class="field"><label>New Password</label><input type="password" id="cfgNewPw" autocomplete="new-password" placeholder="leave blank to keep current"></div>
+      <div class="actions" style="justify-content:flex-end;margin-bottom:0;">
+        <button class="btn-primary" onclick="saveAuth()" style="font-size:12px;padding:6px 14px;">Save</button>
+      </div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:4px 0 16px;"></div>
+
+    <!-- Agent -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:10px;">Claude Agent</div>
+      <div class="field"><label>Anthropic API Key</label><input type="text" id="cfgApiKey" autocomplete="off" placeholder="sk-ant-..."></div>
+      <div class="field"><label>Base URL</label><input type="text" id="cfgBaseUrl" autocomplete="off"></div>
+      <div class="actions" style="justify-content:flex-end;margin-bottom:0;">
+        <button class="btn-primary" onclick="saveAgent()" style="font-size:12px;padding:6px 14px;">Save</button>
+      </div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:4px 0 16px;"></div>
+
+    <!-- Git -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:10px;">Git</div>
+      <div class="field"><label>Name</label><input type="text" id="cfgGitName" autocomplete="off"></div>
+      <div class="field"><label>Email</label><input type="email" id="cfgGitEmail" autocomplete="off"></div>
+      <div class="actions" style="justify-content:flex-end;margin-bottom:0;">
+        <button class="btn-primary" onclick="saveGit()" style="font-size:12px;padding:6px 14px;">Save</button>
+      </div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:4px 0 16px;"></div>
+
+    <!-- SSL -->
+    <div style="margin-bottom:8px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:10px;">SSL</div>
+      <div class="field"><label>Cert Path</label><input type="text" id="cfgSslCert" autocomplete="off" placeholder="/path/to/cert.pem"></div>
+      <div class="field"><label>Key Path</label><input type="text" id="cfgSslKey" autocomplete="off" placeholder="/path/to/key.pem"></div>
+      <div class="actions" style="justify-content:flex-end;margin-bottom:0;">
+        <button class="btn-primary" onclick="saveSSL()" style="font-size:12px;padding:6px 14px;">Save</button>
+      </div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:16px 0 12px;"></div>
+    <div class="actions" style="justify-content:flex-end;">
+      <button class="btn-secondary" onclick="closeSettingsModal()">Close</button>
     </div>
   </div>
 </div>
@@ -602,6 +662,71 @@
       closeEditModal();
       showToast('Saved');
     } catch (e) { showToast(e.message, true); }
+  }
+
+  // ── Settings Modal ───────────────────────────────
+  async function openSettingsModal() {
+    try {
+      const s = await api.get('/api/settings');
+      document.getElementById('cfgUsername').value = '';
+      document.getElementById('cfgCurrentPw').value = '';
+      document.getElementById('cfgNewPw').value = '';
+      document.getElementById('cfgApiKey').value = s.agent.api_key || '';
+      document.getElementById('cfgBaseUrl').value = s.agent.base_url || '';
+      document.getElementById('cfgGitName').value = s.git.name || '';
+      document.getElementById('cfgGitEmail').value = s.git.email || '';
+      document.getElementById('cfgSslCert').value = s.ssl.cert || '';
+      document.getElementById('cfgSslKey').value = s.ssl.key || '';
+    } catch (e) { showToast('Failed to load settings', true); return; }
+    document.getElementById('settingsModal').classList.remove('hidden');
+  }
+
+  function closeSettingsModal() {
+    document.getElementById('settingsModal').classList.add('hidden');
+  }
+
+  async function saveAuth() {
+    const currentPw = document.getElementById('cfgCurrentPw').value;
+    if (!currentPw) { showToast('Current password required', true); return; }
+    const body = { current_password: currentPw };
+    const newUser = document.getElementById('cfgUsername').value.trim();
+    const newPw = document.getElementById('cfgNewPw').value;
+    if (newUser) body.new_username = newUser;
+    if (newPw) body.new_password = newPw;
+    try {
+      await api.put('/api/settings/auth', body);
+      showToast('Credentials updated');
+      document.getElementById('cfgCurrentPw').value = '';
+      document.getElementById('cfgNewPw').value = '';
+      document.getElementById('cfgUsername').value = '';
+    } catch (e) { showToast(e.message, true); }
+  }
+
+  async function saveAgent() {
+    const body = {
+      api_key: document.getElementById('cfgApiKey').value.trim(),
+      base_url: document.getElementById('cfgBaseUrl').value.trim(),
+    };
+    try { await api.put('/api/settings/agent', body); showToast('Agent settings saved'); }
+    catch (e) { showToast(e.message, true); }
+  }
+
+  async function saveGit() {
+    const body = {
+      name: document.getElementById('cfgGitName').value.trim(),
+      email: document.getElementById('cfgGitEmail').value.trim(),
+    };
+    try { await api.put('/api/settings/git', body); showToast('Git settings saved'); }
+    catch (e) { showToast(e.message, true); }
+  }
+
+  async function saveSSL() {
+    const body = {
+      cert: document.getElementById('cfgSslCert').value.trim(),
+      key: document.getElementById('cfgSslKey').value.trim(),
+    };
+    try { await api.put('/api/settings/ssl', body); showToast('SSL settings saved'); }
+    catch (e) { showToast(e.message, true); }
   }
 
   init();
