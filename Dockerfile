@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     tmux \
     supervisor \
+    sudo \
     jq \
     sshpass \
     git \
@@ -19,6 +20,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Non-root user (uid 1000 matches typical host user; home at /oopsbox)
+RUN useradd -u 1000 -d /oopsbox -s /bin/bash oopsbox && \
+    echo 'oopsbox ALL=(root) NOPASSWD: /usr/sbin/nginx -s reload' \
+      > /etc/sudoers.d/oopsbox && \
+    chmod 440 /etc/sudoers.d/oopsbox
 
 # Install ttyd
 RUN curl -L -o /usr/local/bin/ttyd \
@@ -46,7 +53,9 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/oopsbox.conf
 COPY docker/entrypoint.sh /oopsbox/entrypoint.sh
 
 RUN chmod +x /oopsbox/bin/*.sh /oopsbox/entrypoint.sh
-RUN mkdir -p /etc/nginx/conf.d && touch /etc/nginx/conf.d/oopsbox-projects.conf
+RUN mkdir -p /etc/nginx/conf.d && \
+    touch /etc/nginx/conf.d/oopsbox-projects.conf && \
+    chown oopsbox:oopsbox /etc/nginx/conf.d/oopsbox-projects.conf
 
 # nginx: remove default config
 RUN rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf

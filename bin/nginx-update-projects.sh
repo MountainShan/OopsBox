@@ -30,5 +30,5 @@ location /terminal/${NAME}/ {
 EOF
 done
 
-mv "$TMP_FILE" "$CONF_FILE"
-nginx -s reload 2>/dev/null || true
+cat "$TMP_FILE" > "$CONF_FILE"
+sudo nginx -s reload 2>/dev/null || true

@@ -104,11 +104,14 @@ else
   echo "==> SSL not configured — HTTP only"
 fi
 
-# ── Ensure tmux server is ready ──
-tmux start-server 2>/dev/null || true
+# ── Fix ownership so oopsbox user can access app files + mounted volumes ──
+chown -R oopsbox:oopsbox /oopsbox
+
+# ── Start tmux server as oopsbox (so bin/ scripts connect to same server) ──
+runuser -u oopsbox -- tmux start-server 2>/dev/null || true
 sleep 0.5
-if ! tmux has-session -t agents 2>/dev/null; then
-  tmux new-session -d -s agents -n system
+if ! runuser -u oopsbox -- tmux has-session -t agents 2>/dev/null; then
+  runuser -u oopsbox -- tmux new-session -d -s agents -n system
 fi
 
 echo "==> Starting supervisord..."
