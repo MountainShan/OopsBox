@@ -93,9 +93,22 @@
 
   <script src="/static/js/api.js"></script>
   <script>
+    function escHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     async function loadProjects() {
-      const projects = await api.projects.list();
-      renderProjects(projects);
+      try {
+        const projects = await api.projects.list();
+        renderProjects(projects);
+      } catch (e) {
+        showToast('Failed to load projects: ' + e.message, true);
+      }
     }
 
     function renderProjects(projects) {
@@ -108,24 +121,40 @@
         return;
       }
       el.innerHTML = projects.map(p => `
-        <div class="project-card ${p.running ? 'running' : ''}" onclick="openProject('${p.name}')">
+        <div class="project-card ${p.running ? 'running' : ''}" data-name="${escHtml(p.name)}" role="button" tabindex="0">
           <div class="project-card-header">
-            <span class="project-name">${p.name}</span>
+            <span class="project-name">${escHtml(p.name)}</span>
             <span class="badge ${p.running ? 'badge-green' : 'badge-gray'}">
               <span class="dot ${p.running ? 'dot-green' : 'dot-gray'}"></span>
               ${p.running ? 'running' : 'stopped'}
             </span>
           </div>
-          <div class="project-type">${p.type}${p.ssh_host ? ` · ${p.ssh_host}` : ''}</div>
-          <div class="project-actions" onclick="event.stopPropagation()">
+          <div class="project-type">${escHtml(p.type)}${p.ssh_host ? ` · ${escHtml(p.ssh_host)}` : ''}</div>
+          <div class="project-actions">
             ${p.running
-              ? `<button class="btn-secondary btn-sm" onclick="stopProject('${p.name}')">Stop</button>`
-              : `<button class="btn-primary btn-sm" onclick="startProject('${p.name}')">Start</button>`
+              ? `<button class="btn-secondary btn-sm" data-action="stop" data-name="${escHtml(p.name)}">Stop</button>`
+              : `<button class="btn-primary btn-sm" data-action="start" data-name="${escHtml(p.name)}">Start</button>`
             }
-            <button class="btn-danger btn-sm" onclick="deleteProject('${p.name}')">Delete</button>
+            <button class="btn-danger btn-sm" data-action="delete" data-name="${escHtml(p.name)}">Delete</button>
           </div>
         </div>
       `).join('');
+
+      // Attach event listeners (no inline onclick strings with user data)
+      el.querySelectorAll('.project-card').forEach(card => {
+        card.addEventListener('click', e => {
+          if (!e.target.closest('.project-actions')) openProject(card.dataset.name);
+        });
+      });
+      el.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          const name = btn.dataset.name;
+          if (btn.dataset.action === 'start') startProject(name);
+          else if (btn.dataset.action === 'stop') stopProject(name);
+          else if (btn.dataset.action === 'delete') deleteProject(name);
+        });
+      });
     }
 
     function openProject(name) {
@@ -176,6 +205,14 @@
       try {
         await api.projects.create(data);
         hideCreateModal();
+        document.getElementById('newName').value = '';
+        document.getElementById('newType').value = 'local';
+        document.getElementById('sshHost').value = '';
+        document.getElementById('sshUser').value = '';
+        document.getElementById('sshPort').value = '22';
+        document.getElementById('remotePath').value = '';
+        document.getElementById('sshPassword').value = '';
+        document.getElementById('sshFields').style.display = 'none';
         await loadProjects();
         showToast(`Project "${name}" created`);
       } catch (e) { showToast(e.message, true); }
