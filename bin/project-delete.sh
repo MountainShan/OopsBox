@@ -2,17 +2,21 @@
 set -euo pipefail
 NAME="$1"
 WORKDIR="${HOME}/projects/${NAME}"
-SESSION="proj-${NAME}"
+REGISTRY="${HOME}/projects/.project-registry.json"
 
-$HOME/bin/project-stop.sh "$NAME" 2>/dev/null || true
-tmux kill-session -t "$SESSION" 2>/dev/null || true
+[ -d "$WORKDIR" ] || { echo "ERROR: project '$NAME' not found" >&2; exit 1; }
+
+"$HOME/bin/project-stop.sh" "$NAME" 2>/dev/null || true
 rm -rf "$WORKDIR"
 
-STATE_FILE="${HOME}/projects/.port-registry.json"
-[ -f "$STATE_FILE" ] && \
-  jq --arg n "$NAME" 'del(.[$n])' "$STATE_FILE" > "$STATE_FILE.tmp" && \
-  mv "$STATE_FILE.tmp" "$STATE_FILE"
+python3 - <<PYEOF
+import json
+from pathlib import Path
+reg = Path("$REGISTRY")
+if reg.exists():
+    data = json.loads(reg.read_text())
+    data.pop("$NAME", None)
+    reg.write_text(json.dumps(data, indent=2))
+PYEOF
 
-rm -rf "/tmp/rcoder-${NAME}"
-$HOME/bin/nginx-reload-ports.sh 2>/dev/null || true
-echo "[delete] project '$NAME' removed"
+echo "[delete] $NAME — done"
