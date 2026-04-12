@@ -226,7 +226,8 @@
       <div class="field"><label>SSH User</label><input type="text" id="sshUser" placeholder="ubuntu"></div>
       <div class="field"><label>SSH Port</label><input type="number" id="sshPort" value="22"></div>
       <div class="field"><label>Remote Path</label><input type="text" id="remotePath" placeholder="/home/ubuntu"></div>
-      <div class="field"><label>Password</label><input type="password" id="sshPassword"></div>
+      <div class="field"><label>Password</label><input type="password" id="sshPassword" placeholder="leave blank if using key"></div>
+      <div class="field"><label>SSH Key Path</label><input type="text" id="sshKeyPath" placeholder="/home/user/.ssh/id_rsa (optional)"></div>
     </div>
     <div class="actions">
       <button class="btn-secondary" onclick="closeAddModal()">Cancel</button>
@@ -246,6 +247,7 @@
       <div class="field"><label>SSH Port</label><input type="number" id="editPort"></div>
       <div class="field"><label>Remote Path</label><input type="text" id="editRemote"></div>
       <div class="field"><label>Password</label><input type="password" id="editPass" placeholder="leave blank to keep current"></div>
+      <div class="field"><label>SSH Key Path</label><input type="text" id="editKeyPath" placeholder="leave blank to keep current"></div>
     </div>
     <div class="actions">
       <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
@@ -548,11 +550,12 @@
       data.ssh_port = parseInt(document.getElementById('sshPort').value) || 22;
       data.remote_path = document.getElementById('remotePath').value.trim();
       data.ssh_password = document.getElementById('sshPassword').value || null;
+      data.ssh_key_path = document.getElementById('sshKeyPath').value.trim() || null;
     }
     try {
       await api.projects.create(data);
       closeAddModal();
-      ['newName','sshHost','sshUser','sshPassword','remotePath'].forEach(id => document.getElementById(id).value = '');
+      ['newName','sshHost','sshUser','sshPassword','sshKeyPath','remotePath'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('sshPort').value = '22';
       document.getElementById('newType').value = 'local';
       document.getElementById('sshFields').style.display = 'none';
@@ -575,6 +578,7 @@
       document.getElementById('editPort').value = p.ssh_port || 22;
       document.getElementById('editRemote').value = p.remote_path || '';
       document.getElementById('editPass').value = '';
+      document.getElementById('editKeyPath').value = '';
     }
     document.getElementById('editModal').classList.remove('hidden');
     document.getElementById('editModal').dataset.name = name;
@@ -590,6 +594,8 @@
     };
     const pass = document.getElementById('editPass').value;
     if (pass) data.ssh_password = pass;
+    const keyPath = document.getElementById('editKeyPath').value.trim();
+    if (keyPath) data.ssh_key_path = keyPath;
     try {
       await api.put('/api/projects/' + encodeURIComponent(name), data);
       await loadProjects();

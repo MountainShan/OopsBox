@@ -122,6 +122,10 @@ def create_project(req: CreateProjectRequest):
             "ssh_user": req.ssh_user,
             "remote_path": req.remote_path or f"/home/{req.ssh_user}",
         })
+        if req.ssh_password:
+            meta["ssh_password"] = req.ssh_password
+        if req.ssh_key_path:
+            meta["ssh_key_path"] = req.ssh_key_path
 
     registry[req.name] = meta
     _save_registry(registry)
@@ -169,6 +173,7 @@ class UpdateProjectRequest(BaseModel):
     ssh_port: Optional[int] = None
     ssh_user: Optional[str] = None
     ssh_password: Optional[str] = None
+    ssh_key_path: Optional[str] = None
     remote_path: Optional[str] = None
 
 @router.put("/{name}")
@@ -181,6 +186,7 @@ def update_project(name: str, req: UpdateProjectRequest):
     if req.ssh_port is not None: meta["ssh_port"] = req.ssh_port
     if req.ssh_user is not None: meta["ssh_user"] = req.ssh_user
     if req.ssh_password is not None: meta["ssh_password"] = req.ssh_password
+    if req.ssh_key_path is not None: meta["ssh_key_path"] = req.ssh_key_path
     if req.remote_path is not None: meta["remote_path"] = req.remote_path
     registry[name] = meta
     _save_registry(registry)
