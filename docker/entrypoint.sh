@@ -1,93 +1,103 @@
 #!/bin/bash
 set -e
-
 export HOME="/oopsbox"
-USER="oopsbox"
 
-# ── API Key & Base URL ──
+echo "==> OopsBox v2 starting..."
+
+# ── Directory setup ──
 mkdir -p "$HOME/.config/oopsbox"
-ENV_FILE="$HOME/.config/oopsbox/env"
-: > "$ENV_FILE"
-if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-  echo "export ANTHROPIC_API_KEY='${ANTHROPIC_API_KEY}'" >> "$ENV_FILE"
-fi
-if [ -n "${ANTHROPIC_BASE_URL:-}" ]; then
-  echo "export ANTHROPIC_BASE_URL='${ANTHROPIC_BASE_URL}'" >> "$ENV_FILE"
-fi
-chmod 600 "$ENV_FILE"
+mkdir -p "$HOME/projects"
+mkdir -p /etc/nginx/conf.d
+touch /etc/nginx/conf.d/oopsbox-projects.conf
+
+# ── Read config.yaml (if mounted) ──
+CONFIG_FILE="/oopsbox/config.yaml"
+get_cfg() {
+  python3 -c "
+import yaml, sys
+f = '$CONFIG_FILE'
+import os
+try:
+    with open(f) as fh:
+        d = yaml.safe_load(fh) or {}
+except:
+    d = {}
+keys = '$1'.split('.')
+v = d
+for k in keys:
+    v = v.get(k, {}) if isinstance(v, dict) else {}
+print(v if isinstance(v, str) else '')
+" 2>/dev/null || echo ""
+}
 
 # ── Auth setup ──
 AUTH_FILE="$HOME/.config/oopsbox/auth.json"
 if [ ! -f "$AUTH_FILE" ]; then
-  USERNAME="${OOPSBOX_USERNAME:-admin}"
-  PASSWORD="${OOPSBOX_PASSWORD:-}"
-
+  USERNAME="${OOPSBOX_USERNAME:-$(get_cfg auth.username)}"
+  USERNAME="${USERNAME:-admin}"
+  PASSWORD="${OOPSBOX_PASSWORD:-$(get_cfg auth.password)}"
   if [ -z "$PASSWORD" ]; then
     PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(12))")
     echo ""
     echo "  ====================================="
-    echo "   No OOPSBOX_PASSWORD set."
     echo "   Generated login credentials:"
     echo "   Username: $USERNAME"
     echo "   Password: $PASSWORD"
     echo "  ====================================="
     echo ""
-  else
-    echo ""
-    echo "  Login username: $USERNAME"
-    echo ""
   fi
-
   SALT=$(python3 -c "import secrets; print(secrets.token_hex(16))")
-  HASH=$(SALT="$SALT" PASSWORD="$PASSWORD" python3 -c "
-import os, hashlib
-salt = os.environ['SALT']
-pw = os.environ['PASSWORD']
-print(hashlib.pbkdf2_hmac('sha256', pw.encode(), salt.encode(), 600000).hex())
+  HASH=$(python3 -c "
+import hashlib, sys
+dk = hashlib.pbkdf2_hmac('sha256', '${PASSWORD}'.encode(), '${SALT}'.encode(), 600000)
+print(dk.hex())
 ")
-  cat > "$AUTH_FILE" <<EOF
-{
-  "username": "$USERNAME",
-  "password_hash": "$HASH",
-  "salt": "$SALT"
-}
-EOF
-  chmod 600 "$AUTH_FILE"
+  python3 -c "
+import json
+from pathlib import Path
+Path('$AUTH_FILE').write_text(json.dumps({
+    'username': '$USERNAME',
+    'salt': '$SALT',
+    'password_hash': '$HASH'
+}, indent=2))
+Path('$AUTH_FILE').chmod(0o600)
+"
+fi
+
+# ── Encryption key (for SSH passwords) ──
+KEY_FILE="$HOME/.config/oopsbox/channel.key"
+if [ ! -f "$KEY_FILE" ]; then
+  python3 -c "import secrets; print(secrets.token_hex(32))" > "$KEY_FILE"
+  chmod 600 "$KEY_FILE"
 fi
 
 # ── Git config ──
-if [ -n "${GIT_NAME:-}" ]; then
-  su - $USER -c "git config --global user.name '${GIT_NAME}'"
-fi
-if [ -n "${GIT_EMAIL:-}" ]; then
-  su - $USER -c "git config --global user.email '${GIT_EMAIL}'"
-fi
-if ! su - $USER -c "git config --global user.name" > /dev/null 2>&1; then
-  su - $USER -c "git config --global user.name 'OopsBox'"
-  su - $USER -c "git config --global user.email 'oopsbox@localhost'"
-fi
+GIT_NAME="${GIT_NAME:-$(get_cfg git.name)}"
+GIT_EMAIL="${GIT_EMAIL:-$(get_cfg git.email)}"
+[ -n "$GIT_NAME" ] && git config --global user.name "$GIT_NAME"
+[ -n "$GIT_EMAIL" ] && git config --global user.email "$GIT_EMAIL"
 
-# ── Fix permissions on volume mounts ──
-chown -R $USER:$USER "$HOME/projects" "$HOME/.config/oopsbox" \
-  "$HOME/.claude" "$HOME/channels" 2>/dev/null || true
+# ── tmux config ──
+[ -f "$HOME/config/tmux.conf" ] && cp "$HOME/config/tmux.conf" "$HOME/.tmux.conf"
 
-# ── PATH in bashrc ──
-grep -q 'HOME/bin' "$HOME/.bashrc" 2>/dev/null || echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
+# ── SSL configuration ──
+SSL_CERT="${SSL_CERT:-$(get_cfg ssl.cert)}"
+SSL_KEY="${SSL_KEY:-$(get_cfg ssl.key)}"
 
-# ── Claude auth status ──
-if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-  echo "  Claude: using API key"
-elif [ -f "$HOME/.claude.json" ] && grep -q "token" "$HOME/.claude.json" 2>/dev/null; then
-  echo "  Claude: OAuth authenticated"
+if [ -n "$SSL_CERT" ] && [ -n "$SSL_KEY" ] && [ -f "$SSL_CERT" ] && [ -f "$SSL_KEY" ]; then
+  echo "==> SSL enabled: $SSL_CERT"
+  sed "s|SSL_CERT_PATH|${SSL_CERT}|g; s|SSL_KEY_PATH|${SSL_KEY}|g" \
+    /etc/nginx/nginx-ssl.conf > /etc/nginx/nginx.conf
 else
-  echo ""
-  echo "  Claude: not authenticated"
-  echo "  To authenticate, either:"
-  echo "    1. Set -e ANTHROPIC_API_KEY=sk-ant-..."
-  echo "    2. Run: docker exec -it -u oopsbox $(hostname) claude"
-  echo "       and complete the OAuth login flow"
-  echo ""
+  echo "==> SSL not configured — HTTP only"
 fi
 
-# ── Start s6-overlay ──
-exec /init
+# ── Ensure tmux server is ready ──
+tmux start-server 2>/dev/null || true
+sleep 0.5
+if ! tmux has-session -t agents 2>/dev/null; then
+  tmux new-session -d -s agents -n system
+fi
+
+echo "==> Starting supervisord..."
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/oopsbox.conf
