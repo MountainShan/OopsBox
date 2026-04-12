@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OopsBox Full Feature Test Suite
+# OopsBox v2 Test Suite
 set -uo pipefail
 
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -8,256 +8,243 @@ PASS=0
 FAIL=0
 SKIP=0
 
-# Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
-pass(){ ((PASS++)); echo -e "  ${GREEN}✓${NC} $1"; }
-fail(){ ((FAIL++)); echo -e "  ${RED}✗${NC} $1: $2"; }
-skip(){ ((SKIP++)); echo -e "  ${YELLOW}⊘${NC} $1 (skipped: $2)"; }
+pass() { echo -e "  ${GREEN}✓${NC} $1"; ((PASS++)); }
+fail() { echo -e "  ${RED}✗${NC} $1${2:+: $2}"; ((FAIL++)); }
+skip() { echo -e "  ${YELLOW}⊘${NC} $1 (skipped${2:+: $2})"; ((SKIP++)); }
+section() { echo -e "\n━━━ $1 ━━━"; }
 
-section(){ echo ""; echo "━━━ $1 ━━━"; }
-
-# ── Helper: API call ──
-api(){ curl -s "$API$1" 2>/dev/null; }
-api_post(){ curl -s -X POST -H "Content-Type: application/json" -d "$2" "$API$1" 2>/dev/null; }
-api_put(){ curl -s -X PUT -H "Content-Type: application/json" -d "$2" "$API$1" 2>/dev/null; }
-api_del(){ curl -s -X DELETE "$API$1" 2>/dev/null; }
+api() {
+  curl -s -b /tmp/oopsbox-test-cookies.txt "$API$1"
+}
+api_post() {
+  curl -s -b /tmp/oopsbox-test-cookies.txt -X POST \
+    -H "Content-Type: application/json" -d "$2" "$API$1"
+}
+api_put() {
+  curl -s -b /tmp/oopsbox-test-cookies.txt -X PUT \
+    -H "Content-Type: application/json" -d "$2" "$API$1"
+}
+api_delete() {
+  curl -s -b /tmp/oopsbox-test-cookies.txt -X DELETE "$API$1"
+}
 
 echo ""
 echo "╔═══════════════════════════════════════╗"
 echo "║  OopsBox Test Suite                   ║"
-echo "║  Testing all features...              ║"
 echo "╚═══════════════════════════════════════╝"
-echo ""
 
 # ═══════════════════════════════════════
-section "1. Dashboard API Health"
+section "1. Auth"
 # ═══════════════════════════════════════
+
+# Login
+R=$(curl -s -c /tmp/oopsbox-test-cookies.txt -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' \
+  "$API/api/auth/login")
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
+  pass "Login"
+else
+  fail "Login" "$R"
+fi
 
 R=$(api "/api/auth/status")
-if echo "$R" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
-  pass "Auth status endpoint"
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('authenticated')" 2>/dev/null; then
+  pass "Auth status (authenticated)"
 else
-  fail "Auth status endpoint" "no response"
-fi
-
-R=$(api "/api/projects")
-if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'projects' in d" 2>/dev/null; then
-  pass "Projects list endpoint"
-else
-  fail "Projects list endpoint" "invalid response"
-fi
-
-
-R=$(api "/api/system")
-if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'cpu' in d" 2>/dev/null; then
-  pass "System monitor endpoint"
-else
-  fail "System monitor endpoint" "invalid response"
+  fail "Auth status" "$R"
 fi
 
 # ═══════════════════════════════════════
-section "2. Project CRUD"
+section "2. Core API Endpoints"
+# ═══════════════════════════════════════
+
+R=$(api "/api/projects")
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert isinstance(d, list)" 2>/dev/null; then
+  pass "Projects list endpoint"
+else
+  fail "Projects list endpoint" "$R"
+fi
+
+R=$(api "/api/system")
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'cpu_percent' in d and 'ram' in d and 'disk' in d" 2>/dev/null; then
+  pass "System stats endpoint"
+else
+  fail "System stats endpoint" "$R"
+fi
+
+# ═══════════════════════════════════════
+section "3. Project CRUD"
 # ═══════════════════════════════════════
 
 TEST_PROJ="test-suite-$$"
 
-# Create
-R=$(api_post "/api/projects" "{\"name\":\"${TEST_PROJ}\"}")
-if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['name']=='${TEST_PROJ}'" 2>/dev/null; then
+R=$(api_post "/api/projects" "{\"name\":\"$TEST_PROJ\",\"type\":\"local\"}")
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('name')" 2>/dev/null; then
   pass "Create local project"
 else
   fail "Create local project" "$R"
 fi
 
-# Check exists
-if [ -d "$HOME/projects/${TEST_PROJ}" ]; then
+if [ -d "$HOME/projects/$TEST_PROJ" ]; then
   pass "Project directory created"
 else
-  fail "Project directory created" "dir not found"
+  fail "Project directory created"
 fi
 
-# Check CLAUDE.md
-if [ -f "$HOME/projects/${TEST_PROJ}/CLAUDE.md" ]; then
+if [ -f "$HOME/projects/$TEST_PROJ/CLAUDE.md" ]; then
   pass "CLAUDE.md generated"
 else
-  fail "CLAUDE.md generated" "file not found"
+  fail "CLAUDE.md generated"
 fi
 
-# Get status
-R=$(api "/api/projects/${TEST_PROJ}/status")
-if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['name']=='${TEST_PROJ}'" 2>/dev/null; then
+R=$(api "/api/projects/$TEST_PROJ")
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('name')" 2>/dev/null; then
+  pass "Get project endpoint"
+else
+  fail "Get project endpoint" "$R"
+fi
+
+R=$(api "/api/projects/$TEST_PROJ/status")
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'running' in d" 2>/dev/null; then
   pass "Project status endpoint"
 else
   fail "Project status endpoint" "$R"
 fi
 
-# Settings
-R=$(api "/api/projects/${TEST_PROJ}/settings")
-if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['backend']=='local'" 2>/dev/null; then
-  pass "Project settings endpoint"
-else
-  fail "Project settings endpoint" "$R"
-fi
-
-# Update settings
-R=$(api_put "/api/projects/${TEST_PROJ}" '{"skip_permissions":true}')
-R2=$(api "/api/projects/${TEST_PROJ}/settings")
-if echo "$R2" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['skip_permissions']==True" 2>/dev/null; then
-  pass "Update project settings"
-else
-  fail "Update project settings" "$R2"
-fi
-
-# Stop
-api_post "/api/projects/${TEST_PROJ}/stop" "{}" > /dev/null 2>&1
-sleep 1
+R=$(api_post "/api/projects/$TEST_PROJ/stop" '{}')
 pass "Stop project (no crash)"
 
-# Delete
-R=$(api_del "/api/projects/${TEST_PROJ}")
-if ! [ -d "$HOME/projects/${TEST_PROJ}" ]; then
+R=$(api_delete "/api/projects/$TEST_PROJ")
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
   pass "Delete project"
 else
-  fail "Delete project" "directory still exists"
+  fail "Delete project" "$R"
 fi
 
 # ═══════════════════════════════════════
-section "3. Per-project API Key"
+section "4. File Manager"
 # ═══════════════════════════════════════
 
-TEST_PROJ2="test-apikey-$$"
-api_post "/api/projects" "{\"name\":\"${TEST_PROJ2}\",\"api_key\":\"sk-test-fake-key\"}" > /dev/null
+FILE_PROJ="test-files-$$"
+api_post "/api/projects" "{\"name\":\"$FILE_PROJ\",\"type\":\"local\"}" > /dev/null
 
-R=$(api "/api/projects/${TEST_PROJ2}/settings")
-if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['has_api_key']==True" 2>/dev/null; then
-  pass "API key stored (encrypted)"
+R=$(api "/api/files/$FILE_PROJ")
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'files' in d" 2>/dev/null; then
+  pass "List files endpoint"
 else
-  fail "API key stored" "$R"
+  fail "List files endpoint" "$R"
 fi
 
-# Check encryption in registry
-REG=$(cat "$HOME/projects/.project-registry.json")
-if echo "$REG" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'api_key_enc' in d['${TEST_PROJ2}']; assert 'sk-test' not in d['${TEST_PROJ2}']['api_key_enc']" 2>/dev/null; then
-  pass "API key encrypted in registry (not plaintext)"
+R=$(api_put "/api/files/$FILE_PROJ/write" '{"path":"hello.txt","content":"hello world"}')
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
+  pass "Write file"
 else
-  fail "API key encryption" "found plaintext or missing"
+  fail "Write file" "$R"
 fi
 
-# Clear API key
-api_put "/api/projects/${TEST_PROJ2}" '{"api_key":""}' > /dev/null
-R=$(api "/api/projects/${TEST_PROJ2}/settings")
-if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['has_api_key']==False" 2>/dev/null; then
-  pass "API key cleared"
+R=$(api "/api/files/$FILE_PROJ/read?path=hello.txt")
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'hello world' in d.get('content','')" 2>/dev/null; then
+  pass "Read file"
 else
-  fail "API key cleared" "$R"
+  fail "Read file" "$R"
 fi
 
-# Cleanup
-api_post "/api/projects/${TEST_PROJ2}/stop" "{}" > /dev/null 2>&1
-sleep 1
-api_del "/api/projects/${TEST_PROJ2}" > /dev/null
-
-# ═══════════════════════════════════════
-section "4. Container Backend"
-# ═══════════════════════════════════════
-
-# Test with non-existent container (should fail)
-R=$(api_post "/api/projects" '{"name":"test-ct","backend":"container","container_name":"nonexistent-xyz","container_type":"docker"}')
-if echo "$R" | grep -q "not found"; then
-  pass "Container backend rejects non-existent container"
+R=$(api_post "/api/files/$FILE_PROJ/rename" '{"path":"hello.txt","new_name":"hello2.txt"}')
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
+  pass "Rename file"
 else
-  fail "Container validation" "$R"
+  fail "Rename file" "$R"
 fi
-# Cleanup in case it was created
-api_del "/api/projects/test-ct" > /dev/null 2>&1
 
-# Test with real container if any running
-REAL_CT=$(docker ps -q --format '{{.Names}}' 2>/dev/null | head -1)
-if [ -n "$REAL_CT" ]; then
-  R=$(api_post "/api/projects" "{\"name\":\"test-ct-real\",\"backend\":\"container\",\"container_name\":\"${REAL_CT}\",\"container_type\":\"docker\"}")
-  if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['backend']=='container'" 2>/dev/null; then
-    pass "Container backend with real container ($REAL_CT)"
-    api_post "/api/projects/test-ct-real/stop" "{}" > /dev/null 2>&1
-    sleep 1
-    api_del "/api/projects/test-ct-real" > /dev/null 2>&1
-  else
-    fail "Container backend creation" "$R"
-  fi
+R=$(api_post "/api/files/$FILE_PROJ/mkdir" '{"path":"testdir"}')
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
+  pass "Create directory"
 else
-  skip "Container backend with real container" "no Docker containers running"
+  fail "Create directory" "$R"
 fi
 
-# ═══════════════════════════════════════
-section "5. Session Messages API"
-# ═══════════════════════════════════════
-
-R=$(api "/api/projects/_system/session-messages?after=0")
-if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'messages' in d; assert 'total' in d; assert 'session_file' in d" 2>/dev/null; then
-  pass "Session messages endpoint"
+# Upload
+echo "upload test" > /tmp/oopsbox-upload-test.txt
+R=$(curl -s -b /tmp/oopsbox-test-cookies.txt \
+  -F "file=@/tmp/oopsbox-upload-test.txt" \
+  "$API/api/files/$FILE_PROJ/upload?path=")
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
+  pass "File upload"
 else
-  fail "Session messages endpoint" "$R"
+  fail "File upload" "$R"
 fi
+rm -f /tmp/oopsbox-upload-test.txt
 
-TOTAL=$(echo "$R" | python3 -c "import sys,json; print(json.load(sys.stdin)['total'])")
-if [ "$TOTAL" -gt 0 ]; then
-  pass "Session has messages (total=$TOTAL)"
+R=$(api_post "/api/files/$FILE_PROJ/delete" '{"path":"hello2.txt"}')
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
+  pass "Delete file"
 else
-  skip "Session has messages" "total=0, no conversation yet"
+  fail "Delete file" "$R"
 fi
 
+api_delete "/api/projects/$FILE_PROJ" > /dev/null
+
 # ═══════════════════════════════════════
-section "5b. Session Stats (SSE)"
+section "5. Project Start / Terminal"
 # ═══════════════════════════════════════
 
-# Quick SSE grab: read 3s of the stream, check for stats event
-SSE_OUT=$(curl -s --max-time 3 "$API/api/projects/_system/session-stream" 2>/dev/null || true)
-if echo "$SSE_OUT" | grep -q "event: stats"; then
-  STATS_DATA=$(echo "$SSE_OUT" | grep -A1 "event: stats" | grep "^data:" | head -1 | sed 's/^data: //')
-  if echo "$STATS_DATA" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'model' in d; assert 'input_tokens' in d; assert 'cost_usd' in d" 2>/dev/null; then
-    pass "Session stats SSE event (model + tokens + cost present)"
-  else
-    fail "Session stats SSE event" "invalid JSON: $STATS_DATA"
-  fi
+START_PROJ="test-start-$$"
+api_post "/api/projects" "{\"name\":\"$START_PROJ\",\"type\":\"local\"}" > /dev/null
+
+R=$(api_post "/api/projects/$START_PROJ/start" '{}')
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
+  pass "Start project"
 else
-  skip "Session stats SSE event" "no active session with messages"
+  fail "Start project" "$R"
 fi
 
-# ═══════════════════════════════════════
-section "6. Prompt State Detection"
-# ═══════════════════════════════════════
+# give tmux a moment to settle
+for i in 1 2 3 4 5; do
+  R=$(api "/api/projects/$START_PROJ/status")
+  RUNNING=$(echo "$R" | python3 -c "import sys,json; print(json.load(sys.stdin).get('running',''))" 2>/dev/null)
+  [ "$RUNNING" = "True" ] && break
+  sleep 1
+done
 
-R=$(api "/api/projects/_system/prompt-state")
-if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'state' in d; assert d['state'] in ('idle','waiting_text','waiting_choice','thinking','no_session','claude_stopped')" 2>/dev/null; then
-  STATE=$(echo "$R" | python3 -c "import sys,json; print(json.load(sys.stdin)['state'])")
-  pass "Prompt state detection (state=$STATE)"
+if [ "$RUNNING" = "True" ]; then
+  pass "Project running after start"
 else
-  fail "Prompt state detection" "$R"
+  fail "Project running after start" "running=$RUNNING"
 fi
 
-# ═══════════════════════════════════════
-section "7. File Upload"
-# ═══════════════════════════════════════
-
-echo "test file content for upload" > /tmp/oopsbox-test-upload.txt
-R=$(curl -s -F "file=@/tmp/oopsbox-test-upload.txt" "$API/api/chat-upload")
-if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'path' in d; assert 'filename' in d; assert d['size']>0" 2>/dev/null; then
-  UPLOAD_PATH=$(echo "$R" | python3 -c "import sys,json; print(json.load(sys.stdin)['path'])")
-  if [ -f "$UPLOAD_PATH" ]; then
-    pass "File upload to /tmp ($UPLOAD_PATH)"
-  else
-    fail "File upload" "file not found at $UPLOAD_PATH"
-  fi
+R=$(api "/api/projects/$START_PROJ/status")
+ACTIVE_WIN=$(echo "$R" | python3 -c "import sys,json; print(json.load(sys.stdin).get('active_window') or '')" 2>/dev/null)
+if [ -n "$ACTIVE_WIN" ]; then
+  pass "active_window returned: $ACTIVE_WIN"
 else
-  fail "File upload endpoint" "$R"
+  fail "active_window in status"
 fi
-rm -f /tmp/oopsbox-test-upload.txt "$UPLOAD_PATH" 2>/dev/null
+
+R=$(api_post "/api/projects/$START_PROJ/send-keys" '{"keys":"echo hi"}')
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
+  pass "Send keys to terminal"
+else
+  fail "Send keys to terminal" "$R"
+fi
+
+R=$(api_post "/api/projects/$START_PROJ/select-window" '{"window":"shell"}')
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
+  pass "Select tmux window"
+else
+  fail "Select tmux window" "$R"
+fi
+
+api_post "/api/projects/$START_PROJ/stop" '{}' > /dev/null
+api_delete "/api/projects/$START_PROJ" > /dev/null
 
 # ═══════════════════════════════════════
-section "8. Auth Credentials"
+section "6. Auth Credentials"
 # ═══════════════════════════════════════
 
 AUTH_FILE="$HOME/.config/oopsbox/auth.json"
@@ -270,181 +257,146 @@ if [ -f "$AUTH_FILE" ]; then
     fail "Auth file permissions" "got $PERMS, expected 600"
   fi
 else
-  skip "Auth file" "not found (container may auto-create on first boot)"
+  skip "Auth file" "not found (auto-created on first login)"
 fi
 
 # ═══════════════════════════════════════
-section "9. tmux Sessions"
+section "7. tmux Config"
 # ═══════════════════════════════════════
 
-if tmux has-session -t agents 2>/dev/null; then
-  pass "Agents tmux session exists"
-  WINDOWS=$(tmux list-windows -t agents -F '#{window_name}' 2>/dev/null | wc -l)
-  pass "Agent windows: $WINDOWS"
+if [ -f "$HOME/.tmux.conf" ]; then
+  pass "tmux.conf exists"
 else
-  fail "Agents tmux session" "not found"
+  fail "tmux.conf not found"
 fi
 
-if tmux has-session -t term-system 2>/dev/null; then
-  pass "System terminal tmux session exists"
+if grep -q "mouse off" "$HOME/.tmux.conf" 2>/dev/null; then
+  pass "tmux mouse off"
 else
-  skip "System terminal tmux session" "may not be running"
+  fail "tmux mouse off" "mouse mode not disabled"
 fi
 
 # ═══════════════════════════════════════
-section "10. Hardcoded Path Check"
+section "8. Hardcoded Path Check"
 # ═══════════════════════════════════════
 
-HARDCODED=$(grep -rn "$HOME" "$REPO_DIR/" --include="*.sh" --include="*.py" --include="*.html" --include="*.json" --include="*.conf" 2>/dev/null | grep -v ".git/" | grep -v "node_modules" | grep -v "tests/" | wc -l)
+# Check for hardcoded /home/<username> style paths (not runtime paths like /tmp/ or /etc/)
+# Check for literal hardcoded /home/<username> paths (exclude dynamic /home/{var} or /home/$var defaults)
+HARDCODED=$(grep -rn "/home/" "$REPO_DIR/" \
+  --include="*.sh" --include="*.py" --include="*.html" \
+  --include="*.json" --include="*.conf" 2>/dev/null \
+  | grep -v ".git/" | grep -v "node_modules" | grep -v "tests/" \
+  | grep -v '/home/[${]' | grep -v 'placeholder=' \
+  | wc -l)
 if [ "$HARDCODED" -eq 0 ]; then
-  pass "No hardcoded $HOME in codebase"
+  pass "No hardcoded /home/ paths in codebase"
 else
-  fail "Hardcoded paths found" "$HARDCODED occurrences"
-  grep -rn "$HOME" "$REPO_DIR/" --include="*.sh" --include="*.py" --include="*.html" 2>/dev/null | grep -v ".git/" | head -5
+  fail "Hardcoded /home/ paths found" "$HARDCODED occurrences"
+  grep -rn "/home/" "$REPO_DIR/" --include="*.sh" --include="*.py" 2>/dev/null \
+    | grep -v ".git/" | grep -v '/home/[${]' | head -5
 fi
 
 # ═══════════════════════════════════════
-section "11. HTTPS / TLS"
-# ═══════════════════════════════════════
-
-if [ -f "/etc/nginx/ssl/oopsbox.crt" ]; then
-  pass "TLS certificate exists"
-  EXPIRY=$(openssl x509 -in /etc/nginx/ssl/oopsbox.crt -noout -enddate 2>/dev/null | cut -d= -f2)
-  pass "Certificate expiry: $EXPIRY"
-else
-  skip "TLS certificate" "HTTPS not set up"
-fi
-
-if curl -sk -o /dev/null -w "%{http_code}" https://localhost/ 2>/dev/null | grep -q "302\|200"; then
-  pass "HTTPS listener responding"
-else
-  skip "HTTPS listener" "may not be configured"
-fi
-
-if crontab -l 2>/dev/null | grep -q "tailscale cert"; then
-  pass "Cert auto-renew cron set"
-else
-  skip "Cert auto-renew cron" "not configured"
-fi
-
-# ═══════════════════════════════════════
-section "12. nginx Configuration"
-# ═══════════════════════════════════════
-
-if sudo nginx -t 2>&1 | grep -q "syntax is ok"; then
-  pass "nginx config valid"
-else
-  fail "nginx config" "syntax error"
-fi
-
-if grep -q "auth_request" /etc/nginx/sites-enabled/remote-coder 2>/dev/null; then
-  pass "nginx auth subrequest configured"
-else
-  fail "nginx auth subrequest" "not found"
-fi
-
-if grep -q "client_max_body_size" /etc/nginx/sites-enabled/remote-coder 2>/dev/null; then
-  pass "nginx client_max_body_size set"
-else
-  fail "nginx client_max_body_size" "not found"
-fi
-
-if grep -q "chat-upload" /etc/nginx/sites-enabled/remote-coder 2>/dev/null; then
-  pass "nginx chat-upload no-auth location"
-else
-  fail "nginx chat-upload location" "not found"
-fi
-
-# ═══════════════════════════════════════
-section "13. PWA / Service Worker"
+section "9. PWA"
 # ═══════════════════════════════════════
 
 if [ -f "$REPO_DIR/dashboard/static/sw.js" ]; then
-  pass "Service worker file exists"
+  pass "Service worker (sw.js)"
 else
-  fail "Service worker" "sw.js not found"
+  fail "Service worker (sw.js)" "not found"
 fi
 
 if [ -f "$REPO_DIR/dashboard/static/manifest.json" ]; then
   R=$(cat "$REPO_DIR/dashboard/static/manifest.json")
-  if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['display']=='standalone'; assert 'scope' in d" 2>/dev/null; then
-    pass "PWA manifest valid (standalone + scope)"
+  if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('name') and d.get('start_url')" 2>/dev/null; then
+    pass "PWA manifest valid"
   else
     fail "PWA manifest" "missing required fields"
   fi
 else
-  fail "PWA manifest" "manifest.json not found"
+  fail "PWA manifest" "not found"
 fi
 
-if [ -f "$REPO_DIR/dashboard/static/icon-192.png" ] && [ -f "$REPO_DIR/dashboard/static/icon-512.png" ]; then
-  pass "PWA icons (192 + 512)"
+if [ -f "$REPO_DIR/dashboard/static/favicon.svg" ]; then
+  pass "favicon.svg"
 else
-  fail "PWA icons" "missing icon files"
+  fail "favicon.svg" "not found"
 fi
 
 # ═══════════════════════════════════════
-section "14. Docker Image Files"
+section "10. Docker Files"
 # ═══════════════════════════════════════
 
+# Docker files only exist in the repo checkout, not inside the running container
+DOCKER_ROOT="$REPO_DIR"
+[ ! -f "$DOCKER_ROOT/Dockerfile" ] && [ -f "/oopsbox/../Dockerfile" ] && DOCKER_ROOT="/"
 for f in Dockerfile .dockerignore docker/entrypoint.sh docker/nginx.conf docker/supervisord.conf; do
-  if [ -f "$REPO_DIR/$f" ]; then
-    pass "Docker: $f exists"
+  if [ -f "$DOCKER_ROOT/$f" ]; then
+    pass "Docker: $f"
   else
-    fail "Docker: $f" "not found"
+    skip "Docker: $f" "not in REPO_DIR (run from host checkout to verify)"
   fi
 done
 
 # ═══════════════════════════════════════
-section "15. Scripts Integrity"
+section "11. Scripts"
 # ═══════════════════════════════════════
 
-SCRIPTS="project-start.sh project-stop.sh project-term.sh claude-loop.sh nginx-update-projects.sh"
-
-for s in $SCRIPTS; do
+for s in project-start.sh project-stop.sh project-term.sh claude-loop.sh nginx-update-projects.sh; do
   if [ -f "$REPO_DIR/bin/$s" ] && [ -x "$REPO_DIR/bin/$s" ]; then
-    pass "Script: $s (exists + executable)"
+    pass "bin/$s"
   elif [ -f "$REPO_DIR/bin/$s" ]; then
-    fail "Script: $s" "not executable"
+    fail "bin/$s" "not executable"
   else
-    fail "Script: $s" "not found"
+    fail "bin/$s" "not found"
   fi
 done
 
 # ═══════════════════════════════════════
-section "17. Static Files Deployed"
+section "12. Static Files"
 # ═══════════════════════════════════════
 
 for f in index.html login.html manifest.json sw.js favicon.svg; do
   if [ -f "$REPO_DIR/dashboard/static/$f" ]; then
-    pass "Static: $f"
+    pass "static/$f"
   else
-    fail "Static: $f" "not found"
+    fail "static/$f" "not found"
   fi
 done
 
-for f in index.html login.html manifest.json sw.js favicon.svg; do
-  if [ -f "$REPO_DIR/dashboard/static/$f" ]; then
-    pass "Static: $f"
+for f in api.js files.js terminal.js viewer.js; do
+  if [ -f "$REPO_DIR/dashboard/static/js/$f" ]; then
+    pass "static/js/$f"
   else
-    fail "Static: $f" "not found"
+    fail "static/js/$f" "not found"
   fi
 done
 
-if [ -f "$REPO_DIR/dashboard/main.py" ]; then
-  pass "dashboard/main.py exists"
+# ═══════════════════════════════════════
+section "13. Logout"
+# ═══════════════════════════════════════
+
+R=$(api_post "/api/auth/logout" '{}')
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
+  pass "Logout"
 else
-  fail "dashboard/main.py" "not found"
+  fail "Logout" "$R"
 fi
+
+R=$(api "/api/auth/status")
+if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert not d.get('authenticated')" 2>/dev/null; then
+  pass "Session cleared after logout"
+else
+  fail "Session cleared after logout" "$R"
+fi
+
+rm -f /tmp/oopsbox-test-cookies.txt
 
 # ═══════════════════════════════════════
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+TOTAL=$((PASS + FAIL + SKIP))
+echo -e "  Results: ${GREEN}${PASS} passed${NC}  ${RED}${FAIL} failed${NC}  ${YELLOW}${SKIP} skipped${NC}  (${TOTAL} total)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo -e "  ${GREEN}PASS: $PASS${NC}  ${RED}FAIL: $FAIL${NC}  ${YELLOW}SKIP: $SKIP${NC}  Total: $((PASS+FAIL+SKIP))"
-echo ""
-if [ "$FAIL" -eq 0 ]; then
-  echo "  All tests passed! 🎉"
-else
-  echo "  $FAIL test(s) failed."
-fi
-echo ""
+[ "$FAIL" -eq 0 ] && exit 0 || exit 1

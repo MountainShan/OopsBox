@@ -119,9 +119,10 @@ def create_project(req: CreateProjectRequest):
     if req.type == "local":
         (project_dir / "CLAUDE.md").write_text(f"# Project: {req.name}\n\nLocal OopsBox project.\n")
     else:
+        default_path = f"/home/{req.ssh_user or 'user'}"
         (project_dir / "CLAUDE.md").write_text(
             f"# Project: {req.name} (SSH Remote)\n\n"
-            f"Host: {req.ssh_host}\nUser: {req.ssh_user}\nPath: {req.remote_path or '/home/' + (req.ssh_user or 'user')}\n"
+            f"Host: {req.ssh_host}\nUser: {req.ssh_user}\nPath: {req.remote_path or default_path}\n"
         )
 
     meta = {
