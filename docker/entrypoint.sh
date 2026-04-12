@@ -13,18 +13,19 @@ touch /etc/nginx/conf.d/oopsbox-projects.conf
 # ── Read config.yaml (if mounted) ──
 CONFIG_FILE="/oopsbox/config.yaml"
 get_cfg() {
-  python3 -c "
-import yaml, sys
-f = '$CONFIG_FILE'
-import os
+  OOPS_CFG_FILE="$CONFIG_FILE" OOPS_CFG_KEY="$1" python3 -c "
+import yaml, os, sys
+f = os.environ.get('OOPS_CFG_FILE', '')
+key = os.environ.get('OOPS_CFG_KEY', '')
 try:
     with open(f) as fh:
         d = yaml.safe_load(fh) or {}
-except:
+except FileNotFoundError:
     d = {}
-keys = '$1'.split('.')
+except Exception:
+    d = {}
 v = d
-for k in keys:
+for k in key.split('.'):
     v = v.get(k, {}) if isinstance(v, dict) else {}
 print(v if isinstance(v, str) else '')
 " 2>/dev/null || echo ""
@@ -47,20 +48,23 @@ if [ ! -f "$AUTH_FILE" ]; then
     echo ""
   fi
   SALT=$(python3 -c "import secrets; print(secrets.token_hex(16))")
-  HASH=$(python3 -c "
-import hashlib, sys
-dk = hashlib.pbkdf2_hmac('sha256', '${PASSWORD}'.encode(), '${SALT}'.encode(), 600000)
+  HASH=$(OOPS_PW="$PASSWORD" OOPS_SALT="$SALT" python3 -c "
+import hashlib, os
+pw = os.environ['OOPS_PW'].encode()
+salt = os.environ['OOPS_SALT'].encode()
+dk = hashlib.pbkdf2_hmac('sha256', pw, salt, 600000)
 print(dk.hex())
 ")
-  python3 -c "
-import json
+  OOPS_USERNAME="$USERNAME" OOPS_SALT="$SALT" OOPS_HASH="$HASH" OOPS_AUTH="$AUTH_FILE" python3 -c "
+import json, os
 from pathlib import Path
-Path('$AUTH_FILE').write_text(json.dumps({
-    'username': '$USERNAME',
-    'salt': '$SALT',
-    'password_hash': '$HASH'
+auth_file = os.environ['OOPS_AUTH']
+Path(auth_file).write_text(json.dumps({
+    'username': os.environ['OOPS_USERNAME'],
+    'salt': os.environ['OOPS_SALT'],
+    'password_hash': os.environ['OOPS_HASH']
 }, indent=2))
-Path('$AUTH_FILE').chmod(0o600)
+Path(auth_file).chmod(0o600)
 "
 fi
 
@@ -86,8 +90,16 @@ SSL_KEY="${SSL_KEY:-$(get_cfg ssl.key)}"
 
 if [ -n "$SSL_CERT" ] && [ -n "$SSL_KEY" ] && [ -f "$SSL_CERT" ] && [ -f "$SSL_KEY" ]; then
   echo "==> SSL enabled: $SSL_CERT"
-  sed "s|SSL_CERT_PATH|${SSL_CERT}|g; s|SSL_KEY_PATH|${SSL_KEY}|g" \
-    /etc/nginx/nginx-ssl.conf > /etc/nginx/nginx.conf
+  OOPS_CERT="$SSL_CERT" OOPS_KEY="$SSL_KEY" python3 -c "
+import os
+cert = os.environ['OOPS_CERT']
+key = os.environ['OOPS_KEY']
+with open('/etc/nginx/nginx-ssl.conf') as f:
+    content = f.read()
+content = content.replace('SSL_CERT_PATH', cert).replace('SSL_KEY_PATH', key)
+with open('/etc/nginx/nginx.conf', 'w') as f:
+    f.write(content)
+"
 else
   echo "==> SSL not configured — HTTP only"
 fi

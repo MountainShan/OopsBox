@@ -1,7 +1,7 @@
 # dashboard/main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse
 from pathlib import Path
 
 from .routers import auth, projects, files, system
@@ -19,19 +19,23 @@ _static = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=_static), name="static")
 
 
+def _html(filename: str) -> FileResponse:
+    path = _static / filename
+    if not path.exists():
+        raise HTTPException(status_code=404)
+    return FileResponse(path)
+
+
 @app.get("/login")
 def login_page():
-    from fastapi.responses import HTMLResponse
-    return HTMLResponse((_static / "login.html").read_text())
+    return _html("login.html")
 
 
 @app.get("/")
 def index():
-    from fastapi.responses import HTMLResponse
-    return HTMLResponse((_static / "index.html").read_text())
+    return _html("index.html")
 
 
 @app.get("/workspace")
 def workspace():
-    from fastapi.responses import HTMLResponse
-    return HTMLResponse((_static / "workspace.html").read_text())
+    return _html("workspace.html")
