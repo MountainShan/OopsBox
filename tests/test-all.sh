@@ -2,6 +2,7 @@
 # OopsBox Full Feature Test Suite
 set -uo pipefail
 
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 API="http://127.0.0.1:5000"
 PASS=0
 FAIL=0
@@ -321,12 +322,12 @@ fi
 section "10. Hardcoded Path Check"
 # ═══════════════════════════════════════
 
-HARDCODED=$(grep -rn "/home/mountain" "$HOME/projects/OopsBox/" --include="*.sh" --include="*.py" --include="*.html" --include="*.json" --include="*.conf" 2>/dev/null | grep -v ".git/" | grep -v "node_modules" | grep -v "tests/" | wc -l)
+HARDCODED=$(grep -rn "$HOME" "$REPO_DIR/" --include="*.sh" --include="*.py" --include="*.html" --include="*.json" --include="*.conf" 2>/dev/null | grep -v ".git/" | grep -v "node_modules" | grep -v "tests/" | wc -l)
 if [ "$HARDCODED" -eq 0 ]; then
-  pass "No hardcoded /home/mountain in codebase"
+  pass "No hardcoded $HOME in codebase"
 else
   fail "Hardcoded paths found" "$HARDCODED occurrences"
-  grep -rn "/home/mountain" "$HOME/projects/OopsBox/" --include="*.sh" --include="*.py" --include="*.html" 2>/dev/null | grep -v ".git/" | head -5
+  grep -rn "$HOME" "$REPO_DIR/" --include="*.sh" --include="*.py" --include="*.html" 2>/dev/null | grep -v ".git/" | head -5
 fi
 
 # ═══════════════════════════════════════
@@ -385,14 +386,14 @@ fi
 section "13. PWA / Service Worker"
 # ═══════════════════════════════════════
 
-if [ -f "$HOME/projects/OopsBox/dashboard/static/sw.js" ]; then
+if [ -f "$REPO_DIR/dashboard/static/sw.js" ]; then
   pass "Service worker file exists"
 else
   fail "Service worker" "sw.js not found"
 fi
 
-if [ -f "$HOME/projects/OopsBox/dashboard/static/manifest.json" ]; then
-  R=$(cat "$HOME/projects/OopsBox/dashboard/static/manifest.json")
+if [ -f "$REPO_DIR/dashboard/static/manifest.json" ]; then
+  R=$(cat "$REPO_DIR/dashboard/static/manifest.json")
   if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['display']=='standalone'; assert 'scope' in d" 2>/dev/null; then
     pass "PWA manifest valid (standalone + scope)"
   else
@@ -402,7 +403,7 @@ else
   fail "PWA manifest" "manifest.json not found"
 fi
 
-if [ -f "$HOME/projects/OopsBox/dashboard/static/icon-192.png" ] && [ -f "$HOME/projects/OopsBox/dashboard/static/icon-512.png" ]; then
+if [ -f "$REPO_DIR/dashboard/static/icon-192.png" ] && [ -f "$REPO_DIR/dashboard/static/icon-512.png" ]; then
   pass "PWA icons (192 + 512)"
 else
   fail "PWA icons" "missing icon files"
@@ -413,7 +414,7 @@ section "14. Docker Image Files"
 # ═══════════════════════════════════════
 
 for f in Dockerfile .dockerignore docker/entrypoint.sh docker/nginx.conf docker/Containerfile.agent; do
-  if [ -f "$HOME/projects/OopsBox/$f" ]; then
+  if [ -f "$REPO_DIR/$f" ]; then
     pass "Docker: $f exists"
   else
     fail "Docker: $f" "not found"
@@ -422,7 +423,7 @@ done
 
 S6_SERVICES="nginx dashboard agents-init system-term idle-check"
 for svc in $S6_SERVICES; do
-  if [ -f "$HOME/projects/OopsBox/docker/s6-rc.d/$svc/type" ]; then
+  if [ -f "$REPO_DIR/docker/s6-rc.d/$svc/type" ]; then
     pass "s6 service: $svc"
   else
     fail "s6 service: $svc" "type file not found"
