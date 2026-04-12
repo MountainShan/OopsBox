@@ -3,14 +3,14 @@
 async function request(method, path, body = null) {
   const opts = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: body !== null ? { 'Content-Type': 'application/json' } : {},
     credentials: 'same-origin',
   };
   if (body !== null) opts.body = JSON.stringify(body);
   const r = await fetch(path, opts);
   if (r.status === 401) {
     window.location.href = '/login';
-    return null;
+    throw new Error('Unauthorized');
   }
   if (!r.ok) {
     const err = await r.json().catch(() => ({ detail: r.statusText }));
@@ -43,6 +43,7 @@ const api = {
   files: {
     list: (p, path = '') => api.get(`/api/files/${p}?path=${encodeURIComponent(path)}`),
     read: (p, path) => api.get(`/api/files/${p}/read?path=${encodeURIComponent(path)}`),
+    // POST /delete (not HTTP DELETE) because the path is sent in the request body
     delete: (p, path) => api.post(`/api/files/${p}/delete`, { path }),
     rename: (p, path, new_name) => api.post(`/api/files/${p}/rename`, { path, new_name }),
     mkdir: (p, path) => api.post(`/api/files/${p}/mkdir`, { path }),
