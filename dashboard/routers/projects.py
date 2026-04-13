@@ -243,18 +243,17 @@ def setup_ssh_key(name: str):
             raise HTTPException(status_code=500, detail="Failed to generate SSH key: " + result.stderr)
         key_path.chmod(0o600)
 
-    # Copy public key to remote server
+    # Append public key to remote authorized_keys (avoids ssh-copy-id tmpdir issue with ro mounts)
+    pub_key = pub_path.read_text().strip()
     result = subprocess.run(
         ["sshpass", "-p", password,
-         "ssh-copy-id",
-         "-i", str(pub_path),
-         "-p", str(port),
-         "-o", "StrictHostKeyChecking=no",
-         f"{user}@{host}"],
+         "ssh", "-p", str(port), "-o", "StrictHostKeyChecking=no",
+         f"{user}@{host}",
+         f"mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo {pub_key!r} >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"],
         capture_output=True, text=True
     )
     if result.returncode != 0:
-        raise HTTPException(status_code=500, detail="ssh-copy-id failed: " + (result.stderr or result.stdout).strip())
+        raise HTTPException(status_code=500, detail="Failed to install key: " + (result.stderr or result.stdout).strip())
 
     # Update registry: use key auth, remove password
     meta["ssh_key_path"] = str(key_path)
