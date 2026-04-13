@@ -58,11 +58,24 @@ if ! tmux has-session -t "$SESSION" 2>/dev/null; then
 
   if [ "$PROJ_TYPE" = "ssh" ]; then
     # ── SSH project: claude + remote + local windows ──────
-    # Tiny per-project wrapper so SHELL can be a plain path (no args allowed in SHELL var)
-    REMOTE_BASH="$PID_DIR/remote-bash"
+    # Persistent wrapper in bin/ (not /tmp which may vanish on reboot)
+    REMOTE_BASH="$HOME/bin/${NAME}-shell"
     printf '#!/bin/bash\nexec %s %s "$@"\n' \
       "$HOME/bin/ssh-remote-bash.sh" "'${NAME}'" > "$REMOTE_BASH"
     chmod +x "$REMOTE_BASH"
+
+    # Write SHELL into project-level Claude settings so it persists across restarts
+    PROJ_CLAUDE_DIR="$WORKDIR/.claude"
+    mkdir -p "$PROJ_CLAUDE_DIR"
+    PROJ_SETTINGS="$PROJ_CLAUDE_DIR/settings.json"
+    python3 - "$PROJ_SETTINGS" "$REMOTE_BASH" <<'PY'
+import json, sys
+from pathlib import Path
+settings_path, shell_path = Path(sys.argv[1]), sys.argv[2]
+data = json.loads(settings_path.read_text()) if settings_path.exists() else {}
+data.setdefault("env", {})["SHELL"] = shell_path
+settings_path.write_text(json.dumps(data, indent=2))
+PY
 
     # Window 1: claude — runs locally, all bash actions go to remote via SHELL wrapper
     tmux new-session -d -s "$SESSION" -n "claude" -c "$WORKDIR"
