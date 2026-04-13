@@ -7,7 +7,6 @@ NAME="${1:-}"
 WORKDIR="${2:-$HOME/projects/${NAME}}"
 
 cd "$WORKDIR" 2>/dev/null || true
-export CLAUDE_CODE_NO_FLICKER=1
 
 # Pre-trust the working directory so Claude doesn't show the workspace trust dialog
 _trust_dir() {
