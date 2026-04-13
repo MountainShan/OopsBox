@@ -37,7 +37,7 @@ _banner() {
 
 while true; do
   _banner
-  claude --resume --dangerously-skip-permissions || true
+  claude --continue --dangerously-skip-permissions || true
   echo ""
   echo "  Claude exited. Restarting in 2 seconds... (C-c to drop to shell)"
   sleep 2
