@@ -234,16 +234,6 @@ def setup_ssh_key(name: str):
     key_path = ssh_dir / "oopsbox_id_rsa"
     pub_path = Path(str(key_path) + ".pub")
 
-    # Also symlink into ~/.ssh so standard SSH tooling picks it up
-    dot_ssh = Path.home() / ".ssh"
-    dot_ssh.mkdir(mode=0o700, exist_ok=True)
-    sym = dot_ssh / "oopsbox_id_rsa"
-    if not sym.exists():
-        sym.symlink_to(key_path)
-    sym_pub = dot_ssh / "oopsbox_id_rsa.pub"
-    if not sym_pub.exists():
-        sym_pub.symlink_to(pub_path)
-
     if not key_path.exists():
         result = subprocess.run(
             ["ssh-keygen", "-t", "rsa", "-b", "4096", "-N", "", "-f", str(key_path)],
