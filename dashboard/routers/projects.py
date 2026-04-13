@@ -228,10 +228,22 @@ def setup_ssh_key(name: str):
     if not password:
         raise HTTPException(status_code=400, detail="Password required to install SSH key (already using key auth?)")
 
-    # Generate keypair if needed
-    key_path = Path.home() / ".ssh" / "oopsbox_id_rsa"
+    # Generate keypair in persistent config volume so it survives container rebuilds
+    ssh_dir = Path.home() / ".config" / "oopsbox" / "ssh"
+    ssh_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    key_path = ssh_dir / "oopsbox_id_rsa"
     pub_path = Path(str(key_path) + ".pub")
-    key_path.parent.mkdir(mode=0o700, exist_ok=True)
+
+    # Also symlink into ~/.ssh so standard SSH tooling picks it up
+    dot_ssh = Path.home() / ".ssh"
+    dot_ssh.mkdir(mode=0o700, exist_ok=True)
+    sym = dot_ssh / "oopsbox_id_rsa"
+    if not sym.exists():
+        sym.symlink_to(key_path)
+    sym_pub = dot_ssh / "oopsbox_id_rsa.pub"
+    if not sym_pub.exists():
+        sym_pub.symlink_to(pub_path)
+
     if not key_path.exists():
         result = subprocess.run(
             ["ssh-keygen", "-t", "rsa", "-b", "4096", "-N", "", "-f", str(key_path)],
