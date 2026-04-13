@@ -209,6 +209,59 @@ def update_project(name: str, req: UpdateProjectRequest):
     return meta
 
 
+@router.post("/{name}/setup-ssh-key")
+def setup_ssh_key(name: str):
+    registry = _load_registry()
+    if name not in registry:
+        raise HTTPException(status_code=404, detail="Project not found")
+    meta = registry[name]
+    if meta.get("type") != "ssh":
+        raise HTTPException(status_code=400, detail="Not an SSH project")
+
+    host = meta.get("ssh_host")
+    port = meta.get("ssh_port", 22)
+    user = meta.get("ssh_user")
+    password = meta.get("ssh_password")
+
+    if not all([host, user]):
+        raise HTTPException(status_code=400, detail="Missing SSH host or user")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password required to install SSH key (already using key auth?)")
+
+    # Generate keypair if needed
+    key_path = Path.home() / ".ssh" / "oopsbox_id_rsa"
+    pub_path = Path(str(key_path) + ".pub")
+    key_path.parent.mkdir(mode=0o700, exist_ok=True)
+    if not key_path.exists():
+        result = subprocess.run(
+            ["ssh-keygen", "-t", "rsa", "-b", "4096", "-N", "", "-f", str(key_path)],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail="Failed to generate SSH key: " + result.stderr)
+        key_path.chmod(0o600)
+
+    # Copy public key to remote server
+    result = subprocess.run(
+        ["sshpass", "-p", password,
+         "ssh-copy-id",
+         "-i", str(pub_path),
+         "-p", str(port),
+         "-o", "StrictHostKeyChecking=no",
+         f"{user}@{host}"],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail="ssh-copy-id failed: " + (result.stderr or result.stdout).strip())
+
+    # Update registry: use key auth, remove password
+    meta["ssh_key_path"] = str(key_path)
+    meta.pop("ssh_password", None)
+    registry[name] = meta
+    _save_registry(registry)
+    return {"ok": True, "key_path": str(key_path)}
+
+
 @router.post("/{name}/start")
 def start_project(name: str):
     registry = _load_registry()
