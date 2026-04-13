@@ -58,21 +58,10 @@ if ! tmux has-session -t "$SESSION" 2>/dev/null; then
 
   if [ "$PROJ_TYPE" = "ssh" ]; then
     # ── SSH project: claude + remote + local windows ──────
-    #
-    # Write a per-project bash wrapper that forwards every command to the
-    # remote server.  Claude runs locally but its bash tool runs on remote.
+    # Tiny per-project wrapper so SHELL can be a plain path (no args allowed in SHELL var)
     REMOTE_BASH="$PID_DIR/remote-bash"
-    cat > "$REMOTE_BASH" << BASH_EOF
-#!/bin/bash
-# Forwards bash execution to remote server for project: ${NAME}
-if [[ "\$1" == "-c" ]]; then
-  exec ${SSH_BASE} "cd $(printf '%q' "$REMOTE_PATH") && bash -c $(printf '%q' "\${2:-}")"
-elif [[ "\$#" -eq 0 ]]; then
-  exec ${SSH_BASE} -t "cd $(printf '%q' "$REMOTE_PATH") && bash"
-else
-  exec ${SSH_BASE} -t "cd $(printf '%q' "$REMOTE_PATH") && bash \$*"
-fi
-BASH_EOF
+    printf '#!/bin/bash\nexec %s %s "$@"\n' \
+      "$HOME/bin/ssh-remote-bash.sh" "'${NAME}'" > "$REMOTE_BASH"
     chmod +x "$REMOTE_BASH"
 
     # Window 1: claude — runs locally, all bash actions go to remote via SHELL wrapper
