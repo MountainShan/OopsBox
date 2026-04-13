@@ -35,9 +35,25 @@ _banner() {
   echo ""
 }
 
+_has_conversation() {
+  local proj_dir
+  proj_dir=$(python3 -c "
+import pathlib
+p = pathlib.Path('$WORKDIR').resolve()
+encoded = str(p).lstrip('/').replace('/', '-')
+d = pathlib.Path.home() / '.claude' / 'projects' / ('-' + encoded)
+print(d)
+" 2>/dev/null)
+  [ -n "$(ls "$proj_dir"/*.jsonl 2>/dev/null)" ]
+}
+
 while true; do
   _banner
-  claude --continue --dangerously-skip-permissions || true
+  if _has_conversation; then
+    claude --continue --dangerously-skip-permissions || true
+  else
+    claude --dangerously-skip-permissions || true
+  fi
   echo ""
   echo "  Claude exited. Restarting in 2 seconds... (C-c to drop to shell)"
   sleep 2
