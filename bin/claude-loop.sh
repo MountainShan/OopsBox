@@ -35,22 +35,9 @@ _banner() {
   echo ""
 }
 
-_has_session() {
-  local key
-  key=$(echo "$WORKDIR" | tr '/' '-')
-  local dir="$HOME/.claude/projects/${key}"
-  [ -d "$dir" ] && ls "$dir"/*.jsonl 2>/dev/null | grep -q .
-}
-
 while true; do
   _banner
-  if _has_session; then
-    claude --resume --dangerously-skip-permissions || true
-  else
-    echo "  No previous session — starting fresh..."
-    echo ""
-    claude --dangerously-skip-permissions || true
-  fi
+  claude --resume --dangerously-skip-permissions || true
   echo ""
   echo "  Claude exited. Restarting in 2 seconds... (C-c to drop to shell)"
   sleep 2
