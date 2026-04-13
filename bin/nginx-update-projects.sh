@@ -26,6 +26,7 @@ location /terminal/${NAME}/ {
     proxy_set_header Host \$host;
     proxy_read_timeout 86400s;
     proxy_buffering off;
+    add_header Permissions-Policy "clipboard-read=*, clipboard-write=*";
 }
 EOF
 done

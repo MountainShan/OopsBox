@@ -108,6 +108,7 @@ ttyd \
   --base-path "/terminal/${NAME}" \
   --writable \
   -t copyOnSelect=true \
+  -t allowProposedApi=true \
   -- "$HOME/bin/project-term.sh" "$NAME" "$WORKDIR" \
   > "$PID_DIR/ttyd.log" 2>&1 &
 
