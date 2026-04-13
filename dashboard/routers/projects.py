@@ -120,9 +120,22 @@ def create_project(req: CreateProjectRequest):
         (project_dir / "CLAUDE.md").write_text(f"# Project: {req.name}\n\nLocal OopsBox project.\n")
     else:
         default_path = f"/home/{req.ssh_user or 'user'}"
+        remote_path = req.remote_path or default_path
         (project_dir / "CLAUDE.md").write_text(
             f"# Project: {req.name} (SSH Remote)\n\n"
-            f"Host: {req.ssh_host}\nUser: {req.ssh_user}\nPath: {req.remote_path or default_path}\n"
+            f"## Remote Connection\n\n"
+            f"- Host: {req.ssh_host}\n"
+            f"- Port: {req.ssh_port}\n"
+            f"- User: {req.ssh_user}\n"
+            f"- Remote working directory: {remote_path}\n\n"
+            f"## Important\n\n"
+            f"All bash commands you run are executed on the **remote server** via SSH.\n"
+            f"Your shell is `ssh-remote-bash.sh` which forwards every command to "
+            f"`{req.ssh_user}@{req.ssh_host}:{req.ssh_port}`.\n\n"
+            f"- File paths are relative to `{remote_path}` on the remote server\n"
+            f"- Local directory (`{project_dir}`) is only for Claude's config and notes\n"
+            f"- Use the `remote` tmux window for an interactive shell on the remote server\n"
+            f"- Use the `local` tmux window for local operations inside the container\n"
         )
 
     meta = {
