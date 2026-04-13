@@ -33,6 +33,7 @@ print(meta.get('ssh_port', '22'))
 print(meta.get('ssh_user', ''))
 print(meta.get('ssh_password', ''))
 print(meta.get('remote_path', '~'))
+print(meta.get('ssh_key_path', ''))
 " 2>/dev/null || echo "local")
 
 PROJ_TYPE=$(echo "$PROJ_META"  | sed -n '1p')
@@ -41,9 +42,12 @@ SSH_PORT=$(echo  "$PROJ_META"  | sed -n '3p')
 SSH_USER=$(echo  "$PROJ_META"  | sed -n '4p')
 SSH_PASS=$(echo  "$PROJ_META"  | sed -n '5p')
 REMOTE_PATH=$(echo "$PROJ_META" | sed -n '6p')
+SSH_KEY=$(echo   "$PROJ_META"  | sed -n '7p')
 
-# Base SSH command (with or without password)
-if [ -n "$SSH_PASS" ] && command -v sshpass &>/dev/null; then
+# Base SSH command (key > password > default)
+if [ -n "$SSH_KEY" ] && [ -f "$SSH_KEY" ]; then
+  SSH_BASE="ssh -p ${SSH_PORT} -i $(printf '%q' "$SSH_KEY") -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST}"
+elif [ -n "$SSH_PASS" ] && command -v sshpass &>/dev/null; then
   SSH_BASE="sshpass -p $(printf '%q' "$SSH_PASS") ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST}"
 else
   SSH_BASE="ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST}"
