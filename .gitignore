@@ -12,3 +12,4 @@ test-*.html
 
 .superpowers/
 docs/superpowers/
+*.crt\n*.key\n*.pem

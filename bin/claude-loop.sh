@@ -7,7 +7,6 @@ NAME="${1:-}"
 WORKDIR="${2:-$HOME/projects/${NAME}}"
 
 cd "$WORKDIR" 2>/dev/null || true
-export CLAUDE_CODE_NO_FLICKER=1
 
 # Pre-trust the working directory so Claude doesn't show the workspace trust dialog
 _trust_dir() {
@@ -35,20 +34,41 @@ _banner() {
   echo ""
 }
 
-_has_session() {
-  local key
-  key=$(echo "$WORKDIR" | tr '/' '-')
-  local dir="$HOME/.claude/projects/${key}"
-  [ -d "$dir" ] && ls "$dir"/*.jsonl 2>/dev/null | grep -q .
+_has_conversation() {
+  local proj_dir
+  proj_dir=$(python3 -c "
+import pathlib
+p = pathlib.Path('$WORKDIR').resolve()
+encoded = str(p).lstrip('/').replace('/', '-')
+d = pathlib.Path.home() / '.claude' / 'projects' / ('-' + encoded)
+print(d)
+" 2>/dev/null)
+  [ -n "$(ls "$proj_dir"/*.jsonl 2>/dev/null)" ]
+}
+
+# Re-apply SHELL from project settings.json (survives Claude restarts)
+_apply_shell() {
+  local proj_settings="$WORKDIR/.claude/settings.json"
+  local shell_path
+  shell_path=$(python3 -c "
+import json, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+if p.exists():
+    d = json.loads(p.read_text())
+    print(d.get('env', {}).get('SHELL', ''))
+" "$proj_settings" 2>/dev/null)
+  if [[ -n "$shell_path" && -x "$shell_path" ]]; then
+    export SHELL="$shell_path"
+  fi
 }
 
 while true; do
+  _apply_shell
   _banner
-  if _has_session; then
-    claude --resume --dangerously-skip-permissions || true
+  if _has_conversation; then
+    claude --continue --dangerously-skip-permissions || true
   else
-    echo "  No previous session — starting fresh..."
-    echo ""
     claude --dangerously-skip-permissions || true
   fi
   echo ""

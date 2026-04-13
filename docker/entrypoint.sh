@@ -106,7 +106,7 @@ else
 fi
 
 # ── Fix ownership so oopsbox user can access app files + mounted volumes ──
-chown -R oopsbox:oopsbox /oopsbox
+chown -R oopsbox:oopsbox /oopsbox 2>/dev/null || true
 
 # ── Start tmux server as oopsbox (so bin/ scripts connect to same server) ──
 runuser -u oopsbox -- tmux start-server 2>/dev/null || true

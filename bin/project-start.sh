@@ -33,6 +33,7 @@ print(meta.get('ssh_port', '22'))
 print(meta.get('ssh_user', ''))
 print(meta.get('ssh_password', ''))
 print(meta.get('remote_path', '~'))
+print(meta.get('ssh_key_path', ''))
 " 2>/dev/null || echo "local")
 
 PROJ_TYPE=$(echo "$PROJ_META"  | sed -n '1p')
@@ -41,9 +42,12 @@ SSH_PORT=$(echo  "$PROJ_META"  | sed -n '3p')
 SSH_USER=$(echo  "$PROJ_META"  | sed -n '4p')
 SSH_PASS=$(echo  "$PROJ_META"  | sed -n '5p')
 REMOTE_PATH=$(echo "$PROJ_META" | sed -n '6p')
+SSH_KEY=$(echo   "$PROJ_META"  | sed -n '7p')
 
-# Base SSH command (with or without password)
-if [ -n "$SSH_PASS" ] && command -v sshpass &>/dev/null; then
+# Base SSH command (key > password > default)
+if [ -n "$SSH_KEY" ] && [ -f "$SSH_KEY" ]; then
+  SSH_BASE="ssh -p ${SSH_PORT} -i $(printf '%q' "$SSH_KEY") -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST}"
+elif [ -n "$SSH_PASS" ] && command -v sshpass &>/dev/null; then
   SSH_BASE="sshpass -p $(printf '%q' "$SSH_PASS") ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST}"
 else
   SSH_BASE="ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST}"
@@ -54,22 +58,24 @@ if ! tmux has-session -t "$SESSION" 2>/dev/null; then
 
   if [ "$PROJ_TYPE" = "ssh" ]; then
     # ── SSH project: claude + remote + local windows ──────
-    #
-    # Write a per-project bash wrapper that forwards every command to the
-    # remote server.  Claude runs locally but its bash tool runs on remote.
-    REMOTE_BASH="$PID_DIR/remote-bash"
-    cat > "$REMOTE_BASH" << BASH_EOF
-#!/bin/bash
-# Forwards bash execution to remote server for project: ${NAME}
-if [[ "\$1" == "-c" ]]; then
-  exec ${SSH_BASE} "cd $(printf '%q' "$REMOTE_PATH") && bash -c $(printf '%q' "\${2:-}")"
-elif [[ "\$#" -eq 0 ]]; then
-  exec ${SSH_BASE} -t "cd $(printf '%q' "$REMOTE_PATH") && bash"
-else
-  exec ${SSH_BASE} -t "cd $(printf '%q' "$REMOTE_PATH") && bash \$*"
-fi
-BASH_EOF
+    # Persistent wrapper in bin/ (not /tmp which may vanish on reboot)
+    REMOTE_BASH="$HOME/bin/${NAME}-shell"
+    printf '#!/bin/bash\nexec %s %s "$@"\n' \
+      "$HOME/bin/ssh-remote-bash.sh" "'${NAME}'" > "$REMOTE_BASH"
     chmod +x "$REMOTE_BASH"
+
+    # Write SHELL into project-level Claude settings so it persists across restarts
+    PROJ_CLAUDE_DIR="$WORKDIR/.claude"
+    mkdir -p "$PROJ_CLAUDE_DIR"
+    PROJ_SETTINGS="$PROJ_CLAUDE_DIR/settings.json"
+    python3 - "$PROJ_SETTINGS" "$REMOTE_BASH" <<'PY'
+import json, sys
+from pathlib import Path
+settings_path, shell_path = Path(sys.argv[1]), sys.argv[2]
+data = json.loads(settings_path.read_text()) if settings_path.exists() else {}
+data.setdefault("env", {})["SHELL"] = shell_path
+settings_path.write_text(json.dumps(data, indent=2))
+PY
 
     # Window 1: claude — runs locally, all bash actions go to remote via SHELL wrapper
     tmux new-session -d -s "$SESSION" -n "claude" -c "$WORKDIR"
@@ -102,6 +108,7 @@ ttyd \
   --base-path "/terminal/${NAME}" \
   --writable \
   -t copyOnSelect=true \
+  -t allowProposedApi=true \
   -- "$HOME/bin/project-term.sh" "$NAME" "$WORKDIR" \
   > "$PID_DIR/ttyd.log" 2>&1 &
 

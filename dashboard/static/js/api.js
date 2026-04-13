@@ -43,6 +43,7 @@ const api = {
     stop: (n) => api.post(`/api/projects/${n}/stop`),
     status: (n) => api.get(`/api/projects/${n}/status`),
     sendKeys: (n, keys) => api.post(`/api/projects/${n}/send-keys`, { keys }),
+    setupSshKey: (n) => api.post(`/api/projects/${n}/setup-ssh-key`),
     clipboard: (n) => api.get(`/api/projects/${n}/clipboard`),
     mouse: (n, enabled) => api.post(`/api/projects/${n}/mouse`, { enabled }),
     selectWindow: (n, window) => api.post(`/api/projects/${n}/select-window`, { window }),

@@ -120,9 +120,22 @@ def create_project(req: CreateProjectRequest):
         (project_dir / "CLAUDE.md").write_text(f"# Project: {req.name}\n\nLocal OopsBox project.\n")
     else:
         default_path = f"/home/{req.ssh_user or 'user'}"
+        remote_path = req.remote_path or default_path
         (project_dir / "CLAUDE.md").write_text(
             f"# Project: {req.name} (SSH Remote)\n\n"
-            f"Host: {req.ssh_host}\nUser: {req.ssh_user}\nPath: {req.remote_path or default_path}\n"
+            f"## Remote Connection\n\n"
+            f"- Host: {req.ssh_host}\n"
+            f"- Port: {req.ssh_port}\n"
+            f"- User: {req.ssh_user}\n"
+            f"- Remote working directory: {remote_path}\n\n"
+            f"## Important\n\n"
+            f"All bash commands you run are executed on the **remote server** via SSH.\n"
+            f"Your shell is `ssh-remote-bash.sh` which forwards every command to "
+            f"`{req.ssh_user}@{req.ssh_host}:{req.ssh_port}`.\n\n"
+            f"- File paths are relative to `{remote_path}` on the remote server\n"
+            f"- Local directory (`{project_dir}`) is only for Claude's config and notes\n"
+            f"- Use the `remote` tmux window for an interactive shell on the remote server\n"
+            f"- Use the `local` tmux window for local operations inside the container\n"
         )
 
     meta = {
@@ -138,10 +151,18 @@ def create_project(req: CreateProjectRequest):
             "ssh_user": req.ssh_user,
             "remote_path": req.remote_path or f"/home/{req.ssh_user}",
         })
-        if req.ssh_password:
-            meta["ssh_password"] = req.ssh_password
         if req.ssh_key_path:
             meta["ssh_key_path"] = req.ssh_key_path
+        elif req.ssh_password:
+            # Auto-setup passwordless SSH key on create
+            meta["ssh_password"] = req.ssh_password
+            try:
+                key_path = _do_setup_ssh_key(meta)
+                meta["ssh_key_path"] = key_path
+                meta.pop("ssh_password", None)
+            except Exception:
+                # Key setup failed — keep password as fallback
+                pass
 
     registry[req.name] = meta
     _save_registry(registry)
@@ -207,6 +228,65 @@ def update_project(name: str, req: UpdateProjectRequest):
     registry[name] = meta
     _save_registry(registry)
     return meta
+
+
+def _do_setup_ssh_key(meta: dict) -> str:
+    """Generate keypair (if needed) and install public key on remote. Returns key_path."""
+    host = meta.get("ssh_host")
+    port = meta.get("ssh_port", 22)
+    user = meta.get("ssh_user")
+    password = meta.get("ssh_password")
+
+    if not all([host, user, password]):
+        raise HTTPException(status_code=400, detail="Missing SSH host, user, or password")
+
+    # Generate keypair in persistent config volume so it survives container rebuilds
+    ssh_dir = Path.home() / ".config" / "oopsbox" / "ssh"
+    ssh_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    key_path = ssh_dir / "oopsbox_id_rsa"
+    pub_path = Path(str(key_path) + ".pub")
+
+    if not key_path.exists():
+        result = subprocess.run(
+            ["ssh-keygen", "-t", "rsa", "-b", "4096", "-N", "", "-f", str(key_path)],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail="Failed to generate SSH key: " + result.stderr)
+        key_path.chmod(0o600)
+
+    # Append public key to remote authorized_keys
+    pub_key = pub_path.read_text().strip()
+    result = subprocess.run(
+        ["sshpass", "-p", password,
+         "ssh", "-p", str(port), "-o", "StrictHostKeyChecking=no",
+         f"{user}@{host}",
+         f"mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo {pub_key!r} >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail="Failed to install key: " + (result.stderr or result.stdout).strip())
+
+    return str(key_path)
+
+
+@router.post("/{name}/setup-ssh-key")
+def setup_ssh_key(name: str):
+    registry = _load_registry()
+    if name not in registry:
+        raise HTTPException(status_code=404, detail="Project not found")
+    meta = registry[name]
+    if meta.get("type") != "ssh":
+        raise HTTPException(status_code=400, detail="Not an SSH project")
+    if not meta.get("ssh_password"):
+        raise HTTPException(status_code=400, detail="Password required to install SSH key (already using key auth?)")
+
+    key_path = _do_setup_ssh_key(meta)
+    meta["ssh_key_path"] = key_path
+    meta.pop("ssh_password", None)
+    registry[name] = meta
+    _save_registry(registry)
+    return {"ok": True, "key_path": key_path}
 
 
 @router.post("/{name}/start")

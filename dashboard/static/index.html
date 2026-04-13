@@ -250,6 +250,13 @@
       <div class="field"><label>Password</label><input type="password" id="editPass" placeholder="leave blank to keep current"></div>
       <div class="field"><label>SSH Key Path</label><input type="text" id="editKeyPath" placeholder="leave blank to keep current"></div>
     </div>
+    <div id="editSSHKeySection" style="display:none;margin-bottom:12px;">
+      <div style="height:1px;background:var(--border);margin-bottom:12px;"></div>
+      <button class="btn-secondary" id="setupSshKeyBtn" onclick="setupSshKey()" style="width:100%;font-size:12px;">
+        🔑 Setup Passwordless SSH (ssh-copy-id)
+      </button>
+      <div style="color:var(--text3);font-size:11px;margin-top:6px;">Installs your SSH key on the remote server so password is no longer needed. Requires password to be set above.</div>
+    </div>
     <div class="actions">
       <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
       <button class="btn-primary" id="editSaveBtn" onclick="saveEdit()">Save</button>
@@ -658,6 +665,7 @@
       document.getElementById('editPass').value = '';
       document.getElementById('editKeyPath').value = '';
     }
+    document.getElementById('editSSHKeySection').style.display = isSSH ? 'block' : 'none';
     document.getElementById('editModal').classList.remove('hidden');
     document.getElementById('editModal').dataset.name = name;
   }
@@ -680,6 +688,22 @@
       closeEditModal();
       showToast('Saved');
     } catch (e) { showToast(e.message, true); }
+  }
+
+  async function setupSshKey() {
+    const name = document.getElementById('editModal').dataset.name;
+    const btn = document.getElementById('setupSshKeyBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Setting up SSH key...';
+    try {
+      await api.projects.setupSshKey(name);
+      showToast('SSH key installed — password no longer needed');
+      btn.textContent = '✓ SSH Key Installed';
+    } catch (e) {
+      showToast(e.message, true);
+      btn.disabled = false;
+      btn.textContent = '🔑 Setup Passwordless SSH (ssh-copy-id)';
+    }
   }
 
   // ── Settings Modal ───────────────────────────────
