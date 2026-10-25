@@ -82,6 +82,42 @@ function renderBreadcrumb(side, path) {
     span.onclick = () => loadFiles(side, p);
     el.appendChild(span);
   }
+
+  // Clicking the empty space turns the trail into an editable path box —
+  // clicking is quicker for a step or two, typing is quicker for a jump.
+  const filler = document.createElement('span');
+  filler.className = 'breadcrumb-edit';
+  filler.title = 'Click to type a path';
+  filler.onclick = () => editPath(side, path);
+  el.appendChild(filler);
+}
+
+function editPath(side, path) {
+  const el = document.getElementById(side === 'local' ? 'breadcrumbLocal' : 'breadcrumbRemote');
+  el.innerHTML = '';
+
+  const input = document.createElement('input');
+  input.className = 'breadcrumb-input';
+  input.value = path || '';
+  input.spellcheck = false;
+  input.placeholder = 'path/inside/project';
+
+  // Detach the blur handler before navigating, otherwise the redraw that
+  // loadFiles triggers would race with blur and render the trail twice.
+  input.onkeydown = e => {
+    if (e.key === 'Enter') {
+      input.onblur = null;
+      loadFiles(side, input.value.trim().replace(/^\/+|\/+$/g, ''));
+    } else if (e.key === 'Escape') {
+      input.onblur = null;
+      renderBreadcrumb(side, path);
+    }
+  };
+  input.onblur = () => renderBreadcrumb(side, path);
+
+  el.appendChild(input);
+  input.focus();
+  input.select();
 }
 
 function renderFiles(side, files) {

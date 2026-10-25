@@ -7,12 +7,13 @@
   <title>OopsBox</title>
 
   <!-- Icons -->
-  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-  <link rel="apple-touch-icon" href="/static/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=3">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png?v=3">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v=3">
 
   <!-- PWA -->
   <link rel="manifest" href="/static/manifest.json">
-  <meta name="theme-color" content="#09090b">
+  <meta name="theme-color" content="#18181b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="OopsBox">
@@ -23,14 +24,14 @@
     /* ── Activity bar ─────────────────────────────── */
     .activity-bar {
       width: 44px; flex-shrink: 0;
-      background: #0d0d10;
+      background: #131315;
       border-right: 1px solid var(--border);
       display: flex; flex-direction: column; align-items: center;
       padding: 6px 0; gap: 2px; z-index: 10;
     }
     .activity-brand {
-      width: 32px; height: 32px; border-radius: 6px;
-      background: var(--bg3); display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 7px; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
       font-family: var(--mono); font-size: 11px; font-weight: 700;
       color: var(--accent); cursor: default; margin-bottom: 4px; flex-shrink: 0;
       user-select: none;
@@ -46,32 +47,59 @@
     .activity-spacer { flex: 1; }
     .activity-divider { width: 24px; height: 1px; background: var(--border); margin: 4px 0; }
 
-    /* ── Project panel ────────────────────────────── */
-    .project-panel {
-      width: 180px; flex-shrink: 0;
-      background: var(--bg2);
-      border-right: 1px solid var(--border);
-      display: flex; flex-direction: column;
-      transition: width 0.2s ease; overflow: hidden;
+    .activity-term { font-family: var(--mono); font-size: 12px !important; font-weight: 700; }
+    .activity-term.active { color: var(--accent); }
+    .tabs-row {
+      flex-shrink: 0; display: flex; align-items: flex-end; height: 36px;
+      background: var(--bg); border-bottom: 1px solid var(--border);
     }
-    .project-panel.collapsed { width: 0; border-right: none; }
-    .panel-header {
-      padding: 8px 12px 6px;
-      font-size: 11px; font-weight: 600;
-      color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px;
-      flex-shrink: 0; white-space: nowrap;
+    .project-tabs {
+      flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 2px; height: 36px; padding: 0 8px;
+      overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth;
     }
-    .panel-list { flex: 1; overflow-y: auto; padding: 0 4px; }
-    .panel-item {
-      display: flex; align-items: center; gap: 7px;
-      padding: 6px 8px; border-radius: 5px;
-      cursor: pointer; color: var(--text2); white-space: nowrap;
-      user-select: none;
+    /* more tabs than fit: a button listing them all */
+    .tabs-more {
+      flex-shrink: 0; align-self: center; height: 26px; margin: 0 6px; padding: 0 8px; border-radius: 6px;
+      background: var(--bg2); border: 1px solid var(--border); color: var(--text2);
+      font-size: 11.5px; font-family: var(--mono); cursor: pointer; white-space: nowrap;
     }
-    .panel-item:hover { background: var(--bg3); }
-    .panel-item.active { background: var(--bg3); color: var(--text); }
-    .panel-item-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-    .panel-footer { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; white-space: nowrap; }
+    .tabs-more:hover, .tabs-more.open { color: var(--text); border-color: var(--accent); }
+    .tabs-more[hidden] { display: none; }
+    .tabs-menu {
+      position: fixed; z-index: 1000; min-width: 200px; max-width: min(320px, calc(100vw - 16px));
+      max-height: 60vh; overflow-y: auto; padding: 4px;
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    }
+    .tabs-menu[hidden] { display: none; }
+    .tabs-menu button {
+      display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px; border: none; border-radius: 5px;
+      background: none; color: var(--text2); font-size: 13px; text-align: left; cursor: pointer;
+    }
+    .tabs-menu button:hover { background: var(--bg3); color: var(--text); }
+    .tabs-menu button.active { color: var(--text); background: var(--bg3); box-shadow: inset 2px 0 0 var(--accent); }
+    .tabs-menu .tm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .project-tabs::-webkit-scrollbar { display: none; }
+    .project-tabs[hidden] { display: none; }
+    .ptab {
+      display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 6px 0 12px;
+      flex: 0 1 auto; min-width: 92px;  /* tabs give way before they scroll */
+      border: 1px solid transparent; border-bottom: none; border-radius: 7px 7px 0 0;
+      color: var(--text3); font-size: 12.5px; cursor: pointer; user-select: none; -webkit-user-select: none;
+      max-width: 220px; position: relative; top: 1px;
+    }
+    .ptab:hover { color: var(--text2); background: var(--bg2); }
+    .ptab.active { color: var(--text); background: var(--bg2); border-color: var(--border); }
+    .ptab.active::before {
+      content: ""; position: absolute; left: 10px; right: 10px; top: -1px; height: 2px;
+      background: var(--accent); border-radius: 2px;
+    }
+    .ptab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ptab-icon { font-family: var(--mono); font-weight: 700; font-size: 11px; color: var(--accent); }
+    .ptab-close {
+      width: 18px; height: 18px; border: none; background: none; color: var(--text3); border-radius: 4px;
+      font-size: 11px; cursor: pointer; display: grid; place-content: center; padding: 0; flex-shrink: 0;
+    }
+    .ptab-close:hover { background: var(--bg3); color: var(--text); }
 
     /* ── Main area ────────────────────────────────── */
     .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
@@ -87,7 +115,7 @@
       position: absolute; inset: 0; display: flex; flex-direction: column;
     }
     .workspace-panel.hidden { display: none; }
-    .term-frame { flex: 1; border: none; background: #000; }
+    .term-frame { flex: 1; border: none; background: var(--bg); }
 
     .files-panel {
       position: absolute; inset: 0; z-index: 10;
@@ -109,10 +137,52 @@
     .file-pane-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; white-space: nowrap; }
     .file-list { flex: 1; overflow-y: auto; }
 
-    /* ── Context menu ─────────────────────────────── */
-    .ctx-item { padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; color: var(--text2); white-space: nowrap; }
-    .ctx-item:hover { background: var(--bg3); color: var(--text); }
-    .ctx-item.ctx-danger:hover { background: #450a0a; color: #fca5a5; }
+    /* ── Projects page (the pinned first tab) ──────── */
+    .projects-page { position: absolute; inset: 0; overflow-y: auto; }
+    .pp-inner { max-width: 1100px; margin: 0 auto; padding: 20px 16px 32px; }
+    .pp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .pp-title { font-size: 16px; font-weight: 600; color: var(--text); }
+    .pp-count { font-size: 12px; color: var(--text3); }
+    .pp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; }
+    .pp-empty { color: var(--text3); font-size: 13px; padding: 40px 0; text-align: center; }
+    .pcard {
+      display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px;
+      background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+    .pcard:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
+    .pcard.open { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+    .pcard-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .pcard-name { flex: 0 1 auto; min-width: 0; font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pcard-chip { font-size: 10.5px; font-family: var(--mono); color: var(--text2); background: var(--bg3); padding: 1px 7px; border-radius: 9px; white-space: nowrap; }
+    .pcard-head .pcard-chip:first-of-type { margin-left: auto; }
+    .pcard-class {
+      width: auto; flex: none; max-width: 110px;
+      font-size: 10.5px; font-family: var(--mono); color: var(--text2); background: var(--bg3);
+      border: 1px solid var(--border); border-radius: 9px; padding: 1px 4px; height: 20px; cursor: pointer;
+    }
+    .pcard-path { font-size: 11.5px; font-family: var(--mono); color: var(--text3); overflow-wrap: anywhere; }
+    .pcard-agents { display: flex; flex-wrap: wrap; gap: 6px; min-height: 22px; align-items: center; }
+    .pcard-agent {
+      display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 11px;
+      font-size: 11.5px; font-family: var(--mono); color: var(--agent);
+      background: color-mix(in srgb, var(--agent) 12%, var(--bg2)); border: 1px solid color-mix(in srgb, var(--agent) 35%, transparent);
+    }
+    .pcard-agent .st { color: var(--text3); }
+    .pcard-agent.waiting { border-color: #eab308; }
+    .pcard-agent.waiting .st { color: #facc15; }
+    .pcard-none { font-size: 11.5px; color: var(--text3); }
+    .pcard-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pcard-actions button { font-size: 12px; padding: 5px 12px; }
+    .pcard-actions .pcard-del { margin-left: auto; }
+    .pcard-actions .pcard-del:hover { background: #450a0a; color: #fca5a5 !important; border-color: #7f1d1d; }
+    .ptab.ptab-home .ptab-icon { font-size: 12px; }
+    .ptab.ptab-home { flex-shrink: 0; min-width: 0; }
+    @media (max-width: 600px) {
+      .ptab.ptab-home .ptab-name { display: none; }  /* ☰ alone on a phone */
+      .ptab { min-width: 84px; padding-left: 10px; }
+    }
+    /* on a phone the topbar has no room for it; the Projects tab shows the same */
+    @media (max-width: 600px) { #topbarStatus { display: none; } }
   </style>
 </head>
 <body class="app-body">
@@ -120,32 +190,28 @@
 
   <!-- ── Activity bar (always visible) ─────────────── -->
   <div class="activity-bar">
-    <div class="activity-brand" title="OopsBox">&gt;_</div>
+    <div class="activity-brand" title="OopsBox"><img src="/static/favicon.svg?v=3" alt="OopsBox" width="32" height="32"></div>
     <div class="activity-divider"></div>
-    <button class="activity-btn" id="panelToggleBtn" onclick="togglePanel()" title="Toggle project list">☰</button>
+    <button class="activity-btn" id="projectsBtn" onclick="activateProject(null)" title="Projects">☰</button>
+    <button class="activity-btn activity-term" id="globalTermBtn" onclick="newTerminal()" title="New terminal (~/projects)">›_</button>
     <div class="activity-spacer"></div>
-    <button class="activity-btn" onclick="openAddModal()" title="New project" style="font-size:18px;font-weight:300;">+</button>
     <button class="activity-btn" onclick="openSettingsModal()" title="Settings" style="font-size:15px;">⚙</button>
     <button class="activity-btn" onclick="api.auth.logout().then(()=>location.href='/login')" title="Logout" style="font-size:13px;">⏏</button>
   </div>
 
-  <!-- ── Project panel (collapsible) ───────────────── -->
-  <div class="project-panel" id="projectPanel">
-    <div class="panel-header">Projects</div>
-    <div class="panel-list" id="panelList">
-      <div style="color:var(--text3);padding:10px 8px;font-size:12px;">Loading…</div>
-    </div>
-    <div class="panel-footer">
-      <button class="btn-secondary" style="width:100%;font-size:12px;" onclick="openAddModal()">+ New Project</button>
-    </div>
-  </div>
-
   <!-- ── Main area ──────────────────────────────────── -->
   <div class="main-area">
+    <!-- open projects, and the global terminal, as tabs -->
+    <div class="tabs-row">
+      <div class="project-tabs" id="projectTabs"></div>
+      <button class="tabs-more" id="tabsMore" hidden onclick="toggleTabsMenu(event)" title="All open tabs"></button>
+    </div>
+    <div class="tabs-menu" id="tabsMenu" hidden></div>
     <div class="main-topbar" id="mainTopbar" style="display:none">
       <span class="main-project-name" id="topbarName"></span>
-      <div class="tabs" style="width:170px">
-        <div class="tab active" id="tabTerminal" onclick="switchTab('terminal')">Terminal</div>
+      <div class="tabs" style="width:250px">
+        <div class="tab active" id="tabChat" onclick="switchTab('chat')">Chat</div>
+        <div class="tab" id="tabTerminal" onclick="switchTab('terminal')">Terminal</div>
         <div class="tab" id="tabFiles" onclick="switchTab('files')">Files</div>
       </div>
       <span class="nav-spacer"></span>
@@ -153,15 +219,32 @@
     </div>
 
     <div class="main-content" id="mainContent">
-      <div class="empty-state" id="emptyState"
-           style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <h3>No project selected</h3>
-        <p style="margin-top:6px;color:var(--text3)">Pick one from the panel or create a new one.</p>
+      <!-- the Projects tab: every project, its agents, and what can be done with it -->
+      <div class="projects-page" id="projectsPage">
+        <div class="pp-inner">
+          <div class="pp-head">
+            <span class="pp-title">Projects</span><span class="pp-count" id="ppCount"></span>
+            <span class="nav-spacer"></span>
+            <button class="btn-primary btn-sm" onclick="openAddModal()">+ New Project</button>
+          </div>
+          <div class="pp-grid" id="ppGrid"><div class="pp-empty">Loading…</div></div>
+        </div>
       </div>
 
       <!-- workspace panels injected here -->
 
       <div id="filesPanel" class="files-panel hidden">
+        <!-- Tab strip: the browser plus every open file, side by side -->
+        <div class="viewer-topbar">
+          <div id="viewerTabs" class="viewer-tabs"></div>
+          <div style="display:flex;gap:6px;align-items:center;margin-left:auto;flex-shrink:0;">
+            <button class="btn-secondary btn-sm" id="viewerMdToggle" style="display:none" onclick="toggleMdMode()">Source</button>
+            <button class="btn-primary btn-sm" id="viewerSave" style="display:none" onclick="viewerSave()">Save</button>
+            <a id="viewerDownloadLink" class="btn-secondary btn-sm" style="display:none;text-decoration:none;" download>Download</a>
+          </div>
+        </div>
+
+        <div id="browserPanes" class="browser-panes">
         <!-- Local pane -->
         <div class="file-pane" id="localPane">
           <div class="file-pane-header">
@@ -196,18 +279,18 @@
           <div class="breadcrumb" id="breadcrumbRemote"></div>
           <div class="file-list" id="fileListRemote"></div>
         </div>
+        </div>
+
+        <!-- One pane per open file, created on demand and hidden rather than
+             destroyed so each keeps its scroll position, PDF page and edits -->
+        <div class="viewer-body" id="viewerBody" style="display:none;">
+          <div id="monacoContainer" style="display:none;height:100%;"></div>
+        </div>
       </div>
     </div>
+    <!-- agent usage and the machine's load (statusbar.js) -->
+    <div class="status-bar" id="statusBar"></div>
   </div>
-</div>
-
-<!-- ── Right-click context menu ──────────────────── -->
-<div id="ctxMenu" style="position:fixed;display:none;z-index:1000;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.6);">
-  <div class="ctx-item" id="ctxStart">▶ Start</div>
-  <div class="ctx-item" id="ctxStop">■ Stop</div>
-  <div style="height:1px;background:var(--border);margin:3px 0;"></div>
-  <div class="ctx-item" id="ctxEdit">✎ Edit</div>
-  <div class="ctx-item ctx-danger" id="ctxDelete">✕ Delete</div>
 </div>
 
 <!-- ── Add Project Modal ─────────────────────────── -->
@@ -257,6 +340,26 @@
   </div>
 </div>
 
+<!-- ── Delete Project Modal ─────────────────────── -->
+<div id="deleteModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h2>Delete Project</h2>
+    <p id="delMsg" style="font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:14px;"></p>
+    <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--text);cursor:pointer;margin-bottom:12px;">
+      <input type="checkbox" id="delFiles" style="margin-top:3px;width:auto;flex:none" onchange="syncDeleteModal()">
+      <span>Also delete the folder and the project's chat history. This cannot be undone.</span>
+    </label>
+    <div class="field" id="delConfirmWrap" hidden>
+      <label>Type the project name to confirm</label>
+      <input type="text" id="delConfirm" autocomplete="off" oninput="syncDeleteModal()">
+    </div>
+    <div class="actions">
+      <button class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-danger" id="delBtn" onclick="confirmDelete()">Remove</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Settings Modal ───────────────────────────── -->
 <div id="settingsModal" class="modal-overlay hidden">
   <div class="modal" style="max-width:480px;max-height:80vh;overflow-y:auto;">
@@ -299,6 +402,36 @@
 
     <div style="height:1px;background:var(--border);margin:4px 0 16px;"></div>
 
+    <!-- Notifications -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:10px;">Notifications</div>
+      <div id="notifyState" style="font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:10px;"></div>
+      <div class="actions" style="justify-content:flex-start;margin-bottom:12px;gap:6px;">
+        <button class="btn-primary" id="notifyOn" onclick="enableNotifications()" style="font-size:12px;padding:6px 14px;">Turn on for this device</button>
+        <button class="btn-secondary" id="notifyOff" onclick="disableNotifications()" style="font-size:12px;padding:6px 14px;">Turn off</button>
+        <button class="btn-secondary" id="notifyTest" onclick="testNotification()" style="font-size:12px;padding:6px 14px;">Send a test</button>
+      </div>
+      <div class="field"><label>Usage alert at (% of a limit)</label><input type="number" id="cfgAlertPct" min="1" max="1000" step="1"></div>
+      <div class="actions" style="justify-content:flex-end;margin-bottom:0;">
+        <button class="btn-primary" onclick="saveAlertPct()" style="font-size:12px;padding:6px 14px;">Save</button>
+      </div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:4px 0 16px;"></div>
+
+    <!-- Uploads -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:10px;">Uploads</div>
+      <div class="field"><label>Max file size (MB)</label><input type="number" id="cfgUploadMax" min="1" max="10240" step="1"></div>
+      <div class="field"><label>Chat attachment folder (inside the project)</label><input type="text" id="cfgUploadDir" autocomplete="off" placeholder="uploads"></div>
+      <div style="font-size:11.5px;color:var(--text3);margin:-6px 0 10px;">Applies to chat attachments and uploads in the Files tab. nginx has its own limit (currently 100 MB); if you set a higher value, raise nginx's <code>client_max_body_size</code> too.</div>
+      <div class="actions" style="justify-content:flex-end;margin-bottom:0;">
+        <button class="btn-primary" onclick="saveUploads()" style="font-size:12px;padding:6px 14px;">Save</button>
+      </div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:4px 0 16px;"></div>
+
     <!-- SSL -->
     <div style="margin-bottom:8px;">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:10px;">SSL</div>
@@ -316,46 +449,180 @@
   </div>
 </div>
 
-<!-- ── File viewer overlay ──────────────────────── -->
-<div id="viewerOverlay" class="viewer-overlay hidden">
-  <div class="viewer-topbar">
-    <span id="viewerTitle" class="viewer-title"></span>
-    <div style="display:flex;gap:6px;align-items:center;margin-left:auto;">
-      <button class="btn-secondary btn-sm" id="viewerMdToggle" style="display:none" onclick="toggleMdMode()">Source</button>
-      <button class="btn-primary btn-sm" id="viewerSave" style="display:none" onclick="viewerSave()">Save</button>
-      <a id="viewerDownloadLink" class="btn-secondary btn-sm" style="text-decoration:none;" download>Download</a>
-      <button class="btn-secondary btn-sm" onclick="closeViewer()">✕ Close</button>
-    </div>
-  </div>
-  <div class="viewer-body">
-    <div id="viewerLoading" style="display:none;align-items:center;justify-content:center;height:100%;color:var(--text3);font-family:var(--mono);font-size:13px;">Loading…</div>
-    <div id="viewerError"   style="display:none;align-items:center;justify-content:center;height:100%;color:#fca5a5;padding:20px;text-align:center;"></div>
-    <div id="monacoContainer" style="display:none;height:100%;"></div>
-    <div id="mdPreview"     class="md-preview" style="display:none;"></div>
-    <div id="imgViewer"     style="display:none;align-items:center;justify-content:center;height:100%;overflow:auto;padding:20px;background:var(--bg);">
-      <img id="imgViewerImg" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px;">
-    </div>
-    <iframe id="pdfViewer"  style="display:none;width:100%;height:100%;border:none;"></iframe>
-    <div id="binaryViewer"  style="display:none;align-items:center;justify-content:center;height:100%;"></div>
-  </div>
-</div>
 
 <script src="/static/js/api.js"></script>
-<script src="/static/js/terminal.js"></script>
 <script src="/static/js/files.js"></script>
 <script src="/static/js/viewer.js"></script>
+<script src="/static/js/chat-ui.js"></script>
+<script src="/static/js/chat-panels.js"></script>
+<script src="/static/js/chat.js"></script>
+<script src="/static/js/terminal.js"></script>
+<script src="/static/js/statusbar.js"></script>
 <script>
   let activeProject = null;
-  let activeTab = 'terminal';
+  let activeTab = 'chat';
+  // Open tabs: project names, and shell terminals in ~/projects (_t1, _t2 …;
+  // _global from older versions). Project tabs are remembered per browser;
+  // a shell has a tab exactly while it runs, on every device.
+  const isShell = (n) => n === '_global' || /^_t[1-9][0-9]*$/.test(n || '');
+  const shellTitle = (n) => n === '_global' ? 'Terminal' : 'Terminal ' + n.slice(2);
+  let openTabs = [];
   let projectData = {};
-  let ctxProject = null;
-  let panelOpen = true;
 
   // ── Init ────────────────────────────────────────
   async function init() {
     await loadProjects();
+    await restoreTabs();
+    openFromUrl(location.href);
     setInterval(pollStatus, 6000);
   }
+
+  // /?open=<project>&agent=<agent>: a tapped notification lands here
+  function openFromUrl(href) {
+    const q = new URL(href, location.origin).searchParams;
+    const name = q.get('open');
+    if (location.search) history.replaceState(null, '', '/');
+    if (!name || !projectData[name]) return;
+    if (q.get('agent')) Chat.prefer(name, q.get('agent'));
+    activeTab = 'chat';
+    ['tabChat', 'tabTerminal', 'tabFiles'].forEach(id =>
+      document.getElementById(id).classList.toggle('active', id === 'tabChat'));
+    if (activeProject === name) applyTab(); else activateProject(name);
+  }
+  navigator.serviceWorker?.addEventListener('message', e => {
+    if (e.data?.type === 'open') openFromUrl(e.data.url);
+  });
+
+  // ── Tabs ──────────────────────────────────────────
+  function saveTabs() {
+    try { localStorage.setItem('oopsbox.tabs', JSON.stringify({ tabs: openTabs, active: activeProject })); } catch (_) {}
+  }
+
+  async function restoreTabs() {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('oopsbox.tabs') || '{}'); } catch (_) {}
+    let shells = [];
+    try { shells = (await api.get('/api/terminals')).terminals; } catch (_) {}
+    openTabs = (saved.tabs || []).filter(n => isShell(n) ? shells.includes(n) : projectData[n]);
+    shells.forEach(n => { if (!openTabs.includes(n)) openTabs.push(n); });
+    renderTabs();
+    if (saved.active && openTabs.includes(saved.active)) activateProject(saved.active);
+  }
+
+  function renderTabs() {
+    const bar = document.getElementById('projectTabs');
+    bar.innerHTML = '';
+    // Projects: always first, never closed
+    const home = document.createElement('div');
+    home.className = 'ptab ptab-home' + (!activeProject ? ' active' : '');
+    home.innerHTML = '<span class="ptab-icon">☰</span><span class="ptab-name">Projects</span>';
+    home.style.paddingRight = '12px';
+    home.onclick = () => activateProject(null);
+    bar.appendChild(home);
+    openTabs.forEach(name => {
+      const tab = document.createElement('div');
+      tab.className = 'ptab' + (name === activeProject ? ' active' : '');
+      if (isShell(name)) {
+        tab.innerHTML = `<span class="ptab-icon">›_</span><span class="ptab-name">${shellTitle(name)}</span>`;
+        tab.title = '~/projects';
+      } else {
+        tab.innerHTML = `<span class="dot ${projectData[name]?.running ? 'dot-green' : 'dot-gray'}"></span><span class="ptab-name"></span>`;
+        tab.querySelector('.ptab-name').textContent = name;
+        tab.title = name;
+      }
+      const close = document.createElement('button');
+      close.className = 'ptab-close';
+      close.textContent = '✕';
+      close.title = isShell(name) ? 'Close this terminal' : 'Close tab';
+      close.onclick = (e) => { e.stopPropagation(); closeTab(name); };
+      tab.appendChild(close);
+      tab.onclick = () => activateProject(name);
+      tab.onauxclick = (e) => { if (e.button === 1) closeTab(name); };  // middle click
+      bar.appendChild(tab);
+    });
+    document.getElementById('globalTermBtn').classList.toggle('active', isShell(activeProject));
+    document.getElementById('projectsBtn').classList.toggle('active', !activeProject);
+    bar.querySelector('.ptab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    updateTabsMore();
+  }
+
+  // When the tabs do not all fit, ▾ N lists every one of them.
+  function updateTabsMore() {
+    const bar = document.getElementById('projectTabs');
+    const more = document.getElementById('tabsMore');
+    const over = bar.scrollWidth > bar.clientWidth + 1;
+    more.hidden = !over;
+    more.textContent = `▾ ${openTabs.length + 1}`;
+    if (!over) document.getElementById('tabsMenu').hidden = true;
+  }
+
+  function toggleTabsMenu(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('tabsMenu');
+    const more = document.getElementById('tabsMore');
+    if (!menu.hidden) { menu.hidden = true; more.classList.remove('open'); return; }
+    menu.innerHTML = '';
+    [null, ...openTabs].forEach(name => {
+      const b = document.createElement('button');
+      b.className = name === activeProject ? 'active' : '';
+      const icon = name === null ? '☰' : isShell(name) ? '›_' : '';
+      b.innerHTML = icon ? `<span class="ptab-icon">${icon}</span>`
+        : `<span class="dot ${projectData[name]?.running ? 'dot-green' : 'dot-gray'}"></span>`;
+      const label = document.createElement('span');
+      label.className = 'tm-name';
+      label.textContent = name === null ? 'Projects' : isShell(name) ? shellTitle(name) : name;
+      b.appendChild(label);
+      b.onclick = () => { menu.hidden = true; more.classList.remove('open'); activateProject(name); };
+      menu.appendChild(b);
+    });
+    menu.hidden = false;
+    more.classList.add('open');
+    const r = more.getBoundingClientRect();
+    menu.style.top = (r.bottom + 4) + 'px';
+    menu.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+  }
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#tabsMenu')) {
+      document.getElementById('tabsMenu').hidden = true;
+      document.getElementById('tabsMore').classList.remove('open');
+    }
+  });
+  // a mouse wheel scrolls the tab strip sideways
+  document.getElementById('projectTabs').addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.currentTarget.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive: false });
+  new ResizeObserver(() => updateTabsMore()).observe(document.getElementById('projectTabs'));
+
+  // Closing a project tab only hides it: its chat, terminal and agents keep
+  // running. Closing a shell's tab ends the shell, since nothing else
+  // would ever show it again.
+  async function closeTab(name, ended = false) {
+    if (isShell(name) && !ended) {
+      if (!confirm(`Close ${shellTitle(name)}? Programs running in it will stop too.`)) return;
+      try { await api.post(`/api/projects/${name}/stop-terminal`); }
+      catch (e) { showToast(e.message, true); return; }
+    }
+    if (isShell(name)) {
+      Terminal.forget(name);
+      document.getElementById('wp-' + name)?.remove();
+    }
+    const i = openTabs.indexOf(name);
+    if (i < 0) return;
+    openTabs.splice(i, 1);
+    if (activeProject === name) activateProject(openTabs[i] ?? openTabs[i - 1] ?? null);
+    else { renderTabs(); saveTabs(); }
+  }
+
+  // ›_ : another shell in ~/projects, in a tab of its own
+  async function newTerminal() {
+    try {
+      const { name } = await api.post('/api/terminals');
+      activateProject(name);
+    } catch (e) { showToast('Could not open terminal: ' + e.message, true); }
+  }
+
+  // the ⏻ button inside a shell ended it: its tab goes too
+  window.onTerminalEnded = (name) => { if (isShell(name)) closeTab(name, true); };
 
   async function loadProjects() {
     try {
@@ -366,109 +633,196 @@
     } catch (e) { showToast('Failed to load projects', true); }
   }
 
-  // ── Project panel ────────────────────────────────
-  function togglePanel() {
-    panelOpen = !panelOpen;
-    document.getElementById('projectPanel').classList.toggle('collapsed', !panelOpen);
-    document.getElementById('panelToggleBtn').classList.toggle('active', panelOpen);
-  }
+  // ── Projects page ─────────────────────────────────
 
   function renderPanel() {
-    const el = document.getElementById('panelList');
-    el.innerHTML = '';
+    const grid = document.getElementById('ppGrid');
     const names = Object.keys(projectData);
+    document.getElementById('ppCount').textContent = names.length ? String(names.length) : '';
+    grid.innerHTML = '';
     if (!names.length) {
-      el.innerHTML = '<div style="color:var(--text3);padding:10px 8px;font-size:12px;">No projects yet</div>';
-      return;
+      grid.innerHTML = '<div class="pp-empty">No projects yet. Create one with + New Project.</div>';
     }
-    names.forEach(name => {
-      const p = projectData[name];
-      const item = document.createElement('div');
-      item.className = 'panel-item' + (name === activeProject ? ' active' : '');
-      item.dataset.name = name;
-      item.style.cssText += ';-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;';
+    names.forEach(name => grid.appendChild(projectCard(name, projectData[name])));
+    renderTabs();
+  }
 
-      const dot = document.createElement('span');
-      dot.className = 'dot ' + (p.running ? 'dot-green' : 'dot-gray');
+  function projectCard(name, p) {
+    const card = document.createElement('div');
+    card.className = 'pcard' + (openTabs.includes(name) ? ' open' : '');
+    const head = document.createElement('div');
+    head.className = 'pcard-head';
+    head.innerHTML = `<span class="dot ${p.running ? 'dot-green' : 'dot-gray'}"></span><span class="pcard-name"></span>` +
+      `<span class="pcard-chip">${p.type === 'ssh' ? 'ssh' : 'local'}</span>`;
+    head.querySelector('.pcard-name').textContent = name;
+    head.appendChild(classificationSelect(name, p.classification || 'personal'));
+    const path = document.createElement('div');
+    path.className = 'pcard-path';
+    path.textContent = p.type === 'ssh'
+      ? `${p.ssh_user || ''}@${p.ssh_host || ''}:${p.remote_path || '~'}`
+      : (p.path || '');
 
-      const label = document.createElement('span');
-      label.className = 'panel-item-name';
-      label.textContent = name;
-
-      item.appendChild(dot);
-      item.appendChild(label);
-      item.addEventListener('click', () => activateProject(name));
-      item.addEventListener('contextmenu', e => { e.preventDefault(); showCtxMenu(e, name); });
-      let _lpTimer = null;
-      let _lpFired = false;
-      item.addEventListener('touchstart', e => {
-        _lpFired = false;
-        const t = e.touches[0];
-        const x = t.clientX, y = t.clientY;
-        _lpTimer = setTimeout(() => {
-          _lpTimer = null;
-          _lpFired = true;
-          showCtxMenu({ preventDefault: () => {}, clientX: x, clientY: y }, name);
-        }, 500);
-      }, { passive: false });
-      item.addEventListener('touchend', e => {
-        if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
-        if (_lpFired) { e.preventDefault(); _lpFired = false; }
-      });
-      item.addEventListener('touchmove', () => { if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; } });
-      el.appendChild(item);
+    const agents = document.createElement('div');
+    agents.className = 'pcard-agents';
+    const running = p.agents || {};
+    const list = Object.keys(running).length ? Object.entries(running)
+      : (p.agents_running || []).map(a => [a, { status: 'idle' }]);
+    if (!list.length) agents.innerHTML = '<span class="pcard-none">No agents running</span>';
+    list.forEach(([a, st]) => {
+      const chip = document.createElement('span');
+      chip.className = 'pcard-agent' + (st.waiting ? ' waiting' : '');
+      chip.dataset.agent = a;
+      chip.innerHTML = (st.status === 'working' || st.status === 'starting'
+          ? '<span class="agent-spin"></span>'
+          : '<span class="dot" style="background:var(--agent)"></span>') +
+        `<span></span><span class="st"></span>`;
+      chip.children[1].textContent = a;
+      chip.children[2].textContent = st.waiting ? 'needs you' : '';  // the dot or spinner says the rest
+      agents.appendChild(chip);
     });
+
+    const actions = document.createElement('div');
+    actions.className = 'pcard-actions';
+    const btn = (label, cls, fn) => {
+      const b = document.createElement('button');
+      b.className = cls; b.textContent = label;
+      b.onclick = (e) => { e.stopPropagation(); fn(); };
+      actions.appendChild(b);
+      return b;
+    };
+    btn('Open', 'btn-primary', () => activateProject(name));
+    if (p.running) btn('Stop', 'btn-secondary', () => stopProject(name));
+    else btn('Start', 'btn-secondary', () => startProject(name));
+    if (p.type === 'ssh') btn('Edit', 'btn-secondary', () => openEditModal(name));
+    btn('Delete', 'btn-secondary pcard-del', () => deleteProject(name));
+
+    card.append(head, path, agents, actions);
+    card.onclick = () => activateProject(name);
+    return card;
+  }
+
+  // Which agents may work on a project. Blocked agents are stopped at once.
+  const CLASSIFICATIONS = [
+    ['personal', 'personal', 'Claude and Codex; Kiro only when picked'],
+    ['work', 'work', 'All three agents'],
+    ['work-restricted', 'restricted', 'Kiro only: Claude and Codex are blocked'],
+  ];
+
+  function classificationSelect(name, current) {
+    const sel = document.createElement('select');
+    sel.className = 'pcard-class';
+    sel.title = 'Classification: which agents may work on this project';
+    CLASSIFICATIONS.forEach(([value, label, help]) => {
+      const o = new Option(label, value, false, value === current);
+      o.title = help;
+      sel.appendChild(o);
+    });
+    sel.onclick = (e) => e.stopPropagation();
+    sel.onchange = async () => {
+      const help = CLASSIFICATIONS.find(c => c[0] === sel.value)[2];
+      try {
+        const r = await api.put(`/api/projects/${encodeURIComponent(name)}/classification`, { classification: sel.value });
+        projectData[name] = { ...projectData[name], classification: sel.value };
+        showToast(`${name}: ${help}` + (r.stopped.length ? ` (stopped ${r.stopped.join(', ')})` : ''));
+        onChatActivity(name);
+      } catch (e) { sel.value = current; showToast(e.message, true); }
+    };
+    return sel;
+  }
+
+  async function startProject(name) {
+    try { await api.projects.start(name); await loadProjects(); showToast('Started ' + name); }
+    catch (e) { showToast(e.message, true); }
+  }
+
+  async function stopProject(name) {
+    try { await api.projects.stop(name); await loadProjects(); showToast('Stopped ' + name); }
+    catch (e) { showToast(e.message, true); }
+  }
+
+  function deleteProject(name) {
+    const p = projectData[name] || {};
+    const m = document.getElementById('deleteModal');
+    m.dataset.name = name;
+    document.getElementById('delMsg').textContent =
+      `Remove "${name}" from OopsBox. Its agents stop. The folder (${p.path || ''}) and its chat history ` +
+      'stay where they are: creating a project with the same name picks them up again.';
+    document.getElementById('delFiles').checked = false;
+    document.getElementById('delConfirm').value = '';
+    syncDeleteModal();
+    m.classList.remove('hidden');
+  }
+
+  function syncDeleteModal() {
+    const name = document.getElementById('deleteModal').dataset.name;
+    const files = document.getElementById('delFiles').checked;
+    document.getElementById('delConfirmWrap').hidden = !files;
+    const btn = document.getElementById('delBtn');
+    btn.textContent = files ? 'Delete everything' : 'Remove';
+    btn.disabled = files && document.getElementById('delConfirm').value.trim() !== name;
+  }
+
+  function closeDeleteModal() { document.getElementById('deleteModal').classList.add('hidden'); }
+
+  async function confirmDelete() {
+    const name = document.getElementById('deleteModal').dataset.name;
+    const files = document.getElementById('delFiles').checked;
+    closeDeleteModal();
+    try {
+      await api.delete(`/api/projects/${encodeURIComponent(name)}?delete_files=${files}`);
+      closeTab(name);
+      document.getElementById('wp-' + name)?.remove();
+      delete projectData[name];
+      await loadProjects();
+      showToast((files ? 'Deleted ' : 'Removed ') + name);
+    } catch (e) { showToast(e.message, true); }
   }
 
   // ── Activate project ──────────────────────────────
   async function activateProject(name) {
-    if (activeProject === name) return;
+    if (name && !openTabs.includes(name)) openTabs.push(name);
+    if (activeProject === name) { renderTabs(); return; }
     if (activeProject) {
       const prev = document.getElementById('wp-' + activeProject);
       if (prev) prev.classList.add('hidden');
+      Chat.hide();
     }
     activeProject = name;
-    document.querySelectorAll('.panel-item')
-      .forEach(el => el.classList.toggle('active', el.dataset.name === name));
+    renderTabs();
+    saveTabs();
 
     if (!name) {
-      document.getElementById('emptyState').style.display = 'flex';
+      document.getElementById('projectsPage').style.display = '';
+      renderPanel();
       document.getElementById('mainTopbar').style.display = 'none';
       document.getElementById('filesPanel').classList.add('hidden');
       return;
     }
-    document.getElementById('emptyState').style.display = 'none';
+    const global = isShell(name);
+    document.getElementById('projectsPage').style.display = 'none';
     document.getElementById('mainTopbar').style.display = 'flex';
-    document.getElementById('topbarName').textContent = name;
-    refreshStatusBadge();
+    document.getElementById('topbarName').textContent = global ? shellTitle(name) + ' · ~/projects' : name;
+    document.querySelector('#mainTopbar .tabs').style.display = global ? 'none' : '';
+    if (global) document.getElementById('topbarStatus').innerHTML = '';
+    else refreshStatusBadge();
 
     if (!document.getElementById('wp-' + name)) createWorkspacePanel(name);
     applyTab();
   }
 
   function createWorkspacePanel(name) {
+    // The chat view mounts itself into this container on first show.
     const panel = document.createElement('div');
     panel.className = 'workspace-panel hidden';
     panel.id = 'wp-' + name;
-
-    const toolbarEl = document.createElement('div');
-    toolbarEl.id = 'toolbar-' + name;
-
-    const iframe = document.createElement('iframe');
-    iframe.className = 'term-frame';
-    iframe.id = 'frame-' + name;
-    iframe.setAttribute('allow', 'clipboard-read; clipboard-write');
-
-    panel.appendChild(toolbarEl);
-    panel.appendChild(iframe);
     document.getElementById('mainContent').insertBefore(panel, document.getElementById('filesPanel'));
-    initToolbar(name, 'toolbar-' + name, projectData[name]);
     return panel;
   }
 
   // ── Tab switching ─────────────────────────────────
   function switchTab(tab) {
     activeTab = tab;
+    document.getElementById('tabChat').classList.toggle('active', tab === 'chat');
     document.getElementById('tabTerminal').classList.toggle('active', tab === 'terminal');
     document.getElementById('tabFiles').classList.toggle('active', tab === 'files');
     applyTab();
@@ -478,11 +832,25 @@
     if (!activeProject) return;
     const panel = document.getElementById('wp-' + activeProject);
     const filesPanel = document.getElementById('filesPanel');
-    if (activeTab === 'terminal') {
+    if (isShell(activeProject)) {
+      Chat.hide();
+      panel.classList.remove('hidden');
+      filesPanel.classList.add('hidden');
+      Terminal.show(activeProject, panel, { type: 'local' });
+      return;
+    }
+    if (activeTab === 'chat') {
       if (panel) panel.classList.remove('hidden');
       filesPanel.classList.add('hidden');
-      startTerminalIfNeeded(activeProject);
+      Terminal.hide(activeProject);
+      Chat.show(activeProject, panel);
+    } else if (activeTab === 'terminal') {
+      Chat.hide();
+      if (panel) panel.classList.remove('hidden');
+      filesPanel.classList.add('hidden');
+      Terminal.show(activeProject, panel, projectData[activeProject]);
     } else {
+      Chat.hide();
       if (panel) panel.classList.add('hidden');
       filesPanel.classList.remove('hidden');
       const p = projectData[activeProject];
@@ -490,122 +858,45 @@
     }
   }
 
-  async function startTerminalIfNeeded(name) {
-    const iframe = document.getElementById('frame-' + name);
-    if (!iframe || iframe.src.includes('/terminal/')) return;
+  // A conversation handed to the agent's own CLI continues in the Terminal tab.
+  window.openTerminalTab = () => switchTab('terminal');
 
-    const p = projectData[name];
-    if (p && !p.running) {
-      showOverlay(name, 'Starting…');
-      try { await api.projects.start(name); }
-      catch (e) { showOverlay(name, 'Failed: ' + e.message); return; }
-
-      for (let i = 0; i < 60; i++) {
-        await new Promise(r => setTimeout(r, 500));
-        try { const s = await api.projects.status(name); if (s.running) break; } catch (_) {}
-        showOverlay(name, 'Starting' + '.'.repeat((i % 3) + 1));
-      }
-      projectData[name] = { ...p, running: true };
+  // The chat view reports starts, stops and sends so the panel dot and the
+  // status badge follow without waiting for the next poll.
+  window.onChatActivity = async (name) => {
+    try {
+      const s = await api.projects.status(name);
+      projectData[name] = { ...projectData[name], ...s };
       renderPanel();
-      refreshStatusBadge();
-    }
-    hideOverlay(name);
-    iframe.src = '/terminal/' + name + '/';
-  }
-
-  function showOverlay(name, msg) {
-    let ov = document.getElementById('ov-' + name);
-    if (!ov) {
-      ov = document.createElement('div');
-      ov.id = 'ov-' + name;
-      ov.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--text3);font-size:13px;font-family:var(--mono);z-index:5;';
-      const panel = document.getElementById('wp-' + name);
-      if (panel) panel.appendChild(ov);
-    }
-    ov.textContent = msg;
-    ov.style.display = 'flex';
-  }
-  function hideOverlay(name) {
-    const ov = document.getElementById('ov-' + name);
-    if (ov) ov.style.display = 'none';
-  }
+      if (name === activeProject) refreshStatusBadge();
+    } catch (_) {}
+  };
 
   // ── Status polling ────────────────────────────────
   async function pollStatus() {
     for (const name of Object.keys(projectData)) {
       try {
         const s = await api.projects.status(name);
-        projectData[name] = { ...projectData[name], running: !!s.running };
+        projectData[name] = { ...projectData[name], ...s };
+        Chat.syncStatuses(name, s.agents);
       } catch (_) {}
     }
     renderPanel();
-    if (activeProject) refreshStatusBadge();
+    refreshStatusBadge();
   }
 
   async function refreshStatusBadge() {
-    if (!activeProject) return;
+    if (!activeProject || isShell(activeProject)) return;
     try {
       const p = await api.projects.status(activeProject);
       const isRunning = !!p.running;
       const cls = isRunning ? 'green' : 'gray';
-      const label = isRunning ? 'running' : 'stopped';
+      const agents = p.agents_running || [];
+      const label = agents.length ? agents.join(' · ') : (isRunning ? 'running' : 'stopped');
       document.getElementById('topbarStatus').innerHTML =
         `<span class="badge badge-${cls}"><span class="dot dot-${cls}"></span>${label}</span>`;
     } catch (_) {}
   }
-
-  // ── Context menu ──────────────────────────────────
-  function showCtxMenu(e, name) {
-    e.preventDefault();
-    ctxProject = name;
-    const p = projectData[name];
-    document.getElementById('ctxStart').style.display = p?.running ? 'none' : 'block';
-    document.getElementById('ctxStop').style.display = p?.running ? 'block' : 'none';
-    const menu = document.getElementById('ctxMenu');
-    menu.style.left = e.clientX + 'px';
-    menu.style.top = e.clientY + 'px';
-    menu.style.display = 'block';
-    requestAnimationFrame(() => {
-      const r = menu.getBoundingClientRect();
-      if (r.right > window.innerWidth) menu.style.left = (e.clientX - r.width) + 'px';
-      if (r.bottom > window.innerHeight) menu.style.top = (e.clientY - r.height) + 'px';
-    });
-  }
-
-  function hideCtxMenu() { document.getElementById('ctxMenu').style.display = 'none'; ctxProject = null; }
-  document.addEventListener('click', hideCtxMenu);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu(); });
-
-  document.getElementById('ctxStart').addEventListener('click', async () => {
-    const name = ctxProject; hideCtxMenu();
-    try { await api.projects.start(name); await loadProjects(); showToast('Started ' + name); }
-    catch (e) { showToast(e.message, true); }
-  });
-  document.getElementById('ctxStop').addEventListener('click', async () => {
-    const name = ctxProject; hideCtxMenu();
-    try { await api.projects.stop(name); await loadProjects(); showToast('Stopped ' + name); }
-    catch (e) { showToast(e.message, true); }
-  });
-  document.getElementById('ctxEdit').addEventListener('click', () => {
-    const name = ctxProject; hideCtxMenu(); openEditModal(name);
-  });
-  document.getElementById('ctxDelete').addEventListener('click', async () => {
-    const name = ctxProject; hideCtxMenu();
-    if (!confirm('Delete "' + name + '"?')) return;
-    try {
-      await api.projects.delete(name);
-      document.getElementById('wp-' + name)?.remove();
-      delete projectData[name];
-      if (activeProject === name) {
-        activeProject = null;
-        document.getElementById('mainTopbar').style.display = 'none';
-        document.getElementById('emptyState').style.display = 'flex';
-        document.getElementById('filesPanel').classList.add('hidden');
-      }
-      await loadProjects();
-      showToast('Deleted ' + name);
-    } catch (e) { showToast(e.message, true); }
-  });
 
   // ── Add project ───────────────────────────────────
   function openAddModal() {
@@ -631,7 +922,7 @@
       data.ssh_key_path = document.getElementById('sshKeyPath').value.trim() || null;
     }
     try {
-      await api.projects.create(data);
+      const made = await api.projects.create(data);
       closeAddModal();
       ['newName','sshHost','sshUser','sshPassword','sshKeyPath','remotePath'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('sshPort').value = '22';
@@ -639,7 +930,7 @@
       document.getElementById('sshFields').style.display = 'none';
       await loadProjects();
       activateProject(name);
-      showToast('Project "' + name + '" created');
+      showToast(made.adopted ? `Project "${name}" created on its existing folder` : `Project "${name}" created`);
     } catch (e) { showToast(e.message, true); }
   }
 
@@ -695,8 +986,88 @@
       document.getElementById('cfgGitEmail').value = s.git.email || '';
       document.getElementById('cfgSslCert').value = s.ssl.cert || '';
       document.getElementById('cfgSslKey').value = s.ssl.key || '';
+      document.getElementById('cfgUploadMax').value = s.uploads?.max_mb ?? 100;
+      document.getElementById('cfgUploadDir').value = s.uploads?.dir || 'uploads';
     } catch (e) { showToast('Failed to load settings', true); return; }
     document.getElementById('settingsModal').classList.remove('hidden');
+    loadNotifyState();
+  }
+
+  // ── Notifications (Web Push) ──────────────────────
+  // Push needs HTTPS and a service worker; on an iPad or iPhone, OopsBox
+  // must also be added to the home screen and opened from there.
+  const pushReady = () => window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window;
+
+  async function pushSubscription() {
+    const reg = await navigator.serviceWorker.getRegistration('/');
+    return reg ? reg.pushManager.getSubscription() : null;
+  }
+
+  async function loadNotifyState() {
+    const state = document.getElementById('notifyState');
+    const on = document.getElementById('notifyOn'), off = document.getElementById('notifyOff'),
+          test = document.getElementById('notifyTest');
+    let info = {};
+    try { info = await api.get('/api/notify'); } catch (_) {}
+    document.getElementById('cfgAlertPct').value = info.usage_alert_pct ?? 90;
+    let sub = null;
+    if (pushReady()) { try { sub = await pushSubscription(); } catch (_) {} }
+    // refresh what the server holds for this device (and the address it is signed for)
+    if (sub) api.post('/api/notify/subscribe', { ...sub.toJSON(), origin: location.origin }).catch(() => {});
+    on.hidden = !!sub || !pushReady();
+    off.hidden = !sub;
+    test.disabled = !info.subscriptions;
+    const others = (info.subscriptions || 0) - (sub ? 1 : 0);
+    const devices = others > 0 ? ` ${others} other device${others > 1 ? 's' : ''} also get${others > 1 ? '' : 's'} them.` : '';
+    if (!window.isSecureContext) {
+      state.textContent = 'Notifications need HTTPS. Open OopsBox over an https:// address (on a tailnet: tailscale serve); on an iPad or iPhone, add it to the home screen and open it from there.' + devices;
+    } else if (!pushReady()) {
+      state.textContent = 'This browser cannot receive push notifications here. On an iPad or iPhone, add OopsBox to the home screen and open it from there.' + devices;
+    } else if (sub) {
+      state.textContent = 'This device is told when an agent waits for you, and when usage passes the alert level.' + devices;
+    } else {
+      state.textContent = 'Get told when an agent waits for a permission or an answer, even with OopsBox closed.' + devices;
+    }
+  }
+
+  async function enableNotifications() {
+    try {
+      if (await Notification.requestPermission() !== 'granted') throw new Error('notifications were not allowed');
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      await navigator.serviceWorker.ready;  // resolves once a worker controls this page
+      const { key } = await api.get('/api/notify');
+      const raw = Uint8Array.from(atob(key.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - key.length % 4) % 4)), c => c.charCodeAt(0));
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: raw });
+      await api.post('/api/notify/subscribe', { ...sub.toJSON(), origin: location.origin });
+      showToast('Notifications on for this device');
+    } catch (e) { showToast('Could not turn notifications on: ' + e.message, true); }
+    loadNotifyState();
+  }
+
+  async function disableNotifications() {
+    try {
+      const sub = await pushSubscription();
+      if (sub) {
+        await api.post('/api/notify/unsubscribe', { endpoint: sub.endpoint });
+        await sub.unsubscribe();
+      }
+      showToast('Notifications off for this device');
+    } catch (e) { showToast(e.message, true); }
+    loadNotifyState();
+  }
+
+  async function testNotification() {
+    try {
+      const r = await api.post('/api/notify/test');
+      showToast(r.sent ? `Sent to ${r.sent} device${r.sent > 1 ? 's' : ''}` : 'No device took it', !r.sent);
+    } catch (e) { showToast(e.message, true); }
+  }
+
+  async function saveAlertPct() {
+    try {
+      await api.put('/api/notify/settings', { usage_alert_pct: parseInt(document.getElementById('cfgAlertPct').value) || 90 });
+      showToast('Saved');
+    } catch (e) { showToast(e.message, true); }
   }
 
   function closeSettingsModal() {
@@ -738,6 +1109,18 @@
     catch (e) { showToast(e.message, true); }
   }
 
+  async function saveUploads() {
+    const body = {
+      max_mb: parseInt(document.getElementById('cfgUploadMax').value, 10),
+      dir: document.getElementById('cfgUploadDir').value.trim() || 'uploads',
+    };
+    try {
+      const r = await api.put('/api/settings/uploads', body);
+      document.getElementById('cfgUploadDir').value = r.dir;
+      showToast(`Upload limit ${r.max_mb} MB, saving to ${r.dir}/`);
+    } catch (e) { showToast(e.message, true); }
+  }
+
   async function saveSSL() {
     const body = {
       cert: document.getElementById('cfgSslCert').value.trim(),
@@ -751,7 +1134,12 @@
 </script>
 <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+    // the worker lives at /sw.js (scope: the whole app); drop the old one
+    // registered under /static/, which never controlled the page
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => {
+      if (new URL(r.scope).pathname.startsWith('/static/')) r.unregister();
+    })).catch(() => {});
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
   }
 </script>
 </body>

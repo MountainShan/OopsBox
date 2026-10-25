@@ -4,6 +4,15 @@ set -uo pipefail
 
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 API="http://127.0.0.1:5000"
+
+# These are test data, not access control: the suite talks to uvicorn directly,
+# below the nginx auth layer, so it is not authenticated by them. They exist so
+# the login endpoint can be exercised and a cookie captured for the rest of the
+# run. The defaults match a fresh install; export the overrides once the
+# password has been changed, otherwise a stale password reports two failures
+# that mask whether anything is actually broken.
+TEST_USER="${OOPSBOX_TEST_USER:-admin}"
+TEST_PASS="${OOPSBOX_TEST_PASS:-admin}"
 PASS=0
 FAIL=0
 SKIP=0
@@ -45,7 +54,7 @@ section "1. Auth"
 # Login
 R=$(curl -s -c /tmp/oopsbox-test-cookies.txt -X POST \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin"}' \
+  -d "{\"username\":\"$TEST_USER\",\"password\":\"$TEST_PASS\"}" \
   "$API/api/auth/login")
 if echo "$R" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')" 2>/dev/null; then
   pass "Login"

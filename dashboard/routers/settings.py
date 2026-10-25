@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
+from .. import uploads
 from .auth import _auth_file, _hash_password, _verify_session
 from fastapi import Request
 
@@ -50,6 +51,7 @@ def get_settings():
             "cert": s.get("ssl_cert", ""),
             "key": s.get("ssl_key", ""),
         },
+        "uploads": uploads.limits(),
     }
 
 
@@ -128,3 +130,24 @@ def update_ssl(req: SSLUpdateRequest):
         s["ssl_key"] = req.key
     _save_settings(s)
     return {"ok": True}
+
+
+class UploadsUpdateRequest(BaseModel):
+    max_mb: Optional[int] = None
+    dir: Optional[str] = None
+
+
+@router.put("/uploads")
+def update_uploads(req: UploadsUpdateRequest):
+    s = _load_settings()
+    if req.max_mb is not None:
+        if not 1 <= req.max_mb <= uploads.MAX_ALLOWED_MB:
+            raise HTTPException(status_code=400, detail=f"The limit must be between 1 and {uploads.MAX_ALLOWED_MB} MB")
+        s["upload_max_mb"] = req.max_mb
+    if req.dir is not None:
+        try:
+            s["upload_dir"] = uploads.check_dir(req.dir)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    _save_settings(s)
+    return uploads.limits()

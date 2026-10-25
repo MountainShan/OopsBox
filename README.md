@@ -1,181 +1,157 @@
-# >_ OopsBox v2
+<p align="center">
+  <img src="dashboard/static/icon.svg" alt="OopsBox" width="96">
+</p>
 
-[English](#english) | [繁體中文](#繁體中文)
+<h1 align="center">OopsBox</h1>
 
 <p align="center">
-  <em>A browser-based platform for running AI coding agents on a remote server. Works on iPad. Started as a weekend project. Still going.</em><br><br>
-  <em>在瀏覽器裡操控 AI coding agent 的平台。支援 iPad。本來是個週末專案。還在繼續。</em>
+  <em>A browser console for running AI coding agents on your own server. Works on iPad. Started as a weekend project. Still going.</em><br>
+  <em>在瀏覽器裡操控 AI coding agent 的主控台，跑在你自己的伺服器上。支援 iPad。本來是個週末專案。還在繼續。</em>
+</p>
+
+<p align="center">
+  <a href="#english">English</a> · <a href="#繁體中文">繁體中文</a>
+</p>
+
+<p align="center">
+  <img src="images/chat.png" alt="Claude working on a project in the chat" width="90%">
 </p>
 
 ---
 
 ## English
 
-I wanted to code on my iPad — no local IDE, no VPN, just a browser. That turned into a web-based dev platform. v1 had AI chat, Telegram bots, encrypted token storage, and s6-overlay managing 14 processes. It worked well. It was also getting complicated.
+I wanted to code on my iPad: no local IDE, no VPN, just a browser. That turned into OopsBox, a web console that runs **Claude Code, Codex and Kiro** on a server you own and lets you drive all three from any device.
 
-v2 is a focused rebuild: fewer moving parts, cleaner architecture, and everything that actually matters kept intact. One `docker run` and you have a full terminal, a file manager with an editor, and Claude Code running autonomously on your server.
+Each agent gets a real chat: its models, modes, slash commands, permissions and conversations, the same things its own terminal UI offers. When the chat is not enough, the same conversation continues in a real terminal one click away.
+
+> Every screenshot here comes from a demo instance with made-up projects.
 
 ### screenshots
 
 <p align="center">
-  <img src="images/login.png" alt="Login screen" width="80%"><br>
-  <em>"somehow alive" — an accurate project description</em>
+  <img src="images/projects.png" alt="Projects page" width="90%"><br>
+  <em>Projects: every project, its agents (a spinner while one works, yellow when one needs you), and what you can do with it.</em>
 </p>
 
 <p align="center">
-  <img src="images/terminal.png" alt="SSH remote project with Claude running" width="80%"><br>
-  <em>An SSH remote project. Claude runs inside the container but every command executes on the remote server. The claude / remote / local buttons switch tmux windows directly from the browser — no prefix key required.</em>
+  <img src="images/needs-you.png" alt="Kiro waiting for a permission" width="90%"><br>
+  <em>Kiro wants to reload nginx. The status bar says so on every page, and your phone gets a push notification.</em>
 </p>
 
 <p align="center">
-  <img src="images/agent.png" alt="Claude making edits in the terminal" width="80%"><br>
-  <em>Claude reviewing a diff. You read it this time. Probably.</em>
+  <img src="images/usage.png" alt="Usage details in the status bar" width="90%"><br>
+  <em>Each agent's account usage and the machine's load live in the status bar. Tap one for the details.</em>
 </p>
 
-### what is this
+<p align="center">
+  <img src="images/mobile-projects.png" alt="Projects on a phone" width="32%">
+  &nbsp;
+  <img src="images/mobile-chat.png" alt="Chat on a phone" width="32%"><br>
+  <em>Same thing on a phone.</em>
+</p>
 
-A Docker container with a web dashboard for managing AI coding agents. The core loop: open browser → get a terminal → run Claude Code → Claude does things → you review and guide.
-
-Each project gets its own isolated tmux session. Claude Code runs inside tmux with `claude-loop.sh` restarting it automatically on exit. ttyd streams that session to your browser as a real terminal. nginx handles auth on every route. The whole stack starts with one command.
-
-For SSH remote projects: Claude runs locally in the container, but a shell wrapper transparently forwards every bash command to the remote server over SSH. Claude operates as if it's on the remote machine — file edits, git operations, tests all run there. You also get a dual-panel file manager with local on the left, remote SFTP on the right, and one-click transfer between them.
+<p align="center">
+  <img src="images/login.png" alt="Login screen" width="60%"><br>
+  <em>"somehow alive": still an accurate project description.</em>
+</p>
 
 ### features
 
-**Web terminal**  
-ttyd + tmux, one isolated session per project. The toolbar provides ^C, ^D, ^Z, ^L, Tab, and arrow keys for touchscreen use. Window tab buttons (claude / shell for local; claude / remote / local for SSH) switch between tmux windows from the browser. The active tab stays in sync with actual tmux state — keyboard shortcuts inside the terminal are reflected in the UI. tmux mouse mode is off so browser text selection and copy-paste work normally.
+**Three agents, one chat**
+- Claude Code, Codex and Kiro, each in its own colour, side by side in every project. Switch with one tap.
+- Models, reasoning effort and modes (plan, read-only, full access…) from pickers.
+- Slash commands become what they should be: `/model` is a picker, `/usage`, `/context`, `/mcp` and friends are panels, and anything only a terminal can do hands over to the Terminal tab.
+- Permissions show as Allow / Deny cards. **Autopilot** allows everything for a conversation.
+- Send a message while the agent works to steer the current turn, or interrupt it.
+- Past conversations, switch between them, rewind (where the agent supports it), edit each agent's config files and launch arguments.
+- Attach files and images (saved into the project), and `@` to search project files.
+- **Open in Terminal** continues the same conversation in the agent's own CLI.
 
-**File manager**  
-Browse, upload, download, rename, delete, create files and folders. Breadcrumb navigation with file type icons. For SSH projects: dual-panel view with local and remote SFTP side by side, plus → / ← transfer buttons. Refresh button to sync the view after external changes.
+**Agents that keep running**
+- Closing the page does not stop anything. Restarting OopsBox brings back the agents that were running, on the conversation they were in.
+- An agent stopped by you stays stopped.
 
-**File viewer and editor**  
-Click any file to open it. Code and text files open in Monaco Editor (the VS Code editor). Markdown renders as HTML with a Source/Preview toggle. Images display inline. PDFs open in the browser. Ctrl+S saves. The folder view refreshes automatically after saving.
+**Know when you are needed**
+- A spinner on an agent while it works.
+- "⚠ kiro needs you" in the status bar and a count in the tab title when an agent waits for a permission or an answer.
+- **Push notifications** (Web Push) to every device that turned them on, even with OopsBox closed. Tapping one opens that agent's chat.
+- **Usage alerts** when an agent's limit passes a threshold you set (default 90%), once per reset period.
 
-**Project management**  
-Create local projects (git init, CLAUDE.md, ready) or SSH remote projects (host, user, remote path, password or SSH key path). Credentials are stored in the project registry and used for both the terminal session and SFTP access. Start, stop, and delete projects from the dashboard. Files are not deleted when you remove a project from the registry.
+**Projects**
+- Local projects, or SSH projects whose agents and terminal work on a remote host.
+- A Projects tab with a card per project: agents, Start / Stop, Edit, Delete.
+- Classification per project (personal / work / restricted) decides which agents may work on it; a stricter one stops the agents it blocks.
+- Deleting a project keeps its folder and chats unless you ask for them to go, and you type the name to confirm. Create it again and it picks them up.
 
-**PWA**  
-Installable on iOS and Android. Works as a full-screen app from your home screen. The UI shell loads offline; the terminal needs the server.
+**Terminals**
+- A terminal per project, plus as many standalone shells as you want: each press of `›_` opens another tab.
+- Each shell is its own daemon (ttyd + dtach under systemd): it survives closing the page and restarting OopsBox.
+- A toolbar with the keys a touchscreen lacks (^C, Tab, arrows, Esc…), and copy.
 
-**Settings**  
-Change username, password, Anthropic API key, base URL, git identity, and SSL paths from the web UI — click ⚙ in the sidebar. No need to restart the container for credential changes.
+**Files**
+- File manager with upload, download, rename, delete; side-by-side SFTP for SSH projects.
+- Monaco editor for code, Markdown preview, images and PDFs inline.
 
-**Auth**  
-PBKDF2-SHA256 with 600,000 iterations, session cookies, nginx `auth_request` on every protected route. Auto-generates a password on first boot if you don't set one — printed once to docker logs, stored hashed.
-
-**System stats**  
-CPU, RAM, and disk usage in the nav bar, updated every 5 seconds.
-
-### quick start
-
-```bash
-docker run -d \
-  --name oopsbox \
-  -p 8080:80 \
-  -e OOPSBOX_PASSWORD=yourpassword \
-  -e GIT_NAME="Your Name" \
-  -e GIT_EMAIL="you@example.com" \
-  -v oopsbox-projects:/oopsbox/projects \
-  -v oopsbox-config:/oopsbox/.config/oopsbox \
-  -v oopsbox-claude:/oopsbox/.claude \
-  oopsbox
-```
-
-Open `http://localhost:8080`, log in, create a project, and start it.
-
-If you skip `OOPSBOX_PASSWORD`, a password is auto-generated and printed to `docker logs oopsbox` — once. Check it before you need it.
-
-| Environment Variable | Default | Description |
-|---|---|---|
-| `OOPSBOX_PASSWORD` | auto-generated | Dashboard login password |
-| `OOPSBOX_USERNAME` | `admin` | Dashboard login username |
-| `ANTHROPIC_API_KEY` | — | Anthropic API key for Claude |
-| `GIT_NAME` | — | Git author name |
-| `GIT_EMAIL` | — | Git author email |
-| `SSL_CERT` | — | Path to SSL cert (inside container) |
-| `SSL_KEY` | — | Path to SSL key (inside container) |
-
-| Volume | Container Path | Contents |
-|---|---|---|
-| `oopsbox-projects` | `/oopsbox/projects` | Project files and registry |
-| `oopsbox-config` | `/oopsbox/.config/oopsbox` | Auth credentials, encryption keys |
-| `oopsbox-claude` | `/oopsbox/.claude` | Claude CLI sessions and settings |
-
-Or mount a `config.yaml` at `/oopsbox/config.yaml`:
-
-```yaml
-auth:
-  username: admin
-  password: yourpassword
-git:
-  name: Your Name
-  email: you@example.com
-ssl:
-  cert: /path/to/cert.pem
-  key: /path/to/key.pem
-```
+**Everywhere**
+- Project tabs; when there are more than fit, `▾ N` lists them all.
+- Layouts for desktop, iPad and phone. Installable as an app (PWA).
+- Dark theme, one colour per agent: Claude orange, Codex green, Kiro violet.
+- Login with PBKDF2-hashed passwords; nginx checks every route.
 
 ### how it works
 
 ```
-browser → nginx (auth_request on every protected route)
-        → FastAPI / uvicorn (auth, projects, files, ssh, system)
-        → ttyd per project (proxied at /terminal/<project>/)
-
-per-project isolated tmux sessions:
-  oopsbox-myproject               ← local project
-  ├── claude  (claude-loop.sh, auto-restarts on exit)
-  └── shell   (plain bash)
-
-  oopsbox-remote-project          ← SSH remote project
-  ├── claude  (runs locally; SHELL=remote-bash forwards all commands via SSH)
-  ├── remote  (interactive SSH session on the remote server)
-  └── local   (plain bash for local config)
-
-supervisord manages:
-  - nginx
-  - uvicorn (port 5000)
+browser ─ nginx (auth on every route, HTTPS through tailscale serve)
+          ├─ FastAPI / uvicorn ── chat sessions ── claude   (stream-json control protocol)
+          │                                     ├─ codex    (app-server JSON-RPC)
+          │                                     └─ kiro-cli (ACP)
+          └─ /terminal/<name>/ ── ttyd ── dtach ── bash      (one systemd user unit each)
 ```
 
-For SSH projects, Claude's bash tool is intercepted by a generated `remote-bash` wrapper that forwards every command to the remote server over SSH. The file manager uses paramiko SFTP to browse and transfer files on both sides independently.
+- Agents are child processes of OopsBox, driven through the protocols their own UIs use. Conversations live on disk; each agent resumes its own session when it starts again.
+- Terminals are `systemd --user` units, so they outlive OopsBox. nginx learns their ports from `/tmp/oopsbox-<name>/ttyd.port`.
+- Usage comes from each agent's own `/usage`, checked every 10 minutes for alerts.
 
-### project types
+### install
 
-**Local** — code lives inside the container. Start the project and you get a tmux session with Claude in one window and a plain shell in another.
+OopsBox runs on a Linux host with systemd. It is developed on Ubuntu 24.04.
 
-**SSH remote** — point it at any server with SSH access. Claude runs in the container but all its actions execute on the remote machine. Useful for codebases on Proxmox VMs, VPS instances, or homelab servers. Supports password and SSH key authentication.
+1. **System packages**: `nginx`, `ttyd` (1.7+), `dtach`, `git`, Python 3.12, Node.js.
+2. **Agents**: install and log in to the ones you want: `claude` (Claude Code), `codex`, `kiro-cli`.
+3. **OopsBox**:
+   ```bash
+   git clone https://github.com/MountainShan/OopsBox.git && cd OopsBox
+   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+   ln -s "$PWD/bin" ~/bin            # terminal scripts nginx and OopsBox call
+   loginctl enable-linger "$USER"    # terminals keep running without a login session
+   ```
+4. **Service**: run `.venv/bin/python -m uvicorn dashboard.main:app --host 127.0.0.1 --port 5000` as your user (a systemd unit with `Restart=on-failure` works well).
+5. **nginx**: put it in front on the port you like, with `auth_request /api/auth/verify` on every route except `/login`, `/api/auth/` and `/static/`, and `include /etc/nginx/conf.d/oopsbox-projects.conf;` for the terminals. `docker/nginx.conf` is a starting point.
+6. **HTTPS** (needed for push notifications and the installed app): on a tailnet, `sudo tailscale serve --bg --https=9444 http://127.0.0.1:<nginx port>`.
+
+Updating a running install from a development clone: `bin/deploy.sh` sends the new commits as a git bundle, runs the tests on the server and restarts OopsBox only if they pass.
+
+> The Docker image in `docker/` predates the agent chat and the terminal daemons and has not been updated for them yet.
 
 ### tested on
 
-| Environment | Status |
-|---|---|
-| Docker on Ubuntu 24.04 | ✅ |
-| Docker on Debian 12 | 🤷 probably |
-| Proxmox VM | ✅ |
-
 | Device | Status |
 |---|---|
-| iPad Safari | ✅ (the whole point) |
+| iPad Safari / home-screen app | ✅ (the whole point) |
 | iPhone Safari | ✅ |
-| Chrome | ✅ |
-| Firefox | ✅ |
+| Chrome, Firefox | ✅ |
 
 ### FAQ
 
-**Q: Where did the AI chat go?**  
-A: Removed in v2 to simplify the architecture. The terminal with Claude Code covers the same ground with more control.
+**Q: Why three agents?**
+A: They are good at different things, and limits run out. Switching is one tap; the project, files and terminal stay the same.
 
-**Q: Where did Telegram go?**  
-A: Same. Out of scope for v2.
+**Q: Is the chat as capable as the CLI?**
+A: That is the goal: commands, settings and permissions map onto the chat, and anything that only makes sense in a terminal hands over to one, on the same conversation.
 
-**Q: Where's the code editor?**  
-A: In the file viewer — click any file and Monaco Editor opens. It never really left.
-
-**Q: Is this production ready?**  
+**Q: Is this production ready?**
 A: It's stable and I use it daily. Whether that meets your production bar is a personal decision.
-
-**Q: What's next?**  
-A: Unknown. The roadmap is short and the ideas list is long.
 
 ### license
 
@@ -185,172 +161,133 @@ MIT. Do whatever you want with it. If you find it useful, a star is always appre
 
 ## 繁體中文
 
-想在 iPad 上寫 code — 不用本地 IDE，不用 VPN，只要一個瀏覽器。這個想法變成了一個 web-based 開發平台。v1 有 AI 對話、Telegram bot、加密 token 儲存、s6-overlay 管 14 個 process，功能完整，但也越來越複雜。
+我想在 iPad 上寫 code：不用本地 IDE、不用 VPN，只要一個瀏覽器。後來它變成了 OopsBox：一個網頁主控台，在你自己的伺服器上跑 **Claude Code、Codex 和 Kiro**，從任何裝置都能操作這三個 agent。
 
-v2 是一次有針對性的重寫：減少複雜度，架構更清晰，保留真正重要的部分。一個 `docker run` 就有完整的 terminal、帶編輯器的檔案管理器、以及在遠端 server 自主作業的 Claude Code。
+每個 agent 都有完整的聊天介面：模型、模式、斜線指令、權限和對話紀錄，跟它自己的終端機介面一樣齊全。聊天不夠用的時候，按一下就能在真正的終端機裡接續同一個對話。
+
+> 這裡的截圖都來自一個示範用的 OopsBox，裡面的專案都是虛構的。
 
 ### 截圖
 
 <p align="center">
-  <img src="images/login.png" alt="登入畫面" width="80%"><br>
-  <em>"somehow alive" — 精準的專案描述</em>
+  <img src="images/projects.png" alt="Projects 頁面" width="90%"><br>
+  <em>Projects：每個專案、它正在執行的 agent（執行中會轉圈，等你回應時變黃），以及可以做的操作。</em>
 </p>
 
 <p align="center">
-  <img src="images/terminal.png" alt="SSH 遠端專案，Claude 正在執行" width="80%"><br>
-  <em>SSH 遠端專案。Claude 在 container 裡跑，但每個指令都在遠端 server 執行。右上角的按鈕直接從瀏覽器切換 tmux 視窗，不需要記任何快捷鍵。</em>
+  <img src="images/needs-you.png" alt="Kiro 等待權限" width="90%"><br>
+  <em>Kiro 想重新載入 nginx。每一頁的狀態列都會提示，手機也會收到推播。</em>
 </p>
 
 <p align="center">
-  <img src="images/agent.png" alt="Claude 正在做檔案修改" width="80%"><br>
-  <em>Claude 在做 diff。這次你有認真看。大概。</em>
+  <img src="images/usage.png" alt="狀態列的用量細節" width="90%"><br>
+  <em>每個 agent 的帳號用量和機器負載都在底部狀態列，點一下看細節。</em>
 </p>
 
-### 這是什麼
-
-一個 Docker container，提供 web dashboard 讓你管理 AI coding agent。核心流程：打開瀏覽器 → 有 terminal → 跑 Claude Code → Claude 做事 → 你審查和引導。
-
-每個專案有獨立的 tmux session。Claude Code 在 tmux 裡跑，`claude-loop.sh` 會在它退出時自動重啟。ttyd 把 tmux session 串流成瀏覽器裡的真實 terminal。nginx 在最前面處理所有路由的認證。整個架構一個指令就啟動。
-
-SSH 遠端專案：Claude 在 container 本地跑，但一個 shell wrapper 會把它執行的每個 bash 指令透明地透過 SSH 轉發到遠端執行。Claude 的檔案編輯、git 操作、測試全都在遠端跑。還有一個雙面板檔案管理器，左邊本地、右邊遠端 SFTP，一鍵互傳。
+<p align="center">
+  <img src="images/mobile-projects.png" alt="手機上的 Projects" width="32%">
+  &nbsp;
+  <img src="images/mobile-chat.png" alt="手機上的聊天" width="32%"><br>
+  <em>手機上也一樣。</em>
+</p>
 
 ### 功能
 
-**Web Terminal**  
-ttyd + tmux，每個專案獨立 session。Toolbar 提供 ^C、^D、^Z、^L、Tab、方向鍵，方便觸控螢幕使用。視窗切換按鈕（本機：claude / shell；SSH：claude / remote / local）從瀏覽器直接切換 tmux 視窗，不需要記 prefix。按鈕 active 狀態與 tmux 實際視窗同步。tmux mouse mode 已關閉，瀏覽器文字選取和複製貼上正常運作。
+**三個 agent，一個聊天介面**
+- Claude Code、Codex、Kiro 各有自己的顏色，每個專案都能並排使用，點一下就能切換。
+- 模型、推理強度、模式（規劃、唯讀、完整權限⋯）都用下拉選單選。
+- 斜線指令變成對應的介面：`/model` 是選單，`/usage`、`/context`、`/mcp` 等是面板；只有終端機能做的指令會轉交 Terminal 分頁。
+- 權限請求顯示成 Allow / Deny 卡片；**Autopilot** 可以讓整個對話自動允許。
+- agent 執行中可以送訊息，在這一輪就調整它的方向，也可以直接中斷。
+- 對話紀錄、切換對話、回溯（agent 支援的話）、編輯各 agent 的設定檔和啟動參數。
+- 可以附加檔案和圖片（存到專案資料夾），輸入 `@` 搜尋專案檔案。
+- **Open in Terminal** 會在 agent 自己的 CLI 裡接續同一個對話。
 
-**檔案管理器**  
-瀏覽、上傳、下載、重命名、刪除、建立檔案和資料夾。麵包屑導航，副檔名圖示。SSH 專案有雙面板：左邊本地、右邊遠端 SFTP，→ / ← 按鈕一鍵互傳。重新整理按鈕同步資料夾最新狀態。
+**agent 持續執行**
+- 關掉網頁不會停止任何東西。重啟 OopsBox 後，原本在執行的 agent 會自動回來，接回原本的對話。
+- 你手動停止的 agent 會保持停止。
 
-**檔案檢視器與編輯器**  
-點一下檔案就開啟。程式碼和文字檔用 Monaco Editor（VS Code 的編輯器）開啟。Markdown 渲染成 HTML，有 Source / Preview 切換。圖片直接顯示，PDF 在瀏覽器裡開。Ctrl+S 儲存，儲存後自動刷新資料夾。
+**需要你的時候會通知你**
+- agent 執行中會顯示轉圈圖示。
+- agent 等待權限或回答時，狀態列會出現「⚠ kiro needs you」，分頁標題也會顯示數量。
+- **推播通知**（Web Push）：開啟的裝置都會收到，OopsBox 沒開著也收得到；點通知會直接打開那個 agent 的聊天。
+- **用量提醒**：agent 的額度超過你設定的門檻（預設 90%）時通知你，每個重置週期一次。
 
-**專案管理**  
-建立本機專案（git init、CLAUDE.md、完成）或 SSH 遠端專案（填入 host、帳號、遠端路徑，以及密碼或 SSH 金鑰路徑）。憑證儲存在 project registry，terminal 連線和 SFTP 存取共用。從 dashboard 啟動、停止、刪除專案。從 registry 移除專案不會刪除檔案。
+**專案**
+- 本機專案，或 SSH 專案（agent 和終端機在遠端主機上工作）。
+- Projects 分頁裡每個專案一張卡片：agent 狀態、Start / Stop、Edit、Delete。
+- 每個專案的分級（personal / work / restricted）決定哪些 agent 可以碰它；改成更嚴格的分級時，會立刻停止被擋下的 agent。
+- 刪除專案預設保留資料夾和對話紀錄，要一起刪除必須勾選並輸入專案名稱確認。之後建立同名專案會接回原本的資料。
 
-**PWA**  
-可安裝到 iOS 和 Android 主畫面，以全螢幕 app 模式開啟。UI shell 可離線載入；terminal 需要 server 連線。
+**終端機**
+- 每個專案都有自己的終端機，另外可以開任意數量的獨立 shell：每按一次 `›_` 就開一個新分頁。
+- 每個 shell 都是獨立的背景服務（systemd 底下的 ttyd + dtach），關掉網頁、重啟 OopsBox 都不會中斷。
+- 工具列提供觸控螢幕缺少的按鍵（^C、Tab、方向鍵、Esc⋯），以及複製。
 
-**設定頁面**  
-從 web UI 修改帳號密碼、Anthropic API key、base URL、git 身份、SSL 路徑——點左側欄的 ⚙。憑證變更即時生效，不需要重啟 container。
+**檔案**
+- 檔案管理：上傳、下載、重新命名、刪除；SSH 專案會並排顯示本機和遠端 SFTP。
+- 程式碼用 Monaco 編輯器，Markdown 可預覽，圖片和 PDF 直接顯示。
 
-**認證**  
-PBKDF2-SHA256 600,000 次迭代、session cookie、nginx `auth_request` 在每個受保護路由。第一次啟動若未設定密碼則自動產生，印一次到 docker logs，之後以雜湊儲存。
+**各種裝置**
+- 專案以分頁顯示；放不下時 `▾ N` 會列出全部分頁。
+- 桌機、iPad、手機各有適合的版面，可以安裝成 App（PWA）。
+- 深色主題，每個 agent 一種顏色：Claude 橘、Codex 綠、Kiro 紫。
+- 登入密碼以 PBKDF2 雜湊儲存，nginx 檢查每一個路徑。
 
-**系統監控**  
-CPU、RAM、磁碟用量在 nav bar，每 5 秒更新。
-
-### 快速開始
-
-```bash
-docker run -d \
-  --name oopsbox \
-  -p 8080:80 \
-  -e OOPSBOX_PASSWORD=你的密碼 \
-  -e GIT_NAME="你的名字" \
-  -e GIT_EMAIL="you@example.com" \
-  -v oopsbox-projects:/oopsbox/projects \
-  -v oopsbox-config:/oopsbox/.config/oopsbox \
-  -v oopsbox-claude:/oopsbox/.claude \
-  oopsbox
-```
-
-打開 `http://localhost:8080`，登入，建立專案，啟動。
-
-沒設 `OOPSBOX_PASSWORD` 的話，密碼自動產生並印在 `docker logs oopsbox` 裡——只印一次。
-
-| 環境變數 | 預設值 | 說明 |
-|---|---|---|
-| `OOPSBOX_PASSWORD` | 自動產生 | Dashboard 登入密碼 |
-| `OOPSBOX_USERNAME` | `admin` | Dashboard 登入帳號 |
-| `ANTHROPIC_API_KEY` | — | Claude 的 Anthropic API key |
-| `GIT_NAME` | — | Git 作者名稱 |
-| `GIT_EMAIL` | — | Git 作者信箱 |
-| `SSL_CERT` | — | SSL 憑證路徑（container 內） |
-| `SSL_KEY` | — | SSL 金鑰路徑（container 內） |
-
-| Volume | 容器路徑 | 內容 |
-|---|---|---|
-| `oopsbox-projects` | `/oopsbox/projects` | 專案檔案和 registry |
-| `oopsbox-config` | `/oopsbox/.config/oopsbox` | 認證資訊、加密金鑰 |
-| `oopsbox-claude` | `/oopsbox/.claude` | Claude CLI session 和設定 |
-
-或者掛 `config.yaml` 到 `/oopsbox/config.yaml`：
-
-```yaml
-auth:
-  username: admin
-  password: 你的密碼
-git:
-  name: 你的名字
-  email: you@example.com
-ssl:
-  cert: /path/to/cert.pem
-  key: /path/to/key.pem
-```
-
-### 大概怎麼運作的
+### 運作方式
 
 ```
-瀏覽器 → nginx（每個受保護路由都走 auth_request）
-        → FastAPI / uvicorn（auth、projects、files、ssh、system）
-        → 每個專案一個 ttyd（代理在 /terminal/<project>/）
-
-每個專案獨立的 tmux session：
-  oopsbox-myproject               ← 本機專案
-  ├── claude  （claude-loop.sh，退出自動重啟）
-  └── shell   （純 bash）
-
-  oopsbox-remote-project          ← SSH 遠端專案
-  ├── claude  （本地跑；SHELL=remote-bash 把所有指令透過 SSH 轉發）
-  ├── remote  （遠端 server 的互動式 SSH session）
-  └── local   （本地 bash）
-
-supervisord 管的：
-  - nginx
-  - uvicorn（port 5000）
+瀏覽器 ─ nginx（每個路徑都驗證登入；HTTPS 由 tailscale serve 提供）
+         ├─ FastAPI / uvicorn ── 聊天 session ── claude   （stream-json 控制協定）
+         │                                    ├─ codex    （app-server JSON-RPC）
+         │                                    └─ kiro-cli （ACP）
+         └─ /terminal/<name>/ ── ttyd ── dtach ── bash     （各自一個 systemd user unit）
 ```
 
-SSH 專案中，Claude 的 bash tool 被生成的 `remote-bash` wrapper 攔截，把每個指令透過 SSH 轉發到遠端執行。檔案管理器用 paramiko SFTP 獨立瀏覽兩側的檔案，並可互傳。
+- agent 是 OopsBox 的子程序，透過它們自己介面使用的協定來操作。對話存在磁碟上，agent 重新啟動時會接回自己的 session。
+- 終端機是 `systemd --user` 的服務，所以比 OopsBox 活得久。nginx 從 `/tmp/oopsbox-<name>/ttyd.port` 得知它們的 port。
+- 用量來自每個 agent 自己的 `/usage`，每 10 分鐘檢查一次是否需要提醒。
 
-### 專案類型
+### 安裝
 
-**本機** — code 在 container 內。啟動就得到一個 tmux session，claude 在一個視窗、純 shell 在另一個。
+OopsBox 跑在有 systemd 的 Linux 主機上，開發環境是 Ubuntu 24.04。
 
-**SSH 遠端** — 指向任何有 SSH 存取的 server。Claude 在 container 裡跑，所有動作在遠端執行。適合 codebase 在 Proxmox VM、VPS 或 homelab 的情況。支援密碼和 SSH 金鑰認證。
+1. **系統套件**：`nginx`、`ttyd`（1.7 以上）、`dtach`、`git`、Python 3.12、Node.js。
+2. **agent**：安裝並登入你要用的：`claude`（Claude Code）、`codex`、`kiro-cli`。
+3. **OopsBox**：
+   ```bash
+   git clone https://github.com/MountainShan/OopsBox.git && cd OopsBox
+   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+   ln -s "$PWD/bin" ~/bin            # nginx 和 OopsBox 會呼叫的終端機腳本
+   loginctl enable-linger "$USER"    # 沒有登入時終端機也能繼續執行
+   ```
+4. **服務**：以你的使用者身分執行 `.venv/bin/python -m uvicorn dashboard.main:app --host 127.0.0.1 --port 5000`（建議寫成 `Restart=on-failure` 的 systemd unit）。
+5. **nginx**：放在前面，port 自訂；除了 `/login`、`/api/auth/`、`/static/` 以外的路徑都要 `auth_request /api/auth/verify`，並加上 `include /etc/nginx/conf.d/oopsbox-projects.conf;` 給終端機用。可以參考 `docker/nginx.conf`。
+6. **HTTPS**（推播通知和安裝成 App 需要）：在 tailnet 上執行 `sudo tailscale serve --bg --https=9444 http://127.0.0.1:<nginx port>`。
 
-### 測試過的平台
+從開發用的 clone 更新正在執行的 OopsBox：`bin/deploy.sh` 會把新的 commit 打包成 git bundle 傳過去，在伺服器上跑測試，通過才會重啟 OopsBox。
 
-| 環境 | 狀態 |
-|---|---|
-| Docker on Ubuntu 24.04 | ✅ |
-| Docker on Debian 12 | 🤷 大概行 |
-| Proxmox VM | ✅ |
+> `docker/` 裡的 Docker image 是在聊天介面和終端機背景服務之前做的，還沒更新。
+
+### 測試環境
 
 | 裝置 | 狀態 |
 |---|---|
-| iPad Safari | ✅（重點就是這個） |
+| iPad Safari／主畫面 App | ✅（這才是重點） |
 | iPhone Safari | ✅ |
-| Chrome | ✅ |
-| Firefox | ✅ |
+| Chrome、Firefox | ✅ |
 
 ### 常見問題
 
-**問：AI 對話去哪了？**  
-答：v2 為了簡化架構移除了。Claude Code 在 terminal 裡可以做到更多。
+**Q：為什麼要三個 agent？**
+A：它們各有擅長的事，額度也會用完。切換只要點一下，專案、檔案和終端機都不變。
 
-**問：Telegram 呢？**  
-答：也移除了。不在 v2 的範圍內。
+**Q：聊天介面跟 CLI 一樣強嗎？**
+A：這就是目標：指令、設定和權限都對應到聊天介面上；只有終端機才合理的操作，會轉交給終端機，接續同一個對話。
 
-**問：Code editor 呢？**  
-答：在檔案檢視器裡——點任何檔案，Monaco Editor 就開了。
-
-**問：這能上 production 嗎？**  
-答：穩定，我每天在用。適不適合你的環境由你判斷。
-
-**問：下一步是什麼？**  
-答：還不確定。有想法的話歡迎開 issue。
+**Q：可以用在正式環境嗎？**
+A：很穩定，我每天都在用。符不符合你的標準，就由你決定。
 
 ### 授權
 
-MIT。隨意使用。如果有幫助的話，歡迎給個 star。
+MIT。想怎麼用就怎麼用。覺得有用的話，給個星星我會很開心。

@@ -5,3 +5,4 @@ aiofiles==24.1.0
 paramiko==3.5.0
 pyyaml==6.0.2
 psutil==6.1.0
+pywebpush==2.5.0

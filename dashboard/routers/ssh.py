@@ -1,4 +1,5 @@
 # dashboard/routers/ssh.py
+import mimetypes
 import io
 import json
 import stat
@@ -6,8 +7,12 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
 
+import os
+
 import paramiko
 from fastapi import APIRouter, HTTPException, UploadFile, File
+
+from .. import uploads
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -191,7 +196,7 @@ def read_file(project: str, path: str):
 
 
 @router.get("/{project}/download")
-def download_file(project: str, path: str):
+def download_file(project: str, path: str, inline: bool = False):
     meta = _get_meta(project)
     abs_path = _resolve_remote(meta, path)
     filename = abs_path.split("/")[-1]
@@ -214,10 +219,19 @@ def download_file(project: str, path: str):
         ssh.close()
 
     encoded = quote(filename)
+    if inline:
+        # Two things force a download regardless of intent: an attachment
+        # disposition, and octet-stream as the type. Rendering in place needs
+        # both corrected, so guess the real type from the name.
+        disposition = "inline"
+        media = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    else:
+        disposition = "attachment"
+        media = "application/octet-stream"
     return StreamingResponse(
         io.BytesIO(data),
-        media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded}"},
+        media_type=media,
+        headers={"Content-Disposition": f"{disposition}; filename*=UTF-8''{encoded}"},
     )
 
 
@@ -351,20 +365,50 @@ async def upload(project: str, path: str = "", file: UploadFile = File(...)):
     meta = _get_meta(project)
     base = meta["remote_path"].rstrip("/")
     dest_dir = _resolve_remote(meta, path) if path else base
-    dest_path = dest_dir.rstrip("/") + "/" + file.filename
-    # Verify dest_path doesn't escape base
-    if not dest_path.startswith(base):
-        raise HTTPException(status_code=400, detail="Path traversal not allowed")
+    # the browser's file name, never a path: "../x" must not leave the folder
+    name = uploads.safe_name(file.filename)
+    tmp, _ = await uploads.spool(file)
+    try:
+        put_file(meta, tmp, dest_dir, name, replace=True)
+        return {"ok": True, "name": name}
+    finally:
+        os.unlink(tmp)
 
-    content = await file.read()
+
+def read_bytes(meta: dict, rel: str) -> bytes:
+    """A small remote file's content (for attaching an image to a message)."""
+    ssh, sftp = _open_sftp(meta)
+    try:
+        buf = io.BytesIO()
+        sftp.getfo(_resolve_remote(meta, rel), buf)
+        return buf.getvalue()
+    finally:
+        sftp.close()
+        ssh.close()
+
+
+def put_file(meta: dict, local_path: str, remote_dir: str, name: str, replace: bool = False) -> str:
+    """Copy a local file into a remote folder of an SSH project.
+    Returns the name it was saved under (a free one unless replace)."""
     try:
         ssh, sftp = _open_sftp(meta)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"SSH connection failed: {e}")
     try:
-        buf = io.BytesIO(content)
-        sftp.putfo(buf, dest_path)
-        return {"ok": True, "name": file.filename}
+        _sftp_makedirs(sftp, remote_dir)
+
+        def exists(n: str) -> bool:
+            try:
+                sftp.stat(remote_dir.rstrip("/") + "/" + n)
+                return True
+            except FileNotFoundError:
+                return False
+        if not replace:
+            name = uploads.unique_name(name, exists)
+        sftp.put(local_path, remote_dir.rstrip("/") + "/" + name)
+        return name
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
