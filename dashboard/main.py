@@ -7,7 +7,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
 
-from .agents.manager import AGENT_ORDER, manager
+from .agents.catalog import STABLE
+from .agents.manager import manager
 from . import notify, usage
 from .routers import auth, projects, files, system, ssh, settings, chat
 
@@ -17,6 +18,7 @@ app = FastAPI(title="OopsBox", version="2.0.0")
 app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(projects.shells)
+app.include_router(projects.agents_router)
 app.include_router(files.router)
 app.include_router(system.router)
 app.include_router(ssh.router)
@@ -28,6 +30,8 @@ app.include_router(chat.router)
 async def _restore_agents():
     # In the background: a slow agent must not hold up the dashboard.
     asyncio.get_running_loop().create_task(projects.restore_agents())
+    projects.main_loop = asyncio.get_running_loop()
+    projects._detect_soon(projects._load_registry())  # which agents each machine has
     manager.attention_hook = notify.attention
     asyncio.get_running_loop().create_task(_watch_usage())
 
@@ -37,7 +41,7 @@ async def _watch_usage():
     await asyncio.sleep(120)  # let the restored agents settle
     while True:
         try:
-            agents = await usage.agent_usage(manager, AGENT_ORDER)
+            agents = await usage.agent_usage(manager, STABLE)
             for title, body in notify.usage_alerts(agents):
                 await notify.send(title, body, url="/", tag="usage-" + title.split()[0])
         except Exception:

@@ -27,6 +27,8 @@ Each agent gets a real chat: its models, modes, slash commands, permissions and 
 
 > Every screenshot here comes from a demo instance with made-up projects.
 
+**New here?** The [user guide](docs/user-guide.md) walks through everything below.
+
 ### screenshots
 
 <p align="center">
@@ -67,6 +69,7 @@ Each agent gets a real chat: its models, modes, slash commands, permissions and 
 - Past conversations, switch between them, rewind (where the agent supports it), edit each agent's config files and launch arguments.
 - Attach files and images (saved into the project), and `@` to search project files.
 - **Open in Terminal** continues the same conversation in the agent's own CLI.
+- **Experimental:** Gemini CLI, Goose and OpenCode, over ACP, if they are installed. They run, but have not been checked against their own CLIs yet.
 
 **Agents that keep running**
 - Closing the page does not stop anything. Restarting OopsBox brings back the agents that were running, on the conversation they were in.
@@ -80,8 +83,9 @@ Each agent gets a real chat: its models, modes, slash commands, permissions and 
 
 **Projects**
 - Local projects, or SSH projects whose agents and terminal work on a remote host.
-- A Projects tab with a card per project: agents, Start / Stop, Edit, Delete.
-- Classification per project (personal / work / restricted) decides which agents may work on it; a stricter one stops the agents it blocks.
+- A Projects tab with a card per project: agents, Start / Stop, Agents, Edit, Delete.
+- **Choose each project's agents** when you make it, and change them later. OopsBox checks which agents each machine (this one and every SSH host) has installed and ticks those for you.
+- Classification per project (personal / work / restricted) is the ceiling: it decides which agents may ever work on it, whatever is ticked; a stricter one stops the agents it blocks.
 - Deleting a project keeps its folder and chats unless you ask for them to go, and you type the name to confirm. Create it again and it picks them up.
 
 **Terminals**
@@ -105,7 +109,8 @@ Each agent gets a real chat: its models, modes, slash commands, permissions and 
 browser ─ nginx (auth on every route, HTTPS through tailscale serve)
           ├─ FastAPI / uvicorn ── chat sessions ── claude   (stream-json control protocol)
           │                                     ├─ codex    (app-server JSON-RPC)
-          │                                     └─ kiro-cli (ACP)
+          │                                     ├─ kiro-cli (ACP)
+          │                                     └─ gemini / goose / opencode (ACP, experimental)
           └─ /terminal/<name>/ ── ttyd ── dtach ── bash      (one systemd user unit each)
 ```
 
@@ -118,7 +123,7 @@ browser ─ nginx (auth on every route, HTTPS through tailscale serve)
 OopsBox runs on a Linux host with systemd. It is developed on Ubuntu 24.04.
 
 1. **System packages**: `nginx`, `ttyd` (1.7+), `dtach`, `git`, Python 3.12, Node.js.
-2. **Agents**: install and log in to the ones you want: `claude` (Claude Code), `codex`, `kiro-cli`.
+2. **Agents**: install and log in to the ones you want: `claude` (Claude Code), `codex`, `kiro-cli`; experimentally `gemini`, `goose`, `opencode`. **Settings → Agents** shows what OopsBox finds.
 3. **OopsBox**:
    ```bash
    git clone https://github.com/MountainShan/OopsBox.git && cd OopsBox
@@ -167,6 +172,8 @@ MIT. Do whatever you want with it. If you find it useful, a star is always appre
 
 > 這裡的截圖都來自一個示範用的 OopsBox，裡面的專案都是虛構的。
 
+**第一次使用？** [使用說明](docs/user-guide.zh-TW.md)會一步一步介紹下面所有功能。
+
 ### 截圖
 
 <p align="center">
@@ -202,6 +209,7 @@ MIT. Do whatever you want with it. If you find it useful, a star is always appre
 - 對話紀錄、切換對話、回溯（agent 支援的話）、編輯各 agent 的設定檔和啟動參數。
 - 可以附加檔案和圖片（存到專案資料夾），輸入 `@` 搜尋專案檔案。
 - **Open in Terminal** 會在 agent 自己的 CLI 裡接續同一個對話。
+- **實驗性**：機器上有安裝的話，也能透過 ACP 使用 Gemini CLI、Goose 和 OpenCode。可以執行，但還沒和它們自己的 CLI 比對過功能。
 
 **agent 持續執行**
 - 關掉網頁不會停止任何東西。重啟 OopsBox 後，原本在執行的 agent 會自動回來，接回原本的對話。
@@ -215,8 +223,9 @@ MIT. Do whatever you want with it. If you find it useful, a star is always appre
 
 **專案**
 - 本機專案，或 SSH 專案（agent 和終端機在遠端主機上工作）。
-- Projects 分頁裡每個專案一張卡片：agent 狀態、Start / Stop、Edit、Delete。
-- 每個專案的分級（personal / work / restricted）決定哪些 agent 可以碰它；改成更嚴格的分級時，會立刻停止被擋下的 agent。
+- Projects 分頁裡每個專案一張卡片：agent 狀態、Start / Stop、Agents、Edit、Delete。
+- **每個專案自己選要用哪些 agent**：建立時勾選，之後可以修改。OopsBox 會檢查每台機器（這台和每個 SSH 主機）裝了哪些 agent，幫你預先勾好。
+- 每個專案的分級（personal / work / restricted）是上限：不管怎麼勾，都只有分級允許的 agent 能碰它；改成更嚴格的分級時，會立刻停止被擋下的 agent。
 - 刪除專案預設保留資料夾和對話紀錄，要一起刪除必須勾選並輸入專案名稱確認。之後建立同名專案會接回原本的資料。
 
 **終端機**
@@ -240,7 +249,8 @@ MIT. Do whatever you want with it. If you find it useful, a star is always appre
 瀏覽器 ─ nginx（每個路徑都驗證登入；HTTPS 由 tailscale serve 提供）
          ├─ FastAPI / uvicorn ── 聊天 session ── claude   （stream-json 控制協定）
          │                                    ├─ codex    （app-server JSON-RPC）
-         │                                    └─ kiro-cli （ACP）
+         │                                    ├─ kiro-cli （ACP）
+         │                                    └─ gemini / goose / opencode （ACP，實驗性）
          └─ /terminal/<name>/ ── ttyd ── dtach ── bash     （各自一個 systemd user unit）
 ```
 
@@ -253,7 +263,7 @@ MIT. Do whatever you want with it. If you find it useful, a star is always appre
 OopsBox 跑在有 systemd 的 Linux 主機上，開發環境是 Ubuntu 24.04。
 
 1. **系統套件**：`nginx`、`ttyd`（1.7 以上）、`dtach`、`git`、Python 3.12、Node.js。
-2. **agent**：安裝並登入你要用的：`claude`（Claude Code）、`codex`、`kiro-cli`。
+2. **agent**：安裝並登入你要用的：`claude`（Claude Code）、`codex`、`kiro-cli`；實驗性的 `gemini`、`goose`、`opencode`。**Settings → Agents** 會顯示 OopsBox 找到哪些。
 3. **OopsBox**：
    ```bash
    git clone https://github.com/MountainShan/OopsBox.git && cd OopsBox

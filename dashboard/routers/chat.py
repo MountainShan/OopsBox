@@ -16,11 +16,10 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from .. import uploads
-from ..agents import config_files
-from ..agents.manager import AGENT_ORDER, DRIVERS, manager
+from ..agents import catalog, config_files
+from ..agents.manager import DRIVERS, manager
 from ..agents.session import Attachment
-from ..classification import agent_access
-from .projects import _classification_of, _load_registry, start_terminal
+from .projects import _load_registry, agent_access_of, start_terminal
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -36,7 +35,7 @@ def _meta(name: str) -> dict:
 
 
 def _access(meta: dict) -> dict[str, str]:
-    return agent_access(_classification_of(meta))
+    return agent_access_of(meta)
 
 
 def _session(name: str, agent: str):
@@ -57,8 +56,9 @@ def chat_overview(name: str):
         "upload_max_mb": uploads.limits()["max_mb"],
         "default": manager.default_agent(name, access),
         "agents": [
-            {"name": a, "access": access.get(a, "blocked"), "status": manager.status(name, a)}
-            for a in AGENT_ORDER if access.get(a, "blocked") != "blocked"
+            {"name": a, "access": access.get(a, "blocked"), "status": manager.status(name, a),
+             "experimental": catalog.SPECS[a].stability == "experimental"}
+            for a in access if access[a] != "blocked"
         ],
     }
 

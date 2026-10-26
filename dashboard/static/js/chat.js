@@ -343,8 +343,9 @@ const Chat = (() => {
       const busy = a.status === 'working' || a.status === 'starting';
       const mark = busy ? '<span class="agent-spin"></span>'
         : `<span class="dot ${ALIVE.includes(a.status) ? 'dot-green' : 'dot-gray'}"></span>`;
-      btn.innerHTML = `${mark}${esc(a.name)}`;
-      if (busy) btn.title = `${a.name} is ${a.status}`;
+      btn.innerHTML = `${mark}${esc(a.name)}` + (a.experimental ? '<span class="agent-exp">exp</span>' : '');
+      btn.title = busy ? `${a.name} is ${a.status}` : a.experimental
+        ? `${a.name} (experimental: runs over ACP; not yet checked against its own CLI)` : '';
       btn.onclick = () => selectAgent(view, a.name);
       bar.appendChild(btn);
     });

@@ -7,9 +7,10 @@ from typing import Optional, Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 
+from ..agents import catalog
 from ..agents.launch import ssh_target
-from ..agents.manager import manager
-from ..classification import DEFAULT_CLASSIFICATION, agent_access, is_valid
+from ..agents.manager import AGENT_ORDER, manager
+from ..classification import DEFAULT_CLASSIFICATION, agent_access, is_valid, other_agent_access
 from ..memory import ensure_memory, list_files, read_file
 from .. import terminals
 
@@ -110,6 +111,46 @@ def _classification_of(meta: dict) -> str:
     return str(value)
 
 
+def classification_ceiling(classification: str) -> dict[str, str]:
+    """What a classification allows, for every agent OopsBox knows."""
+    table = agent_access(classification)
+    return {a: table.get(a) or other_agent_access(classification) for a in AGENT_ORDER}
+
+
+def agent_access_of(meta: dict) -> dict[str, str]:
+    """{agent: available | hidden | blocked} for a project, in the order its
+    agents are shown.
+
+    The classification is the ceiling; within it, the project's own choice
+    (enabled_agents) decides. A chosen agent is simply available - choosing
+    is the deliberate step a hidden one waits for - and one not chosen is
+    blocked. A project from before the choice existed gets what its
+    classification allows, as it always did.
+    """
+    ceiling = classification_ceiling(_classification_of(meta))
+    chosen = meta.get("enabled_agents")
+    if not isinstance(chosen, list):
+        # experimental agents only ever by choice
+        return {a: ceiling[a] if a in catalog.STABLE else "blocked" for a in AGENT_ORDER}
+    out = {a: ("available" if ceiling.get(a, "blocked") != "blocked" else "blocked")
+           for a in chosen if a in AGENT_ORDER}
+    for a in AGENT_ORDER:
+        out.setdefault(a, "blocked")
+    return out
+
+
+def _check_agents(agents: Optional[list[str]]) -> Optional[list[str]]:
+    if agents is None:
+        return None
+    unknown = [a for a in agents if a not in AGENT_ORDER]
+    if unknown:
+        raise ValueError(f"unknown agent: {', '.join(unknown)}")
+    agents = list(dict.fromkeys(agents))
+    if not agents:
+        raise ValueError("choose at least one agent")
+    return agents
+
+
 class CreateProjectRequest(BaseModel):
     name: str
     type: Literal["local", "ssh"] = "local"
@@ -120,6 +161,13 @@ class CreateProjectRequest(BaseModel):
     ssh_key_path: Optional[str] = None
     remote_path: Optional[str] = None
     classification: str = DEFAULT_CLASSIFICATION
+    # the agents this project uses, in order; None: whatever the classification allows
+    agents: Optional[list[str]] = None
+
+    @field_validator("agents")
+    @classmethod
+    def validate_agents(cls, v):
+        return _check_agents(v)
 
     @field_validator("classification")
     @classmethod
@@ -145,6 +193,7 @@ def list_projects():
     for name, meta in registry.items():
         entry = dict(meta)
         entry["classification"] = _classification_of(entry)
+        entry["agent_access"] = agent_access_of(entry)
         entry.update(_runtime_info(name))
         result.append(entry)
     return sorted(result, key=lambda p: p["name"])
@@ -182,6 +231,8 @@ def create_project(req: CreateProjectRequest):
         "classification": req.classification,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    if req.agents is not None:
+        meta["enabled_agents"] = req.agents
     if req.type == "ssh":
         meta.update({
             "ssh_host": req.ssh_host,
@@ -198,6 +249,8 @@ def create_project(req: CreateProjectRequest):
     _save_registry(registry)
 
     ensure_memory(project_dir)
+    if req.type == "ssh" and catalog.host_key(meta) not in catalog.load():
+        _detect_soon(registry, catalog.host_key(meta))
 
     return {**meta, "adopted": adopted}
 
@@ -209,6 +262,7 @@ def get_project(name: str):
         raise HTTPException(status_code=404, detail="Project not found")
     entry = dict(registry[name])
     entry["classification"] = _classification_of(entry)
+    entry["agent_access"] = agent_access_of(entry)
     entry.update(_runtime_info(name))
     return entry
 
@@ -290,13 +344,40 @@ async def set_classification(name: str, req: SetClassificationRequest):
     registry[name]["classification"] = req.classification
     _save_registry(registry)
     # an agent the new classification blocks may not keep working on it
+    stopped = await _stop_blocked(name, registry[name])
+    return {"name": name, "classification": req.classification, "stopped": stopped}
+
+
+async def _stop_blocked(name: str, meta: dict) -> list[str]:
     stopped = []
-    for agent, state in agent_access(req.classification).items():
+    for agent, state in agent_access_of(meta).items():
         session = manager.peek(name, agent)
         if state == "blocked" and session is not None and session.alive:
             await session.stop()
             stopped.append(agent)
-    return {"name": name, "classification": req.classification, "stopped": stopped}
+    return stopped
+
+
+class SetAgentsRequest(BaseModel):
+    agents: list[str]
+
+    @field_validator("agents")
+    @classmethod
+    def validate_agents(cls, v):
+        return _check_agents(v)
+
+
+@router.put("/{name}/agents")
+async def set_agents(name: str, req: SetAgentsRequest):
+    """Choose the agents a project uses; one taken off is stopped (its chats stay)."""
+    registry = _load_registry()
+    if name not in registry:
+        raise HTTPException(status_code=404, detail="Project not found")
+    registry[name]["enabled_agents"] = req.agents
+    _save_registry(registry)
+    stopped = await _stop_blocked(name, registry[name])
+    return {"name": name, "agents": req.agents, "agent_access": agent_access_of(registry[name]),
+            "stopped": stopped}
 
 
 @router.get("/{name}/memory")
@@ -333,8 +414,7 @@ def get_agents(name: str):
     registry = _load_registry()
     if name not in registry:
         raise HTTPException(status_code=404, detail="Project not found")
-    classification = _classification_of(registry[name])
-    return {"classification": classification, "agents": agent_access(classification)}
+    return {"classification": _classification_of(registry[name]), "agents": agent_access_of(registry[name])}
 
 
 @router.post("/{name}/start")
@@ -345,7 +425,7 @@ async def start_project(name: str):
     if name not in registry:
         raise HTTPException(status_code=404, detail="Project not found")
     meta = registry[name]
-    access = agent_access(_classification_of(meta))
+    access = agent_access_of(meta)
     agents = [a for a, state in access.items() if state == "available"]
     default = manager.default_agent(name, access)
     if default and default not in agents:
@@ -358,11 +438,67 @@ async def start_project(name: str):
     return {"ok": not failed, "agents": agents, "failed": failed}
 
 
+# The app's event loop (set at startup), for work started from a sync route.
+main_loop: Optional[asyncio.AbstractEventLoop] = None
+
+
+def _detect_soon(registry: dict, only: Optional[str] = None) -> None:
+    """Find out in the background which agents a machine has."""
+    async def run():
+        try:
+            await catalog.detect(registry, only)
+        except Exception:
+            log.exception("agent detection failed")
+    try:
+        asyncio.get_running_loop().create_task(run())
+    except RuntimeError:  # a sync route runs in a worker thread
+        if main_loop is not None and main_loop.is_running():
+            asyncio.run_coroutine_threadsafe(run(), main_loop)
+
+
+# ── Agents a machine has ───────────────────────────
+agents_router = APIRouter(prefix="/api/agents", tags=["agents"])
+
+
+def _hosts_view(registry: dict) -> list[dict]:
+    found = catalog.load()
+    out = []
+    for key, meta in catalog.hosts(registry).items():
+        r = found.get(key) or {"agents": catalog.parse("")}
+        out.append({"key": key, "label": "This server" if key == catalog.LOCAL else key.removesuffix(":22"),
+                    "at": r.get("at"), "error": r.get("error"), "agents": r.get("agents", {})})
+    return out
+
+
+@agents_router.get("")
+def list_agents():
+    """The agents OopsBox knows, and what each machine projects use has installed."""
+    return _agents_view(_load_registry())
+
+
+class DetectRequest(BaseModel):
+    host: Optional[str] = None
+
+
+@agents_router.post("/detect")
+async def detect_agents(req: DetectRequest):
+    registry = _load_registry()
+    await catalog.detect(registry, req.host)
+    return _agents_view(registry)
+
+
+def _agents_view(registry: dict) -> dict:
+    from ..classification import VALID_CLASSIFICATIONS
+    return {"catalog": catalog.catalog(), "hosts": _hosts_view(registry),
+            # what each classification allows, for choosing within it
+            "classifications": {c: classification_ceiling(c) for c in VALID_CLASSIFICATIONS}}
+
+
 async def restore_agents() -> None:
     """At startup: bring back the agents that were running when OopsBox
     stopped, so an active project's agents are waiting again."""
     for name, meta in _load_registry().items():
-        access = agent_access(_classification_of(meta))
+        access = agent_access_of(meta)
         allowed = [a for a, state in access.items() if state != "blocked"]
         try:
             started = await manager.restore(meta, allowed)

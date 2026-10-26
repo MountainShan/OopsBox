@@ -1,5 +1,7 @@
 # dashboard/agents/acp.py
-"""Agents that speak ACP (Agent Client Protocol) — today, `kiro-cli acp`.
+"""Agents that speak ACP (Agent Client Protocol): `kiro-cli acp`, and the
+experimental ones in the catalog (Gemini CLI, Goose, OpenCode), which use
+AcpSession as it is.
 
 ACP lets the client offer file and terminal access, but kiro-cli reads,
 writes and runs commands itself and only asks the client for permission, so
@@ -121,9 +123,9 @@ class AcpSession(AgentSession):
                 await self._session_options(res)
                 return
             except RpcError as e:
-                hint = " (if it is open in the Terminal tab, quit kiro there, then switch back from 🕘)" \
+                hint = f" (if it is open in the Terminal tab, quit {self.agent} there, then switch back from 🕘)" \
                     if self.saved.get("handed_off") else ""
-                self.notice(f"Could not resume the last conversation (kiro: {e}); started a new conversation{hint}.", "warn")
+                self.notice(f"Could not resume the last conversation ({self.agent}: {e}); started a new conversation{hint}.", "warn")
             finally:
                 self._replaying = False
                 self._loading = False

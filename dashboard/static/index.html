@@ -171,6 +171,19 @@
     .pcard-agent.waiting { border-color: #eab308; }
     .pcard-agent.waiting .st { color: #facc15; }
     .pcard-none { font-size: 11.5px; color: var(--text3); }
+    /* choosing a project's agents (new project, the card's Agents button) */
+    .agent-choices { display: flex; flex-direction: column; gap: 6px; }
+    .modal .agent-choices label.agent-choice { display: flex; gap: 8px; align-items: flex-start; margin: 0; font-size: 13px; color: var(--text);
+      text-transform: none; letter-spacing: normal; cursor: pointer; }
+    .agent-choice input { width: auto; flex: none; margin-top: 3px; }
+    .agent-choice .ac-name { color: var(--agent, var(--text)); font-family: var(--mono); }
+    .agent-choice .ac-note { display: block; font-size: 11.5px; color: var(--text3); }
+    .agent-choice.missing .ac-note { color: #fbbf24; }
+    .agent-hosts { display: flex; flex-direction: column; gap: 12px; font-size: 12.5px; }
+    .agent-host-name { font-family: var(--mono); color: var(--text2); margin-bottom: 4px; }
+    .agent-host-row { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+    .agent-host-row .ac-name { width: 72px; flex: none; font-family: var(--mono); color: var(--agent, var(--text)); }
+    .agent-host-row .ac-state { color: var(--text3); overflow-wrap: anywhere; }
     .pcard-actions { display: flex; gap: 6px; flex-wrap: wrap; }
     .pcard-actions button { font-size: 12px; padding: 5px 12px; }
     .pcard-actions .pcard-del { margin-left: auto; }
@@ -300,22 +313,30 @@
     <div class="field"><label>Project Name</label><input type="text" id="newName" placeholder="my-project" autocomplete="off"></div>
     <div class="field">
       <label>Type</label>
-      <select id="newType" onchange="toggleSSHFields()">
+      <select id="newType" onchange="toggleSSHFields(); renderNewAgents()">
         <option value="local">Local</option>
         <option value="ssh">SSH Remote</option>
       </select>
     </div>
     <div id="sshFields" style="display:none">
-      <div class="field"><label>SSH Host</label><input type="text" id="sshHost" placeholder="192.168.1.100"></div>
-      <div class="field"><label>SSH User</label><input type="text" id="sshUser" placeholder="ubuntu"></div>
-      <div class="field"><label>SSH Port</label><input type="number" id="sshPort" value="22"></div>
+      <div class="field"><label>SSH Host</label><input type="text" id="sshHost" onchange="renderNewAgents()" placeholder="192.168.1.100"></div>
+      <div class="field"><label>SSH User</label><input type="text" id="sshUser" onchange="renderNewAgents()" placeholder="ubuntu"></div>
+      <div class="field"><label>SSH Port</label><input type="number" id="sshPort" value="22" onchange="renderNewAgents()"></div>
       <div class="field"><label>Remote Path</label><input type="text" id="remotePath" placeholder="/home/ubuntu"></div>
       <div class="field"><label>Password</label><input type="password" id="sshPassword" placeholder="leave blank if using key"></div>
       <div class="field"><label>SSH Key Path</label><input type="text" id="sshKeyPath" placeholder="/home/user/.ssh/id_rsa (optional)"></div>
     </div>
+    <div class="field">
+      <label>Classification</label>
+      <select id="newClass" onchange="renderNewAgents()"></select>
+    </div>
+    <div class="field">
+      <label>Agents</label>
+      <div class="agent-choices" id="newAgents"></div>
+    </div>
     <div class="actions">
       <button class="btn-secondary" onclick="closeAddModal()">Cancel</button>
-      <button class="btn-primary" onclick="createProject()">Create</button>
+      <button class="btn-primary" id="newCreateBtn" onclick="createProject()">Create</button>
     </div>
   </div>
 </div>
@@ -341,6 +362,18 @@
 </div>
 
 <!-- ── Delete Project Modal ─────────────────────── -->
+<div id="agentsModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h2>Agents</h2>
+    <p id="agentsMsg" style="font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:14px;"></p>
+    <div class="agent-choices" id="projAgents" style="margin-bottom:16px;"></div>
+    <div class="actions">
+      <button class="btn-secondary" onclick="closeAgentsModal()">Cancel</button>
+      <button class="btn-primary" id="agentsSaveBtn" onclick="saveAgents()">Save</button>
+    </div>
+  </div>
+</div>
+
 <div id="deleteModal" class="modal-overlay hidden">
   <div class="modal">
     <h2>Delete Project</h2>
@@ -414,6 +447,17 @@
       <div class="field"><label>Usage alert at (% of a limit)</label><input type="number" id="cfgAlertPct" min="1" max="1000" step="1"></div>
       <div class="actions" style="justify-content:flex-end;margin-bottom:0;">
         <button class="btn-primary" onclick="saveAlertPct()" style="font-size:12px;padding:6px 14px;">Save</button>
+      </div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:4px 0 16px;"></div>
+
+    <!-- Agents on each machine -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:10px;">Agents</div>
+      <div class="agent-hosts" id="agentHosts"></div>
+      <div class="actions" style="justify-content:flex-end;margin:10px 0 0;">
+        <button class="btn-secondary" id="agentsDetectBtn" onclick="redetectAgents()" style="font-size:12px;padding:6px 14px;">Re-detect</button>
       </div>
     </div>
 
@@ -693,6 +737,8 @@
     btn('Open', 'btn-primary', () => activateProject(name));
     if (p.running) btn('Stop', 'btn-secondary', () => stopProject(name));
     else btn('Start', 'btn-secondary', () => startProject(name));
+    const chosen = Object.entries(p.agent_access || {}).filter(([, s]) => s !== 'blocked').map(([a]) => a);
+    btn('Agents', 'btn-secondary', () => openAgentsModal(name)).title = chosen.length ? chosen.join(' · ') : 'No agent allowed';
     if (p.type === 'ssh') btn('Edit', 'btn-secondary', () => openEditModal(name));
     btn('Delete', 'btn-secondary pcard-del', () => deleteProject(name));
 
@@ -704,8 +750,8 @@
   // Which agents may work on a project. Blocked agents are stopped at once.
   const CLASSIFICATIONS = [
     ['personal', 'personal', 'Claude and Codex; Kiro only when picked'],
-    ['work', 'work', 'All three agents'],
-    ['work-restricted', 'restricted', 'Kiro only: Claude and Codex are blocked'],
+    ['work', 'work', 'Every agent'],
+    ['work-restricted', 'restricted', 'Kiro only: Claude, Codex and the experimental agents are blocked'],
   ];
 
   function classificationSelect(name, current) {
@@ -900,8 +946,138 @@
 
   // ── Add project ───────────────────────────────────
   function openAddModal() {
+    const cls = document.getElementById('newClass');
+    if (!cls.options.length) CLASSIFICATIONS.forEach(([value, label, help]) => {
+      const o = new Option(`${label}: ${help}`, value); cls.appendChild(o);
+    });
     document.getElementById('addModal').classList.remove('hidden');
+    renderNewAgents();
+    loadAgentInfo().then(renderNewAgents);
     setTimeout(() => document.getElementById('newName').focus(), 50);
+  }
+
+  // ── Choosing a project's agents ───────────────────
+  // agentInfo: {catalog, hosts: [{key, agents}], classifications: {c: {agent: state}}}
+  let agentInfo = null;
+  async function loadAgentInfo() {
+    try { agentInfo = await api.get('/api/agents'); } catch (_) {}
+    return agentInfo;
+  }
+  function hostKeyOf(p) {
+    return p.type === 'ssh' ? `${p.ssh_user || ''}@${p.ssh_host || ''}:${p.ssh_port || 22}` : 'local';
+  }
+  // Checkboxes for the agents a classification allows, in the given order.
+  // checked: a list to keep, or null to suggest (installed and not hidden).
+  function renderAgentChoices(box, classification, hostKey, checked, onchange) {
+    box.innerHTML = '';
+    if (!agentInfo) { box.innerHTML = '<span class="pcard-none">Loading…</span>'; return; }
+    const ceiling = agentInfo.classifications[classification] || {};
+    const host = (agentInfo.hosts.find(h => h.key === hostKey) || {}).agents || {};
+    const order = [...(checked || []), ...agentInfo.catalog.map(s => s.id).filter(a => !(checked || []).includes(a))];
+    order.forEach(id => {
+      const spec = agentInfo.catalog.find(s => s.id === id);
+      if (!spec || (ceiling[id] || 'blocked') === 'blocked') return;
+      const found = host[id] || { state: 'unknown' };
+      const on = checked ? checked.includes(id)
+        : (ceiling[id] === 'available' && found.state !== 'missing' && spec.stability !== 'experimental');
+      const row = document.createElement('label');
+      row.className = 'agent-choice' + (found.state === 'missing' ? ' missing' : '');
+      row.dataset.agent = id;
+      row.innerHTML = `<input type="checkbox" value="${id}"${on ? ' checked' : ''}><span><span class="ac-name"></span><span class="ac-note"></span></span>`;
+      row.querySelector('.ac-name').textContent = spec.label;
+      const notes = [];
+      if (found.state === 'installed') notes.push(found.version || 'installed');
+      else if (found.state === 'missing') notes.push('Not installed here. ' + spec.install_hint);
+      else notes.push('Not checked on this machine yet');
+      if (ceiling[id] === 'hidden') notes.push('off by default for this classification');
+      if (spec.stability === 'experimental') notes.push('experimental: runs over ACP, not yet checked against its own CLI');
+      row.querySelector('.ac-note').textContent = notes.join(' · ');
+      if (onchange) row.querySelector('input').onchange = onchange;
+      box.appendChild(row);
+    });
+    if (!box.children.length) box.innerHTML = '<span class="pcard-none">This classification allows no agent.</span>';
+  }
+  function checkedAgents(box) {
+    return [...box.querySelectorAll('input:checked')].map(i => i.value);
+  }
+
+  function newProjectHost() {
+    return document.getElementById('newType').value === 'ssh' ? hostKeyOf({
+      type: 'ssh', ssh_user: document.getElementById('sshUser').value.trim(),
+      ssh_host: document.getElementById('sshHost').value.trim(),
+      ssh_port: parseInt(document.getElementById('sshPort').value) || 22 }) : 'local';
+  }
+  function renderNewAgents() {
+    const box = document.getElementById('newAgents');
+    const sync = () => { document.getElementById('newCreateBtn').disabled = !checkedAgents(box).length; };
+    renderAgentChoices(box, document.getElementById('newClass').value || 'personal', newProjectHost(), null, sync);
+    sync();
+  }
+
+  function openAgentsModal(name) {
+    const p = projectData[name] || {};
+    const m = document.getElementById('agentsModal');
+    m.dataset.name = name;
+    document.getElementById('agentsMsg').textContent =
+      `Which agents work on ${name}. Its classification (${p.classification || 'personal'}) decides which ones it may use; taking one off stops it, and its chats stay.`;
+    const draw = () => {
+      const box = document.getElementById('projAgents');
+      const chosen = Object.entries(p.agent_access || {}).filter(([, s]) => s !== 'blocked').map(([a]) => a);
+      const sync = () => { document.getElementById('agentsSaveBtn').disabled = !checkedAgents(box).length; };
+      renderAgentChoices(box, p.classification || 'personal', hostKeyOf(p), chosen, sync);
+      sync();
+    };
+    m.classList.remove('hidden');
+    draw();
+    loadAgentInfo().then(draw);
+  }
+  function closeAgentsModal() { document.getElementById('agentsModal').classList.add('hidden'); }
+  async function saveAgents() {
+    const name = document.getElementById('agentsModal').dataset.name;
+    const agents = checkedAgents(document.getElementById('projAgents'));
+    try {
+      const r = await api.put(`/api/projects/${encodeURIComponent(name)}/agents`, { agents });
+      projectData[name] = { ...projectData[name], agent_access: r.agent_access };
+      closeAgentsModal();
+      showToast(`${name}: ${agents.join(', ')}` + (r.stopped.length ? ` (stopped ${r.stopped.join(', ')})` : ''));
+      onChatActivity(name);
+      await loadProjects();
+    } catch (e) { showToast(e.message, true); }
+  }
+
+  // Settings: what each machine has
+  function renderAgentHosts() {
+    const box = document.getElementById('agentHosts');
+    box.innerHTML = '';
+    if (!agentInfo) { box.innerHTML = '<span class="pcard-none">Could not load.</span>'; return; }
+    agentInfo.hosts.forEach(h => {
+      const el = document.createElement('div');
+      const title = document.createElement('div');
+      title.className = 'agent-host-name';
+      title.textContent = h.label + (h.at ? ` · checked ${new Date(h.at * 1000).toLocaleString()}` : ' · not checked yet')
+        + (h.error ? ` · ${h.error}` : '');
+      el.appendChild(title);
+      agentInfo.catalog.forEach(spec => {
+        const a = h.agents[spec.id] || { state: 'unknown' };
+        const row = document.createElement('div');
+        row.className = 'agent-host-row';
+        row.dataset.agent = spec.id;
+        row.innerHTML = '<span class="ac-name"></span><span class="ac-state"></span>';
+        row.children[0].textContent = spec.id;
+        row.children[1].textContent = a.state === 'installed' ? `${a.version || 'installed'} (${a.path})`
+          : a.state === 'missing' ? 'not installed. ' + spec.install_hint : 'unknown';
+        el.appendChild(row);
+      });
+      box.appendChild(el);
+    });
+  }
+  async function redetectAgents() {
+    const b = document.getElementById('agentsDetectBtn');
+    b.disabled = true; b.textContent = 'Checking…';
+    try { agentInfo = await api.post('/api/agents/detect', {}); }
+    catch (e) { showToast(e.message, true); }
+    b.disabled = false; b.textContent = 'Re-detect';
+    renderAgentHosts();
   }
   function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
   function toggleSSHFields() {
@@ -912,7 +1088,9 @@
     const name = document.getElementById('newName').value.trim();
     const type = document.getElementById('newType').value;
     if (!name) return showToast('Name is required', true);
-    const data = { name, type };
+    const agents = checkedAgents(document.getElementById('newAgents'));
+    if (!agents.length) return showToast('Choose at least one agent', true);
+    const data = { name, type, classification: document.getElementById('newClass').value || 'personal', agents };
     if (type === 'ssh') {
       data.ssh_host = document.getElementById('sshHost').value.trim();
       data.ssh_user = document.getElementById('sshUser').value.trim();
@@ -991,6 +1169,7 @@
     } catch (e) { showToast('Failed to load settings', true); return; }
     document.getElementById('settingsModal').classList.remove('hidden');
     loadNotifyState();
+    loadAgentInfo().then(renderAgentHosts);
   }
 
   // ── Notifications (Web Push) ──────────────────────

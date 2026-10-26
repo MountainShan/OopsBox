@@ -333,9 +333,11 @@ nav {
 /* Agent colours, none of them OopsBox's blue: --agent for names and
    marks on the dark background, and inside an agent's chat the accent
    itself, so its buttons, bubbles and bars take that agent's colour. */
+[data-agent] { --agent: #a1a1aa; }  /* an agent without colours of its own (the experimental ones) */
 [data-agent="claude"] { --agent: #e0896b; }
 [data-agent="codex"] { --agent: #34d399; }
 [data-agent="kiro"] { --agent: #a78bfa; }
+.agent-exp { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text3); border: 1px solid var(--border); border-radius: 6px; padding: 0 4px; margin-left: 2px; }
 .chat-panel[data-agent="claude"] { --accent: #d97757; --accent2: #e0896b; --on-accent: #18181b; }
 .chat-panel[data-agent="codex"] { --accent: #10b981; --accent2: #34d399; --on-accent: #18181b; }
 .chat-panel[data-agent="kiro"] { --accent: #8b5cf6; --accent2: #a78bfa; --on-accent: #fff; }

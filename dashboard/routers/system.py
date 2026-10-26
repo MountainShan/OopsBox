@@ -7,7 +7,8 @@ from pydantic import BaseModel
 import psutil
 
 from .. import notify, usage
-from ..agents.manager import AGENT_ORDER, manager
+from ..agents.catalog import STABLE
+from ..agents.manager import manager
 
 router = APIRouter(prefix="/api", tags=["system"])
 
@@ -43,7 +44,7 @@ def get_system():
 async def get_overview():
     """The overview page: the machine, and each agent's account usage."""
     machine, agents = await asyncio.gather(asyncio.to_thread(usage.system),
-                                           usage.agent_usage(manager, AGENT_ORDER))
+                                           usage.agent_usage(manager, STABLE))
     return {"system": machine, "agents": agents, "alert_pct": notify.alert_pct(),
             "waiting": manager.waiting()}
 

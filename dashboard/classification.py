@@ -34,6 +34,17 @@ _FALLBACK_ACCESS: dict[str, str] = {
 }
 
 
+# Agents the table does not name (the experimental ones): open where the
+# cloud agents are, closed on work-restricted, closed when the value is
+# unknown. Where their data goes has not been looked at, so a compliance
+# project does not get them by default.
+_OTHER_AGENTS: dict[str, str] = {"personal": "available", "work": "available"}
+
+
+def other_agent_access(classification: str) -> str:
+    return _OTHER_AGENTS.get(classification, "blocked")
+
+
 def is_valid(classification: str) -> bool:
     return classification in VALID_CLASSIFICATIONS
 

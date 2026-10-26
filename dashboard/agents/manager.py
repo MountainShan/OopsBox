@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from ..memory import ensure_memory
-from .acp import KiroSession
+from .acp import AcpSession, KiroSession
+from .catalog import CATALOG
 from .claude import ClaudeSession
 from .codex import CodexSession
 from .launch import memory_instructions
@@ -25,7 +26,12 @@ DRIVERS: dict[str, type[AgentSession]] = {
     "claude": ClaudeSession,
     "kiro": KiroSession,
 }
-AGENT_ORDER = ["codex", "claude", "kiro"]
+# the rest of the catalog: ACP agents the generic driver runs as they are
+for _spec in CATALOG:
+    if _spec.id not in DRIVERS and _spec.acp_command:
+        DRIVERS[_spec.id] = type(f"{_spec.id.title()}Session", (AcpSession,),
+                                 {"agent": _spec.id, "command": list(_spec.acp_command)})
+AGENT_ORDER = [s.id for s in CATALOG]
 
 CHAT_ROOT = Path.home() / ".config" / "oopsbox" / "chats"
 
@@ -99,13 +105,13 @@ class SessionManager:
 
     def default_agent(self, project: str, access: dict[str, str]) -> Optional[str]:
         """The agent a project opens on: the last one used if still allowed,
-        else the first available in AGENT_ORDER, else the first hidden one."""
+        else the first available in the project's order, else the first hidden one."""
         last = self.last_agent(project)
         if last and access.get(last, "blocked") != "blocked":
             return last
         for state in ("available", "hidden"):
-            for a in AGENT_ORDER:
-                if access.get(a) == state:
+            for a, s in access.items():
+                if s == state:
                     return a
         return None
 
