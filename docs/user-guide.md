@@ -175,5 +175,6 @@ To try one: install it on the machine and sign in to it in a terminal, press **R
 | An agent stays on an error after starting | Open a terminal and run the agent there: it is usually not signed in, or not installed on that machine (check Settings → Agents) |
 | The chat stops updating | Reload the page. If it still does not update, check that the server is reachable; OopsBox reconnects by itself when it comes back |
 | No push notifications | Use the HTTPS address; on iOS open OopsBox from the Home Screen; press **Send a test** in Settings → Notifications |
+| When the login expires, the page jumps to another address (such as `http://…:9080`) | nginx sends absolute redirects: add `absolute_redirect off;` to OopsBox's `server` block and reload nginx |
 | An SSH host shows **timed out** | Check the project's connection settings with **Edit**, then press **Re-detect** |
 | "Not installed here" for an agent you installed | The agent must be on the PATH OopsBox uses (`~/.local/bin`, `~/.npm-global/bin` and the system PATH); press **Re-detect** |

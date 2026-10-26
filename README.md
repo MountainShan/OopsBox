@@ -132,7 +132,7 @@ OopsBox runs on a Linux host with systemd. It is developed on Ubuntu 24.04.
    loginctl enable-linger "$USER"    # terminals keep running without a login session
    ```
 4. **Service**: run `.venv/bin/python -m uvicorn dashboard.main:app --host 127.0.0.1 --port 5000` as your user (a systemd unit with `Restart=on-failure` works well).
-5. **nginx**: put it in front on the port you like, with `auth_request /api/auth/verify` on every route except `/login`, `/api/auth/` and `/static/`, and `include /etc/nginx/conf.d/oopsbox-projects.conf;` for the terminals. `docker/nginx.conf` is a starting point.
+5. **nginx**: put it in front on the port you like, with `auth_request /api/auth/verify` on every route except `/login`, `/api/auth/` and `/static/`, and `include /etc/nginx/conf.d/oopsbox-projects.conf;` for the terminals. Add `absolute_redirect off;` so that a redirect to the login page keeps the address you came in on (otherwise an expired login behind `tailscale serve` lands on nginx's own port). `docker/nginx.conf` is a starting point.
 6. **HTTPS** (needed for push notifications and the installed app): on a tailnet, `sudo tailscale serve --bg --https=9444 http://127.0.0.1:<nginx port>`.
 
 Updating a running install from a development clone: `bin/deploy.sh` sends the new commits as a git bundle, runs the tests on the server and restarts OopsBox only if they pass.
@@ -272,7 +272,7 @@ OopsBox 跑在有 systemd 的 Linux 主機上，開發環境是 Ubuntu 24.04。
    loginctl enable-linger "$USER"    # 沒有登入時終端機也能繼續執行
    ```
 4. **服務**：以你的使用者身分執行 `.venv/bin/python -m uvicorn dashboard.main:app --host 127.0.0.1 --port 5000`（建議寫成 `Restart=on-failure` 的 systemd unit）。
-5. **nginx**：放在前面，port 自訂；除了 `/login`、`/api/auth/`、`/static/` 以外的路徑都要 `auth_request /api/auth/verify`，並加上 `include /etc/nginx/conf.d/oopsbox-projects.conf;` 給終端機用。可以參考 `docker/nginx.conf`。
+5. **nginx**：放在前面，port 自訂；除了 `/login`、`/api/auth/`、`/static/` 以外的路徑都要 `auth_request /api/auth/verify`，並加上 `include /etc/nginx/conf.d/oopsbox-projects.conf;` 給終端機用。另外加上 `absolute_redirect off;`，登入過期導向登入頁時才會留在你原本用的網址（否則透過 `tailscale serve` 連線時，會被導到 nginx 自己的 port）。可以參考 `docker/nginx.conf`。
 6. **HTTPS**（推播通知和安裝成 App 需要）：在 tailnet 上執行 `sudo tailscale serve --bg --https=9444 http://127.0.0.1:<nginx port>`。
 
 從開發用的 clone 更新正在執行的 OopsBox：`bin/deploy.sh` 會把新的 commit 打包成 git bundle 傳過去，在伺服器上跑測試，通過才會重啟 OopsBox。

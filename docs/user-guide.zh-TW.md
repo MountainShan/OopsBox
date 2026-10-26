@@ -175,5 +175,6 @@ OopsBox 可以直接在手機瀏覽器使用。建議安裝成 App：Safari → 
 | agent 啟動後一直顯示錯誤 | 開終端機直接執行那個 agent：通常是還沒登入，或那台機器沒裝（看 Settings → Agents） |
 | 聊天畫面不再更新 | 重新整理頁面。還是不更新的話，確認伺服器連得上；伺服器恢復後 OopsBox 會自己重新連線 |
 | 收不到推播 | 使用 HTTPS 網址；iOS 要從主畫面打開；在 Settings → Notifications 按 **Send a test** |
+| 登入過期時跳到別的網址（例如 `http://…:9080`） | nginx 送出的是完整網址的導向：在 OopsBox 的 `server` 區塊加上 `absolute_redirect off;`，再 reload nginx |
 | SSH 主機顯示 **timed out** | 用 **Edit** 檢查專案的連線設定，再按 **Re-detect** |
 | 明明裝了卻顯示 "Not installed here" | agent 必須在 OopsBox 使用的 PATH 上（`~/.local/bin`、`~/.npm-global/bin` 和系統 PATH）；然後按 **Re-detect** |
