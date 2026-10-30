@@ -309,6 +309,7 @@ class AgentSession:
             "usage": self.usage,
             "images": self.supports_images,
             "queued": len(self._queue),
+            "subagents": self.subagents_running,
             "extra_args": shlex.join(self.extra_args),
             # continued in the Terminal tab: opening the chat must not start
             # a second client on the same conversation
@@ -321,6 +322,73 @@ class AgentSession:
                 "handoff": self.terminal_command() is not None and not self.project.is_ssh,
             },
         }
+
+    # ── Subagents ─────────────────────────────────────
+    # A subagent the agent starts is one tool block (tool "agent") with a
+    # "subagent" record: what it was asked, its steps so far (the last
+    # SUBAGENT_STEPS of them), how many there were, and its last words.
+    # Updates while it runs are not persisted; the finished block is.
+    SUBAGENT_STEPS = 30
+
+    @property
+    def subagents_running(self) -> int:
+        if not self.alive:
+            return 0  # cards left "running" by an agent that stopped do not count
+        return sum(1 for b in self.blocks.values()
+                   if b.get("tool") == "agent" and b.get("status") == "running")
+
+    def subagent_start(self, block_id: str, kind: str, description: str, prompt: str = "") -> None:
+        description = " ".join((description or "").split())[:160] or "Subagent"
+        self.upsert({
+            "id": block_id, "kind": "tool", "tool": "agent", "status": "running",
+            "title": f"Subagent: {description}", "detail": clip(prompt),
+            "subagent": {"type": kind or "", "description": description, "steps": [], "count": 0,
+                         "last": "", "started": time.time()},
+        })
+        self.publish_state()
+
+    def _subagent(self, block_id: str) -> Optional[dict]:
+        b = self.blocks.get(block_id)
+        return b.get("subagent") if b is not None else None
+
+    def subagent_step(self, block_id: str, step_id: str, title: str, status: str = "running") -> None:
+        sa = self._subagent(block_id)
+        if sa is None:
+            return
+        steps = list(sa["steps"])
+        for s in steps:
+            if s["id"] == step_id:
+                s.update(title=title or s["title"], status=status)
+                break
+        else:
+            steps.append({"id": step_id, "title": (title or "")[:200], "status": status})
+            sa = {**sa, "count": sa["count"] + 1}
+        self.upsert({"id": block_id, "subagent": {**sa, "steps": steps[-self.SUBAGENT_STEPS:]}}, persist=False)
+
+    def subagent_step_done(self, block_id: str, step_id: str, failed: bool = False) -> None:
+        sa = self._subagent(block_id)
+        if sa is None:
+            return
+        steps = [{**s, "status": "failed" if failed else "completed"} if s["id"] == step_id else s
+                 for s in sa["steps"]]
+        self.upsert({"id": block_id, "subagent": {**sa, "steps": steps}}, persist=False)
+
+    def subagent_text(self, block_id: str, text: str) -> None:
+        sa = self._subagent(block_id)
+        if sa is not None and text and text.strip():
+            self.upsert({"id": block_id, "subagent": {**sa, "last": clip(text.strip(), 600)}}, persist=False)
+
+    def subagent_done(self, block_id: str, failed: bool = False, output: Optional[str] = None) -> None:
+        sa = self._subagent(block_id)
+        if sa is None:
+            return
+        steps = [{**s, "status": "completed"} if s["status"] == "running" else s for s in sa["steps"]]
+        block = {"id": block_id, "status": "failed" if failed else "completed",
+                 "subagent": {**sa, "steps": steps, "ended": time.time()}}
+        if output is not None:
+            block["output"] = clip(output)
+        self.upsert(block)
+        self.publish_state()
 
     def publish_state(self) -> None:
         self._publish({"type": "state", "state": self.state()})
@@ -348,6 +416,11 @@ class AgentSession:
                 self._subscribers.discard(q)
 
     def set_status(self, status: str, error: Optional[str] = None) -> None:
+        if status in ("stopped", "error"):
+            # the agent is gone; so are any subagents it had running
+            for b in list(self.blocks.values()):
+                if b.get("tool") == "agent" and b.get("status") == "running":
+                    self.subagent_done(b["id"], failed=True)
         was = self.status
         self.status = status
         self.error = error

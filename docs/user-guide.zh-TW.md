@@ -124,6 +124,7 @@ SSH 專案的檔案在另一台機器上，但它的 agent 是在 OopsBox 伺服
 - **權限**：agent 請求權限時會出現 Allow / Deny 卡片。**Autopilot** 會在這段對話中自動允許所有請求。
 - **檔案和圖片**：用 📎 附加、拖進聊天框，或直接貼上圖片。檔案會存到專案的 `uploads/` 資料夾。輸入 `@` 可以搜尋專案裡的檔案。
 - **New chat** 開始新的對話。🕘 列出過去的對話（也包括其他 agent 的記錄），可以切回去。
+- **Subagent**：agent 把工作分給 subagent 時（Claude 的 Agent 工具、Codex 的 spawn_agent），每個 subagent 會有一張卡片，顯示類型和任務、做了幾步、跑了多久，以及正在做的那一步。展開可以看到所有步驟、交辦內容和最後交回的結果。有 N 個 subagent 在跑時，agent 按鈕會顯示 `+N`，專案卡片上的標籤也會顯示。
 - **檔案連結**：agent 在回覆裡連到專案中的檔案（例如它寫在 `docs/` 的報告）時，點一下就會在 Files 分頁打開。
 - **Open in Terminal** 會在 agent 自己的 CLI 裡繼續同一段對話，處理聊天介面做不到的事。
 

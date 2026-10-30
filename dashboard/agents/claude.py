@@ -39,6 +39,10 @@ _TOOL_KIND = {
 }
 
 
+# the tool Claude Code starts a subagent with ("Task" in older versions)
+_SUBAGENT_TOOLS = ("Agent", "Task")
+
+
 # --permission-mode choices, in the order Claude Code cycles them
 MODES = [
     {"id": "manual", "name": "Ask each time", "description": "Ask before every action"},
@@ -520,13 +524,18 @@ class ClaudeSession(AgentSession):
             elif msg.get("subtype") == "background_tasks_changed":
                 self._tasks_live = msg.get("tasks") or []
         elif t == "stream_event":
+            if msg.get("parent_tool_use_id"):
+                return  # a subagent writing; its card shows the finished steps
             self._stream_event(msg.get("event") or {})
         elif t == "assistant":
             if msg.get("parent_tool_use_id"):
-                return  # a sub-agent's inner turns; its Task tool block covers it
+                # a subagent's own turns go into its card, not the conversation
+                self._subagent_assistant("tu-" + str(msg["parent_tool_use_id"]), msg.get("message") or {})
+                return
             self._assistant(msg.get("message") or {})
         elif t == "user":
             if msg.get("parent_tool_use_id"):
+                self._subagent_results("tu-" + str(msg["parent_tool_use_id"]), msg.get("message") or {})
                 return
             text = _user_text(msg.get("message") or {})
             if msg.get("uuid") and text:
@@ -604,6 +613,10 @@ class ClaudeSession(AgentSession):
             elif ptype == "tool_use":
                 name = part.get("name", "tool")
                 args = part.get("input") or {}
+                if name in _SUBAGENT_TOOLS:
+                    self.subagent_start("tu-" + part.get("id", uuid.uuid4().hex), args.get("subagent_type") or "",
+                                        args.get("description") or "", args.get("prompt") or "")
+                    continue
                 if name == "TodoWrite":
                     marks = {"completed": "☑", "in_progress": "▶", "pending": "☐"}
                     self.upsert({"id": "todo-" + str(self.saved.get("session_id")), "kind": "plan",
@@ -619,6 +632,19 @@ class ClaudeSession(AgentSession):
                     "status": "running",
                 })
 
+    def _subagent_assistant(self, bid: str, message: dict) -> None:
+        for part in message.get("content") or []:
+            if part.get("type") == "tool_use":
+                self.subagent_step(bid, str(part.get("id")), self._tool_title(part.get("name", "tool"), part.get("input") or {}))
+            elif part.get("type") == "text":
+                self.subagent_text(bid, part.get("text") or "")
+
+    def _subagent_results(self, bid: str, message: dict) -> None:
+        content = message.get("content")
+        for part in content if isinstance(content, list) else []:
+            if part.get("type") == "tool_result":
+                self.subagent_step_done(bid, str(part.get("tool_use_id")), failed=bool(part.get("is_error")))
+
     def _tool_results(self, message: dict) -> None:
         content = message.get("content")
         if not isinstance(content, list):
@@ -632,6 +658,9 @@ class ClaudeSession(AgentSession):
             out = part.get("content")
             if isinstance(out, list):
                 out = "\n".join(c.get("text", "") for c in out if isinstance(c, dict))
+            if self.blocks[bid].get("subagent") is not None:
+                self.subagent_done(bid, failed=bool(part.get("is_error")), output=str(out or ""))
+                continue
             self.upsert({
                 "id": bid,
                 "status": "failed" if part.get("is_error") else "completed",
@@ -652,7 +681,7 @@ class ClaudeSession(AgentSession):
             return f"{name} {args.get('pattern', '')}"
         if name in ("WebFetch", "WebSearch"):
             return f"{name} {args.get('url') or args.get('query', '')}"
-        if name == "Task":
+        if name in _SUBAGENT_TOOLS:
             return "Subagent: " + (args.get("description") or "")
         return name
 

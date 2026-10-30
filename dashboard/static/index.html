@@ -768,7 +768,8 @@
           : '<span class="dot" style="background:var(--agent)"></span>') +
         `<span></span><span class="st"></span>`;
       chip.children[1].textContent = a;
-      chip.children[2].textContent = st.waiting ? 'needs you' : '';  // the dot or spinner says the rest
+      chip.children[2].textContent = st.waiting ? 'needs you'  // the dot or spinner says the rest
+        : st.subagents ? `${st.subagents} subagent${st.subagents > 1 ? 's' : ''}` : '';
       agents.appendChild(chip);
     });
 

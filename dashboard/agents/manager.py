@@ -84,7 +84,7 @@ class SessionManager:
 
     def summary(self, project: str) -> dict[str, dict]:
         """{agent: {status, waiting}} for the agents running in a project."""
-        return {a: {"status": s.status, "waiting": s.waiting} for a in AGENT_ORDER
+        return {a: {"status": s.status, "waiting": s.waiting, "subagents": s.subagents_running} for a in AGENT_ORDER
                 if (s := self._sessions.get((project, a))) is not None and s.alive}
 
     def waiting(self) -> list[dict]:

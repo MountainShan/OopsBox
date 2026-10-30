@@ -124,6 +124,7 @@ Open a project and pick an agent from the bar at the top of the chat. Each agent
 - **Permissions**: when the agent asks, an Allow / Deny card appears. **Autopilot** allows everything for the current conversation.
 - **Files and images**: attach them with the paperclip, drop them on the chat, or paste an image. They are saved in the project's `uploads/` folder. Type `@` to search the project's files.
 - **New chat** starts a new conversation. 🕘 lists past ones, including other agents' history, so you can switch back.
+- **Subagents**: when an agent hands work to subagents (Claude's Agent tool, Codex's spawn_agent), each one gets a card: its type and task, how many steps it has taken, how long it has run, and the step it is on now. Expand it for its steps, what it was asked and what it returned. The agent's button shows `+N` while N subagents run, and so does its chip on the project card.
 - **Links to files**: when an agent links a file of the project (for example a report it wrote in `docs/`), clicking it opens the file in the Files tab.
 - **Open in Terminal** continues the same conversation in the agent's own CLI, for anything the chat cannot do.
 

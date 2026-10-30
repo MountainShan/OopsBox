@@ -189,6 +189,7 @@ class CodexSession(AgentSession):
         self._rpc: Optional[JsonRpcProcess] = None
         self._thread_id: Optional[str] = None
         self._turn_id: Optional[str] = None
+        self._subthreads: dict[str, str] = {}  # a subagent's thread id -> its card's block id
 
     # ── Lifecycle ─────────────────────────────────────
     def _writable_roots(self) -> list[str]:
@@ -610,7 +611,11 @@ class CodexSession(AgentSession):
     # ── Agent → us: notifications ─────────────────────
     async def _on_notification(self, method: str, p: dict) -> None:
         if p.get("threadId") not in (None, self._thread_id):
-            return  # sub-agent threads are summarised by their parent's items
+            # a subagent's own thread: its steps go into its card
+            bid = self._subthreads.get(p.get("threadId"))
+            if bid and method in ("item/started", "item/completed"):
+                self._subagent_item(bid, p.get("item") or {}, done=method == "item/completed")
+            return
         if method == "turn/started":
             self._turn_id = p.get("turn", {}).get("id")
             if self._thread_id and self.saved.get("on_disk") != self._thread_id:
@@ -710,6 +715,14 @@ class CodexSession(AgentSession):
             }, persist=done)
         elif kind == "plan":
             self.upsert({"id": iid, "kind": "plan", "text": item.get("text", "")}, persist=done)
+        elif kind == "collabAgentToolCall":
+            self._collab(item, done)
+        elif kind == "subAgentActivity":
+            bid = self._subthreads.get(item.get("agentThreadId"))
+            if bid is None and item.get("kind") == "started":
+                bid = self._subagent_card(item.get("agentThreadId"), item.get("agentPath") or "", item.get("model"))
+            if bid and item.get("kind") in ("completed", "interrupted"):
+                self.subagent_done(bid, failed=item.get("kind") == "interrupted")
         elif kind == "contextCompaction":
             if done:
                 self.notice("Conversation compacted.")
@@ -722,6 +735,66 @@ class CodexSession(AgentSession):
     def _rel(self, path: str) -> str:
         root = str(self.project.workdir) + "/"
         return path[len(root):] if path.startswith(root) else path
+
+    # ── Subagents ─────────────────────────────────────
+    def _subagent_card(self, thread_id: Optional[str], prompt: str, model: Optional[str]) -> Optional[str]:
+        if not thread_id:
+            return None
+        bid = self._subthreads.get(thread_id) or "sa-" + thread_id
+        self._subthreads[thread_id] = bid
+        if bid not in self.blocks:
+            first = next((ln.strip() for ln in (prompt or "").splitlines() if ln.strip()), "")
+            self.subagent_start(bid, model or "", first, prompt)
+        return bid
+
+    _COLLAB_TITLES = {
+        "wait": "Wait for subagents", "sendInput": "Message a subagent", "sendMessage": "Message a subagent",
+        "followupTask": "Give a subagent more work", "resumeAgent": "Resume a subagent",
+        "closeAgent": "Close a subagent", "interruptAgent": "Interrupt a subagent", "listAgents": "List subagents",
+    }
+
+    def _collab(self, item: dict, done: bool) -> None:
+        tool = item.get("tool")
+        if tool == "spawnAgent":
+            for tid in item.get("receiverThreadIds") or []:
+                self._subagent_card(tid, item.get("prompt") or "", item.get("model"))
+        else:
+            self.upsert({
+                "id": item.get("id"), "kind": "tool", "tool": "other",
+                "title": self._COLLAB_TITLES.get(tool, tool or "subagents"),
+                "detail": clip(item.get("prompt") or ""),
+                "status": _STATUS.get(item.get("status"), "completed" if done else "running"),
+            }, persist=done)
+        # the last known state of each subagent the call touched
+        for tid, state in (item.get("agentsStates") or {}).items():
+            bid = self._subthreads.get(tid)
+            status = (state or {}).get("status")
+            if bid and status in ("completed", "errored", "shutdown", "interrupted", "notFound"):
+                if self.blocks.get(bid, {}).get("status") == "running":
+                    self.subagent_done(bid, failed=status in ("errored", "notFound"),
+                                       output=(state or {}).get("message"))
+
+    def _subagent_item(self, bid: str, item: dict, done: bool) -> None:
+        kind, iid = item.get("type"), str(item.get("id"))
+        if kind == "commandExecution":
+            title = _command_text(item.get("command"))
+        elif kind == "fileChange":
+            title = "Edit " + ", ".join(self._rel(c.get("path", "")) for c in item.get("changes") or [])
+        elif kind == "mcpToolCall":
+            title = f"{item.get('server')}.{item.get('tool')}"
+        elif kind == "webSearch":
+            title = "Search: " + (item.get("query") or "")
+        elif kind == "agentMessage":
+            if done:
+                self.subagent_text(bid, item.get("text") or "")
+            return
+        else:
+            return
+        if done:
+            failed = item.get("status") == "failed" or (kind == "commandExecution" and item.get("exitCode") not in (0, None))
+            self.subagent_step(bid, iid, title, "failed" if failed else "completed")
+        else:
+            self.subagent_step(bid, iid, title)
 
     # ── Agent → us: requests ──────────────────────────
     async def _elicit(self, p: dict) -> dict:

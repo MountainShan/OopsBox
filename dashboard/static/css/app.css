@@ -695,3 +695,24 @@ nav {
 .sb-details-head { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; }
 .sb-chip { margin-left: auto; font-size: 11px; color: var(--text2); background: var(--bg3); padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
 .sb-sub { font-size: 11px; color: var(--text3); overflow-wrap: anywhere; }
+
+/* subagent cards in the chat */
+.chat-sub { margin: 4px 0; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--agent, var(--accent)) 35%, var(--border));
+  border-left: 3px solid var(--agent, var(--accent)); border-radius: var(--radius); background: var(--bg2); font-size: 13px; }
+.chat-sub.st-failed { border-left-color: #ef4444; }
+.chat-sub-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.chat-sub-type { font-family: var(--mono); font-size: 11px; color: var(--agent, var(--accent2));
+  background: color-mix(in srgb, var(--agent, var(--accent)) 14%, transparent); padding: 1px 6px; border-radius: 8px; flex: none; }
+.chat-sub-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.chat-sub-meta { flex: none; font-size: 11.5px; color: var(--text3); font-variant-numeric: tabular-nums; }
+.chat-sub-now { margin: 4px 0 0 26px; font-family: var(--mono); font-size: 12px; color: var(--text2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-sub-more { margin: 4px 0 0 26px; }
+.chat-sub-more > summary { cursor: pointer; font-size: 12px; color: var(--text3); }
+.chat-sub-body { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; }
+.chat-sub-steps { list-style: none; display: flex; flex-direction: column; gap: 2px; font-family: var(--mono); font-size: 12px; color: var(--text2); }
+.chat-sub-steps li { overflow-wrap: anywhere; }
+.chat-sub-steps li.st-failed { color: #fca5a5; }
+.chat-sub-steps li.st-running { color: var(--text); }
+@media (max-width: 600px) { .chat-sub-meta { display: none; } }
+.agent-subs { margin-left: 4px; font-size: 10.5px; font-family: var(--mono); color: var(--agent, var(--accent2)); }

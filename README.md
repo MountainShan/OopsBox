@@ -66,6 +66,7 @@ Each agent gets a real chat: its models, modes, slash commands, permissions and 
 - Slash commands become what they should be: `/model` is a picker, `/usage`, `/context`, `/mcp` and friends are panels, and anything only a terminal can do hands over to the Terminal tab.
 - Permissions show as Allow / Deny cards. **Autopilot** allows everything for a conversation.
 - Send a message while the agent works to steer the current turn, or interrupt it.
+- **Subagents** each get a live card: task, current step, step count and time; expand for the steps and the result.
 - Past conversations, switch between them, rewind (where the agent supports it), edit each agent's config files and launch arguments.
 - Attach files and images (saved into the project), and `@` to search project files.
 - **Open in Terminal** continues the same conversation in the agent's own CLI.
@@ -207,6 +208,7 @@ MIT. Do whatever you want with it. If you find it useful, a star is always appre
 - 斜線指令變成對應的介面：`/model` 是選單，`/usage`、`/context`、`/mcp` 等是面板；只有終端機能做的指令會轉交 Terminal 分頁。
 - 權限請求顯示成 Allow / Deny 卡片；**Autopilot** 可以讓整個對話自動允許。
 - agent 執行中可以送訊息，在這一輪就調整它的方向，也可以直接中斷。
+- **Subagent** 各有一張即時更新的卡片：任務、目前步驟、步數和時間；展開可看所有步驟和結果。
 - 對話紀錄、切換對話、回溯（agent 支援的話）、編輯各 agent 的設定檔和啟動參數。
 - 可以附加檔案和圖片（存到專案資料夾），輸入 `@` 搜尋專案檔案。
 - **Open in Terminal** 會在 agent 自己的 CLI 裡接續同一個對話。

@@ -265,7 +265,9 @@ const Chat = (() => {
 
   // ── State and controls ──────────────────────────
   function setState(view, state) {
+    const subsChanged = (view.state?.subagents || 0) !== (state.subagents || 0);
     view.state = state;
+    if (subsChanged && view.agents) renderAgents(view);
     const s = state.status;
     const $ = view.$;
     const pill = $('.chat-status');
@@ -350,7 +352,10 @@ const Chat = (() => {
       const busy = a.status === 'working' || a.status === 'starting';
       const mark = busy ? '<span class="agent-spin"></span>'
         : `<span class="dot ${ALIVE.includes(a.status) ? 'dot-green' : 'dot-gray'}"></span>`;
-      btn.innerHTML = `${mark}${esc(a.name)}` + (a.experimental ? '<span class="agent-exp">exp</span>' : '');
+      // the shown agent's own count comes with its live state
+      const subs = a.name === view.agent ? (view.state?.subagents || 0) : (a.subagents || 0);
+      btn.innerHTML = `${mark}${esc(a.name)}` + (a.experimental ? '<span class="agent-exp">exp</span>' : '') +
+        (subs ? `<span class="agent-subs" title="${subs} subagent${subs > 1 ? 's' : ''} running">+${subs}</span>` : '');
       btn.title = busy ? `${a.name} is ${a.status}` : a.experimental
         ? `${a.name} (experimental: runs over ACP; not yet checked against its own CLI)` : '';
       btn.onclick = () => selectAgent(view, a.name);
@@ -371,7 +376,7 @@ const Chat = (() => {
       case 'user': renderUser(view, node, b); break;
       case 'assistant': renderAssistant(node, b); break;
       case 'thought': renderThought(node, b, fresh); break;
-      case 'tool': renderTool(node, b, fresh); break;
+      case 'tool': b.subagent ? renderSubagent(node, b, fresh) : renderTool(node, b, fresh); break;
       case 'permission': renderPermission(view, node, b); break;
       case 'question': renderQuestion(view, node, b); break;
       case 'plan': renderPlan(node, b); break;
@@ -445,6 +450,49 @@ const Chat = (() => {
     if (b.output) html += `<pre class="chat-pre chat-output">${esc(b.output)}</pre>`;
     body.innerHTML = html || '<div class="chat-dim">(no output)</div>';
   }
+
+  // A subagent: what it was asked, what it is doing now, its steps.
+  function elapsed(sa) {
+    const s = Math.max(0, Math.round(((sa.ended || Date.now() / 1000) - sa.started)));
+    return s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `${s}s`;
+  }
+  function renderSubagent(node, b, fresh) {
+    const sa = b.subagent;
+    const running = b.status === 'running';
+    if (fresh || !node.querySelector('.chat-sub-head')) {
+      node.innerHTML = '<div class="chat-sub-head"></div><div class="chat-sub-now"></div>' +
+        '<details class="chat-sub-more"><summary></summary><div class="chat-sub-body"></div></details>';
+    }
+    node.className = 'chat-sub st-' + (b.status || 'running');
+    node.dataset.started = running ? sa.started : '';
+    const icon = running ? '<span class="chat-spin"></span>' : (b.status === 'failed' ? '✕' : '✓');
+    node.querySelector('.chat-sub-head').innerHTML =
+      `<span class="chat-row-icon">${icon}</span>` +
+      (sa.type ? `<span class="chat-sub-type">${esc(sa.type)}</span>` : '') +
+      `<span class="chat-sub-title">${esc(sa.description || 'Subagent')}</span>` +
+      `<span class="chat-sub-meta">${sa.count} step${sa.count === 1 ? '' : 's'} · <span class="chat-sub-time">${elapsed(sa)}</span>` +
+      (running ? '' : ` · ${esc(TOOL_STATUS[b.status] ?? b.status ?? '') || 'done'}`) + '</span>';
+    const now = node.querySelector('.chat-sub-now');
+    const current = [...sa.steps].reverse().find(s => s.status === 'running') || sa.steps[sa.steps.length - 1];
+    now.hidden = !running || !(current || sa.last);
+    now.textContent = current ? '▸ ' + current.title : (sa.last ? sa.last.split('\n')[0] : '');
+    node.querySelector('.chat-sub-more > summary').textContent =
+      sa.count ? `Steps${sa.count > sa.steps.length ? ` (last ${sa.steps.length} of ${sa.count})` : ''}` : 'Details';
+    const mark = { running: '▸', completed: '✓', failed: '✕' };
+    node.querySelector('.chat-sub-body').innerHTML =
+      (sa.steps.length ? '<ol class="chat-sub-steps">' + sa.steps.map(s =>
+        `<li class="st-${esc(s.status)}"><span>${mark[s.status] || '•'}</span> ${esc(s.title)}</li>`).join('') + '</ol>' : '') +
+      (b.detail ? `<div class="chat-dim">Asked</div><pre class="chat-pre">${esc(b.detail)}</pre>` : '') +
+      (b.output ? `<div class="chat-dim">Result</div><pre class="chat-pre chat-output">${esc(b.output)}</pre>`
+        : (sa.last && !running ? `<pre class="chat-pre chat-output">${esc(sa.last)}</pre>` : ''));
+  }
+  // running subagents' clocks tick between updates
+  setInterval(() => {
+    document.querySelectorAll('.chat-sub[data-started]:not([data-started=""])').forEach(n => {
+      const t = n.querySelector('.chat-sub-time');
+      if (t) t.textContent = elapsed({ started: Number(n.dataset.started) });
+    });
+  }, 1000);
 
   function renderPermission(view, node, b) {
     const opts = b.options || [];
@@ -872,7 +920,8 @@ const Chat = (() => {
     view.agents.forEach(a => {
       if (a.name === view.agent) return;  // the shown agent has its own live stream
       const st = running?.[a.name]?.status || 'stopped';
-      if (a.status !== st) { a.status = st; changed = true; }
+      const subs = running?.[a.name]?.subagents || 0;
+      if (a.status !== st || (a.subagents || 0) !== subs) { a.status = st; a.subagents = subs; changed = true; }
     });
     if (changed) renderAgents(view);
   }
