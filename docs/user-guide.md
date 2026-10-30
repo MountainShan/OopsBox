@@ -10,6 +10,7 @@ This guide is for using OopsBox once it is installed. To install it, see the [RE
 - [SSH projects](#ssh-projects)
 - [More folders](#more-folders)
 - [Chatting with an agent](#chatting-with-an-agent)
+- [What the agents share](#what-the-agents-share)
 - [When an agent needs you](#when-an-agent-needs-you)
 - [Terminals](#terminals)
 - [Files](#files)
@@ -127,6 +128,13 @@ Open a project and pick an agent from the bar at the top of the chat. Each agent
 - **Open in Terminal** continues the same conversation in the agent's own CLI, for anything the chat cannot do.
 
 Agents keep running when you close the page. When OopsBox restarts, agents that were running come back on the conversation they were in. An agent you stopped stays stopped.
+
+### What the agents share
+
+Agents do not see each other's conversations. What they share is the project's memory, in `.memory/` in the project folder (on the OopsBox server, also for SSH projects; it is its own git repo and stays out of the project's):
+
+- `activity.md` is written by OopsBox after every turn of every agent: what it was asked, which files it changed, what it answered. An agent starting work is shown the last few entries, so Codex knows what Claude just did.
+- `STATUS.md` (Now / Next / Blocked) and `decisions/` are written by the agents themselves; they are told to update STATUS.md at the end of every turn that changed something.
 
 ## When an agent needs you
 

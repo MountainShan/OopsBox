@@ -8,12 +8,17 @@ or worktrees (spec §7, §8.2).
 Everything here is plain markdown — no tool-specific format — so any agent
 can read it (spec §8.3).
 """
+import re
 import subprocess
+import time
 from pathlib import Path
+from typing import Optional
 
 MEMORY_DIRNAME = ".memory"
 SUBDIRS = ("knowledge", "decisions", "journal")
 STATUS_FILENAME = "STATUS.md"
+ACTIVITY_FILENAME = "activity.md"
+ACTIVITY_KEEP = 150  # entries; older ones are dropped
 _GITIGNORE_ENTRY = ".memory/"
 
 _STATUS_TEMPLATE = """# Status
@@ -62,6 +67,58 @@ def _ensure_own_repo(root: Path) -> None:
     if (root / ".git").exists():
         return
     subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+
+
+_ACTIVITY_HEAD = """# Activity
+
+Written by OopsBox after every turn of every agent on this project: what it
+was asked, what it changed and what it answered. Newest last. Agents: read
+the last entries before you start; you do not need to write here.
+"""
+
+
+def _one_line(text: str, limit: int) -> str:
+    text = re.sub(r"\s+", " ", text or "").strip()
+    return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"
+
+
+def append_activity(project_dir: Path, agent: str, asked: str, answer: str,
+                    changed: Optional[list[str]] = None, when: Optional[float] = None) -> None:
+    """Record one agent turn in .memory/activity.md (keeping the last
+    ACTIVITY_KEEP entries)."""
+    root = memory_root(project_dir)
+    if not root.is_dir():
+        return
+    stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime(when or time.time()))
+    lines = [f"### {stamp} · {agent}", f"- Asked: {_one_line(asked, 300) or '(nothing)'}"]
+    if changed:
+        shown = list(dict.fromkeys(changed))
+        more = f" (+{len(shown) - 10} more)" if len(shown) > 10 else ""
+        lines.append(f"- Changed: {', '.join(_one_line(c, 120) for c in shown[:10])}{more}")
+    lines.append(f"- Answered: {_one_line(answer, 600) or '(no answer)'}")
+    path = root / ACTIVITY_FILENAME
+    try:
+        old = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        old = ""
+    entries = [e for e in re.split(r"\n(?=### )", old) if e.startswith("### ")]
+    entries = (entries + ["\n".join(lines) + "\n"])[-ACTIVITY_KEEP:]
+    path.write_text(_ACTIVITY_HEAD + "\n" + "\n".join(e.rstrip("\n") + "\n" for e in entries), encoding="utf-8")
+
+
+def recent_activity(project_dir: Path, entries: int = 6, limit: int = 3000) -> str:
+    """The last few activity entries, newest last, within `limit` characters."""
+    try:
+        text = (memory_root(project_dir) / ACTIVITY_FILENAME).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return ""
+    found = [e.strip() for e in re.split(r"\n(?=### )", text) if e.startswith("### ")][-entries:]
+    out = []
+    for e in reversed(found):
+        if sum(len(x) for x in out) + len(e) > limit:
+            break
+        out.insert(0, e)
+    return "\n\n".join(out)
 
 
 def list_files(project_dir: Path) -> list[str]:

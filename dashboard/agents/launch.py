@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from ..memory import MEMORY_DIRNAME, STATUS_FILENAME, memory_root
+from ..memory import ACTIVITY_FILENAME, MEMORY_DIRNAME, STATUS_FILENAME, memory_root, recent_activity
 from .session import ProjectInfo
 
 _SSH_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.@-]*")
@@ -60,10 +60,16 @@ This project keeps a memory store in `{store}/` {where}.
 Every agent that works on this project (Claude, Codex, Kiro) reads and writes
 the same files, so it is how you pick up where another agent left off.
 
-- Before you start work, read `{store}/{STATUS_FILENAME}` and skim the
-  file names in `{store}/decisions/`; open any that bear on the task.
-- When you finish a piece of work, update `{store}/{STATUS_FILENAME}`:
-  what is done (Now), what comes next (Next), what is stuck (Blocked).
+- Before you start work, read `{store}/{STATUS_FILENAME}`, the last entries of
+  `{store}/{ACTIVITY_FILENAME}` and the file names in `{store}/decisions/`; open
+  any that bear on the task.
+- `{store}/{ACTIVITY_FILENAME}` is written by OopsBox after every turn of every
+  agent (what it was asked, changed and answered). Do not edit it.
+- At the end of every turn in which you changed something or learned something
+  about the project, update `{store}/{STATUS_FILENAME}` before you reply: what is
+  done (Now), what comes next (Next), what is stuck (Blocked). This includes
+  work outside the code, such as setup or configuration. Keep it short; replace
+  what is out of date rather than appending forever.
 - When you make a decision someone would otherwise have to rediscover, add
   `{store}/decisions/YYYY-MM-DD-<short-slug>.md` saying what was decided
   and why. Durable facts about the project go in `{store}/knowledge/`.
@@ -84,12 +90,20 @@ def _extra_dirs_text(project: ProjectInfo) -> str:
             "and change files in them when the task calls for it:\n\n" + listed + "\n")
 
 
+def _recent_text(project: ProjectInfo) -> str:
+    recent = recent_activity(project.path)
+    if not recent:
+        return ""
+    return ("\n## Recent activity on this project (from activity.md, newest last)\n\n"
+            "Other agents may have worked here since your last turn:\n\n" + recent + "\n")
+
+
 def memory_instructions(project: ProjectInfo) -> str:
-    """What an agent is told about its project: the shared memory, the
-    remote machine (SSH projects) and the extra folders."""
+    """What an agent is told about its project: the shared memory, what
+    happened lately, the remote machine (SSH projects) and the extra folders."""
     if not project.is_ssh:
-        return _LOCAL_MEMORY + _extra_dirs_text(project)
+        return _LOCAL_MEMORY + _recent_text(project) + _extra_dirs_text(project)
     from .remote import instructions as remote_instructions
     # the store is on this host, in the project's local folder, not on the remote
     memory = _memory_text(str(memory_root(project.path)), "on this host (not in the remote folder)")
-    return remote_instructions(project) + "\n" + memory + _extra_dirs_text(project)
+    return remote_instructions(project) + "\n" + memory + _recent_text(project) + _extra_dirs_text(project)

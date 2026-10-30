@@ -10,6 +10,7 @@
 - [SSH 專案](#ssh-專案)
 - [其他資料夾](#其他資料夾)
 - [和 agent 對話](#和-agent-對話)
+- [agent 之間共用什麼](#agent-之間共用什麼)
 - [agent 需要你的時候](#agent-需要你的時候)
 - [終端機](#終端機)
 - [檔案](#檔案)
@@ -127,6 +128,13 @@ SSH 專案的檔案在另一台機器上，但它的 agent 是在 OopsBox 伺服
 - **Open in Terminal** 會在 agent 自己的 CLI 裡繼續同一段對話，處理聊天介面做不到的事。
 
 關掉網頁後 agent 會繼續跑。OopsBox 重新啟動時，原本在跑的 agent 會回到原來的對話。你手動停止的 agent 會保持停止。
+
+### agent 之間共用什麼
+
+agent 看不到彼此的對話，它們共用的是專案記憶：專案資料夾裡的 `.memory/`。它放在 OopsBox 伺服器上，SSH 專案也一樣；它是獨立的 git repo，不會進專案的 git。
+
+- `activity.md` 由 OopsBox 在每個 agent 每一輪結束後自動寫入：被要求做什麼、改了哪些檔案、回答了什麼。agent 開始工作時會看到最近幾筆，所以 Codex 會知道 Claude 剛做了什麼。
+- `STATUS.md`（Now / Next / Blocked）和 `decisions/` 由 agent 自己寫；它們被要求在每一輪有改動時，回覆前更新 STATUS.md。
 
 ## agent 需要你的時候
 

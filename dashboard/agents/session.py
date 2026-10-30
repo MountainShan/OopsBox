@@ -352,8 +352,31 @@ class AgentSession:
         self.status = status
         self.error = error
         self.publish_state()
+        if was == "working" and status != "working":
+            self._record_turn()
         if status == "idle" and was == "working" and self._queue:
             asyncio.get_running_loop().create_task(self._send_next_queued())
+
+    def _record_turn(self) -> None:
+        """Note the turn that just ended in the project's shared activity log,
+        so the other agents know what this one did."""
+        try:
+            from ..memory import append_activity
+            asked, answer, changed = "", "", []
+            for b in reversed(list(self.blocks.values())):
+                kind = b.get("kind")
+                if kind == "user" and not b.get("queued"):
+                    asked = b.get("text") or ""
+                    break
+                if kind == "assistant" and not answer:
+                    answer = b.get("text") or ""
+                elif kind == "tool" and b.get("tool") in ("edit", "delete", "move"):
+                    changed.insert(0, b.get("title") or b.get("tool"))
+            if not asked and not answer:
+                return
+            append_activity(self.project.path, self.agent, asked, answer, changed)
+        except Exception:
+            log.exception("recording %s's turn for %s failed", self.agent, self.project.name)
 
     def set_usage(self, percent: Optional[float], label: str = "") -> None:
         if percent is None:
