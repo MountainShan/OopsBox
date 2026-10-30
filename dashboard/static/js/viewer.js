@@ -332,7 +332,7 @@ function _renderTabs() {
       close.className = 'viewer-tab-close';
       close.textContent = '✕';
     }
-    close.onclick = e => { e.stopPropagation(); closeTab(tab.id); };
+    close.onclick = e => { e.stopPropagation(); closeFileTab(tab.id); };
     el.appendChild(close);
 
     bar.appendChild(el);
@@ -368,7 +368,9 @@ function _activate(id) {
   _renderTabs();
 }
 
-function closeTab(id) {
+// Not closeTab: index.html has one for the workspace tabs, and as both are
+// globals, whichever loads last would win.
+function closeFileTab(id) {
   const tab = _tabs.get(id);
   if (!tab) return;
   if (tab.dirty && !confirm(`${tab.name} has unsaved changes. Close anyway?`)) return;
@@ -457,6 +459,6 @@ document.addEventListener('keydown', e => {
 window.openFile     = openFile;
 window.closeViewer  = closeViewer;
 window.showBrowser  = showBrowser;
-window.closeTab     = closeTab;
+window.closeFileTab = closeFileTab;
 window.toggleMdMode = toggleMdMode;
 window.viewerSave   = viewerSave;
