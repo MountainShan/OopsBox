@@ -38,8 +38,9 @@ class TestDetect(unittest.TestCase):
         self.assertEqual(found["claude"], {"state": "unknown"})
 
     def test_host_keys(self):
+        # every agent runs on this machine, SSH projects included
         self.assertEqual(catalog.host_key({"type": "local"}), "local")
-        self.assertEqual(catalog.host_key({"type": "ssh", "ssh_user": "ops", "ssh_host": "10.0.0.2"}), "ops@10.0.0.2:22")
+        self.assertEqual(catalog.host_key({"type": "ssh", "ssh_user": "ops", "ssh_host": "10.0.0.2"}), "local")
 
     def test_detect_remembers_each_machine_once(self):
         registry = {
@@ -53,11 +54,12 @@ class TestDetect(unittest.TestCase):
             return {"at": 1, "agents": catalog.parse("kiro\t/k\tkiro 2\n")}
         with unittest.mock.patch.object(catalog, "probe", probe):
             data = asyncio.run(catalog.detect(registry))
-        self.assertEqual(sorted(seen), ["local", "ops@h:22"])
-        self.assertEqual(data["ops@h:22"]["agents"]["kiro"]["state"], "installed")
-        self.assertTrue(catalog.installed(registry["a"], "kiro"))
+        self.assertEqual(seen, ["local"])
+        self.assertEqual(data["local"]["agents"]["kiro"]["state"], "installed")
+        self.assertTrue(catalog.installed(registry["a"], "kiro"))  # an SSH project uses this machine's
         self.assertIsNone(catalog.installed(registry["a"], "codex"))  # unknown
-        # a machine no project uses any more is forgotten
+        # results for machines from before (SSH hosts) are dropped
+        catalog._save({**data, "ops@h:22": {"agents": {}}})
         with unittest.mock.patch.object(catalog, "probe", probe):
             data = asyncio.run(catalog.detect({"c": registry["c"]}))
         self.assertEqual(list(data), ["local"])

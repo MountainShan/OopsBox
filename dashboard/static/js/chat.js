@@ -123,6 +123,13 @@ const Chat = (() => {
       composer.classList.remove('drop');
       if (e.dataTransfer?.files?.length) addFiles(view, e.dataTransfer.files);
     });
+    // A link to a file in the project (agents write the path, e.g.
+    // /home/me/projects/p/docs/report.html or docs/report.html) opens in the
+    // Files tab instead of as a web address, where it would not exist.
+    view.thread.addEventListener('click', e => {
+      const a = e.target.closest('a[href]');
+      if (a && window.openProjectFile?.(view.name, a.getAttribute('href'))) e.preventDefault();
+    });
     $('.chat-send').onclick = () => send(view);
     $('.chat-interrupt').onclick = () => api_(view, 'cancel').catch(e => showToast(e.message, true));
     $('.chat-power').onclick = () => togglePower(view);

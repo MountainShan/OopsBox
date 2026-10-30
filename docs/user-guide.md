@@ -7,6 +7,8 @@ This guide is for using OopsBox once it is installed. To install it, see the [RE
 - [Signing in](#signing-in)
 - [Projects](#projects)
 - [Choosing a project's agents](#choosing-a-projects-agents)
+- [SSH projects](#ssh-projects)
+- [More folders](#more-folders)
 - [Chatting with an agent](#chatting-with-an-agent)
 - [When an agent needs you](#when-an-agent-needs-you)
 - [Terminals](#terminals)
@@ -36,6 +38,7 @@ The **Projects** tab (☰, always the first tab) shows a card per project.
 | **Open** | Opens the project in its own tab |
 | **Start / Stop** | Starts the project's agents, or stops them and its terminal |
 | **Agents** | Choose which agents the project uses |
+| **Folders** | More folders the project's agents may work in |
 | **Edit** | Connection settings of an SSH project |
 | **Delete** | Removes the project from OopsBox |
 
@@ -46,7 +49,7 @@ Press **+ New Project** and fill in:
 - **Project Name**: letters, numbers, `.`, `_` and `-`.
 - **Type**:
   - **Local**: the project lives on the OopsBox server, in `~/projects/<name>`.
-  - **SSH Remote**: the agents and the terminal work on another machine, in **Remote Path**. Give a password or a key path; leave both empty to use the server's SSH keys.
+  - **SSH Remote**: the files are on another machine, in **Remote Path**. Give a password or a key path; leave both empty to use the server's SSH keys. See [SSH projects](#ssh-projects).
 - **Classification** and **Agents**: see the next section.
 
 If `~/projects/<name>` already exists (for example from a project you removed earlier), OopsBox takes it up as it is and changes nothing in it.
@@ -76,7 +79,7 @@ Each project uses the agents you tick, in that order. The first one is where a p
 - **When you create a project**, the list shows every agent its classification allows, with what OopsBox found on that machine:
   - a version, such as `codex-cli 0.164.0`: installed, ticked by default;
   - **Not installed here**, in yellow, with how to install it: unticked, but you can still tick it (say, if you are about to install it);
-  - **Not checked on this machine yet**: OopsBox has not looked at that machine yet (a new SSH host is checked once the project is created).
+  - **Not checked on this machine yet**: OopsBox has not looked yet (it does when it starts, and on Re-detect).
 - **Later**, press **Agents** on the project card. Unticking an agent that is running stops it; its conversations stay, and come back when you tick it again.
 - Agents the classification blocks are not listed, and stay blocked whatever you tick.
 
@@ -86,7 +89,28 @@ Projects made before this choice existed keep using every agent their classifica
 
 ![Settings, Agents section](../images/agents-settings.png)
 
-**Settings → Agents** lists, for the OopsBox server and each SSH host your projects use, which agents are installed, their version and path. OopsBox checks when it starts and when you add a project on a new SSH host. Press **Re-detect** after installing or updating an agent. A host that does not answer within 15 seconds shows **timed out**.
+**Settings → Agents** lists which agents are installed on the OopsBox server, their version and path. Every agent runs there, SSH projects included. OopsBox checks when it starts; press **Re-detect** after installing or updating an agent.
+
+## SSH projects
+
+An SSH project's files live on another machine, but its agents run on the OopsBox server, where they are installed and signed in. Nothing needs installing on the remote machine besides an SSH server.
+
+- When an agent starts, OopsBox opens one SSH connection to the machine (with the project's password or key) and mounts **Remote Path** on the server with sshfs. The agent works in that mounted folder, so reading and editing files works as in a local project.
+- To run something *on the remote machine* (build, test, check a service), agents use the `remote` command, for example `remote make test`. It runs in **Remote Path** over the same connection. They are told this when they start.
+- If the connection drops, it is opened again the next time an agent starts.
+- **Edit** stops the project's agents and closes the connection, so the next start uses the new settings.
+- **Open in Terminal** is not available for SSH projects: their Terminal tab is a shell on the remote machine, where the agents do not run.
+- The OopsBox server needs `sshfs` installed.
+
+## More folders
+
+Sometimes a task spans more than the project's folder: a shared library, a config repo, a customer's files. Press **Folders** on the project card and list other folders on the OopsBox server, one per line (absolute paths). Every agent of the project may then work in them:
+
+- Claude gets them with `--add-dir`;
+- Codex may write to them in its workspace sandbox;
+- every agent is told about them when it starts (Kiro and the experimental agents may still ask permission for files there).
+
+Agents that are running start again to pick up the change. For an SSH project these are folders of the OopsBox server, not of the remote machine.
 
 ## Chatting with an agent
 
@@ -99,6 +123,7 @@ Open a project and pick an agent from the bar at the top of the chat. Each agent
 - **Permissions**: when the agent asks, an Allow / Deny card appears. **Autopilot** allows everything for the current conversation.
 - **Files and images**: attach them with the paperclip, drop them on the chat, or paste an image. They are saved in the project's `uploads/` folder. Type `@` to search the project's files.
 - **New chat** starts a new conversation. 🕘 lists past ones, including other agents' history, so you can switch back.
+- **Links to files**: when an agent links a file of the project (for example a report it wrote in `docs/`), clicking it opens the file in the Files tab.
 - **Open in Terminal** continues the same conversation in the agent's own CLI, for anything the chat cannot do.
 
 Agents keep running when you close the page. When OopsBox restarts, agents that were running come back on the conversation they were in. An agent you stopped stays stopped.
@@ -116,7 +141,7 @@ To turn notifications on, open **Settings → Notifications** on each device and
 
 ## Terminals
 
-- **Terminal** in a project opens a shell in the project's folder (on the remote host for an SSH project).
+- **Terminal** in a project opens a shell in the project's folder (on the remote machine, in Remote Path, for an SSH project).
 - **›_** in the sidebar opens a standalone shell in a new tab. Press it again for another one.
 - Terminals keep running when you close the page or OopsBox restarts. Closing a standalone shell's tab ends it.
 - On a touchscreen, the toolbar gives you the keys a keyboard would: ^C, Tab, arrows, Esc.
@@ -176,5 +201,5 @@ To try one: install it on the machine and sign in to it in a terminal, press **R
 | The chat stops updating | Reload the page. If it still does not update, check that the server is reachable; OopsBox reconnects by itself when it comes back |
 | No push notifications | Use the HTTPS address; on iOS open OopsBox from the Home Screen; press **Send a test** in Settings → Notifications |
 | When the login expires, the page jumps to another address (such as `http://…:9080`) | nginx sends absolute redirects: add `absolute_redirect off;` to OopsBox's `server` block and reload nginx |
-| An SSH host shows **timed out** | Check the project's connection settings with **Edit**, then press **Re-detect** |
+| An SSH project's agent says `cannot connect` or `cannot mount` | Check the connection settings with **Edit** (host, user, password or key, Remote Path), then start the agent again. `sshfs` must be installed on the OopsBox server |
 | "Not installed here" for an agent you installed | The agent must be on the PATH OopsBox uses (`~/.local/bin`, `~/.npm-global/bin` and the system PATH); press **Re-detect** |

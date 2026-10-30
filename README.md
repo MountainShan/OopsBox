@@ -82,9 +82,10 @@ Each agent gets a real chat: its models, modes, slash commands, permissions and 
 - **Usage alerts** when an agent's limit passes a threshold you set (default 90%), once per reset period.
 
 **Projects**
-- Local projects, or SSH projects whose agents and terminal work on a remote host.
+- Local projects, or SSH projects whose files are on another machine: the agents run here, on the remote folder mounted over sshfs, and run commands there with `remote <command>`. Nothing to install on the remote machine.
+- **Folders**: give a project more folders its agents may work in.
 - A Projects tab with a card per project: agents, Start / Stop, Agents, Edit, Delete.
-- **Choose each project's agents** when you make it, and change them later. OopsBox checks which agents each machine (this one and every SSH host) has installed and ticks those for you.
+- **Choose each project's agents** when you make it, and change them later. OopsBox checks which agents are installed and ticks those for you.
 - Classification per project (personal / work / restricted) is the ceiling: it decides which agents may ever work on it, whatever is ticked; a stricter one stops the agents it blocks.
 - Deleting a project keeps its folder and chats unless you ask for them to go, and you type the name to confirm. Create it again and it picks them up.
 
@@ -122,7 +123,7 @@ browser ─ nginx (auth on every route, HTTPS through tailscale serve)
 
 OopsBox runs on a Linux host with systemd. It is developed on Ubuntu 24.04.
 
-1. **System packages**: `nginx`, `ttyd` (1.7+), `dtach`, `git`, Python 3.12, Node.js.
+1. **System packages**: `nginx`, `ttyd` (1.7+), `dtach`, `git`, `sshfs` and `sshpass` (SSH projects), Python 3.12, Node.js.
 2. **Agents**: install and log in to the ones you want: `claude` (Claude Code), `codex`, `kiro-cli`; experimentally `gemini`, `goose`, `opencode`. **Settings → Agents** shows what OopsBox finds.
 3. **OopsBox**:
    ```bash
@@ -222,9 +223,10 @@ MIT. Do whatever you want with it. If you find it useful, a star is always appre
 - **用量提醒**：agent 的額度超過你設定的門檻（預設 90%）時通知你，每個重置週期一次。
 
 **專案**
-- 本機專案，或 SSH 專案（agent 和終端機在遠端主機上工作）。
+- 本機專案，或 SSH 專案（檔案在另一台機器上：agent 在這台跑，工作資料夾是用 sshfs 掛載的遠端資料夾，並用 `remote <指令>` 在遠端執行命令；遠端機器什麼都不用裝）。
+- **Folders**：讓專案的 agent 也能在其他資料夾工作。
 - Projects 分頁裡每個專案一張卡片：agent 狀態、Start / Stop、Agents、Edit、Delete。
-- **每個專案自己選要用哪些 agent**：建立時勾選，之後可以修改。OopsBox 會檢查每台機器（這台和每個 SSH 主機）裝了哪些 agent，幫你預先勾好。
+- **每個專案自己選要用哪些 agent**：建立時勾選，之後可以修改。OopsBox 會檢查裝了哪些 agent，幫你預先勾好。
 - 每個專案的分級（personal / work / restricted）是上限：不管怎麼勾，都只有分級允許的 agent 能碰它；改成更嚴格的分級時，會立刻停止被擋下的 agent。
 - 刪除專案預設保留資料夾和對話紀錄，要一起刪除必須勾選並輸入專案名稱確認。之後建立同名專案會接回原本的資料。
 
@@ -262,7 +264,7 @@ MIT. Do whatever you want with it. If you find it useful, a star is always appre
 
 OopsBox 跑在有 systemd 的 Linux 主機上，開發環境是 Ubuntu 24.04。
 
-1. **系統套件**：`nginx`、`ttyd`（1.7 以上）、`dtach`、`git`、Python 3.12、Node.js。
+1. **系統套件**：`nginx`、`ttyd`（1.7 以上）、`dtach`、`git`、`sshfs` 和 `sshpass`（SSH 專案用）、Python 3.12、Node.js。
 2. **agent**：安裝並登入你要用的：`claude`（Claude Code）、`codex`、`kiro-cli`；實驗性的 `gemini`、`goose`、`opencode`。**Settings → Agents** 會顯示 OopsBox 找到哪些。
 3. **OopsBox**：
    ```bash

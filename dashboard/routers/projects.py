@@ -249,8 +249,6 @@ def create_project(req: CreateProjectRequest):
     _save_registry(registry)
 
     ensure_memory(project_dir)
-    if req.type == "ssh" and catalog.host_key(meta) not in catalog.load():
-        _detect_soon(registry, catalog.host_key(meta))
 
     return {**meta, "adopted": adopted}
 
@@ -282,6 +280,8 @@ async def delete_project(name: str, delete_files: bool = False):
 
     if _is_running(name):
         _stop_project(name)
+    if registry[name].get("type") == "ssh":
+        await _release_remote(registry[name])
     if delete_files:
         await manager.forget_project(name)
         if project_dir.exists():
@@ -308,8 +308,18 @@ class UpdateProjectRequest(BaseModel):
     ssh_key_path: Optional[str] = None
     remote_path: Optional[str] = None
 
+async def _release_remote(meta: dict) -> None:
+    """Unmount an SSH project's folder and close its connection."""
+    from ..agents import remote
+    from ..agents.session import ProjectInfo
+    try:
+        await remote.release(meta["name"], ProjectInfo.from_registry(meta))
+    except Exception:
+        log.exception("releasing the remote folder of %s failed", meta["name"])
+
+
 @router.put("/{name}")
-def update_project(name: str, req: UpdateProjectRequest):
+async def update_project(name: str, req: UpdateProjectRequest):
     registry = _load_registry()
     if name not in registry:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -322,9 +332,62 @@ def update_project(name: str, req: UpdateProjectRequest):
     if req.remote_path is not None: meta["remote_path"] = req.remote_path
     registry[name] = meta
     _save_registry(registry)
+    if meta.get("type") == "ssh":
+        # agents connect again, with the new settings, when they next start
+        await manager.stop_project(name)
+        await _release_remote(meta)
     response = dict(meta)
     response["classification"] = _classification_of(meta)
     return response
+
+
+_MAX_FOLDERS = 20
+
+
+class SetFoldersRequest(BaseModel):
+    folders: list[str]
+
+    @field_validator("folders")
+    @classmethod
+    def validate_folders(cls, v):
+        out = []
+        for raw in v:
+            d = (raw or "").strip()
+            if not d:
+                continue
+            p = Path(os.path.expanduser(d))
+            if not p.is_absolute():
+                raise ValueError(f"not an absolute path: {d}")
+            p = p.resolve()
+            if not p.is_dir():
+                raise ValueError(f"no such folder: {d}")
+            if str(p) not in out:
+                out.append(str(p))
+        if len(out) > _MAX_FOLDERS:
+            raise ValueError(f"at most {_MAX_FOLDERS} folders")
+        return out
+
+
+@router.put("/{name}/folders")
+async def set_folders(name: str, req: SetFoldersRequest):
+    """More folders the project's agents may work in (on this host). Agents
+    running now start again so they get them."""
+    registry = _load_registry()
+    if name not in registry:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if req.folders:
+        registry[name]["extra_dirs"] = req.folders
+    else:
+        registry[name].pop("extra_dirs", None)
+    _save_registry(registry)
+    restarted = []
+    for agent in AGENT_ORDER:
+        session = manager.peek(name, agent)
+        if session is not None and session.alive:
+            await session.stop()
+            await manager.get(registry[name], agent).start()  # get() picks up the new folders
+            restarted.append(agent)
+    return {"name": name, "folders": req.folders, "restarted": restarted}
 
 
 class SetClassificationRequest(BaseModel):

@@ -1,4 +1,4 @@
-const CACHE = 'oopsbox-v31';
+const CACHE = 'oopsbox-v33';
 const SHELL = [
   '/',
   '/static/css/app.css',

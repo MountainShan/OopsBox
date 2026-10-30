@@ -105,7 +105,7 @@ class AcpSession(AgentSession):
         caps = init.get("agentCapabilities") or {}
         can_load = bool(caps.get("loadSession"))
         self.supports_images = bool((caps.get("promptCapabilities") or {}).get("image"))
-        cwd_param = str(self.project.path) if not self.project.is_ssh else (self.project.remote_path or "~")
+        cwd_param = str(self.project.workdir)
         saved = self.saved.get("session_id")
         if saved and can_load:
             try:
@@ -520,13 +520,11 @@ class KiroSession(AcpSession):
     # ── Other conversations ───────────────────────────
     @property
     def lists_conversations(self) -> bool:
-        return not self.project.is_ssh
+        return True
 
     async def list_conversations(self) -> list[dict]:
-        if self.project.is_ssh:
-            return []
         root = Path.home() / ".kiro" / "sessions" / "cli"
-        want = str(self.project.path.resolve())
+        want = str(self.project.workdir.resolve())
         out = []
         for f in root.glob("*.json"):
             try:

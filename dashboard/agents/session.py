@@ -54,6 +54,11 @@ def clip(text: Optional[str], limit: int = MAX_FIELD_CHARS) -> str:
     return text[:limit] + f"\n… ({len(text) - limit} more characters)"
 
 
+# Where an SSH project's remote folder is mounted, and its `remote` command
+# lives (agents/remote.py).
+REMOTE_ROOT = Path.home() / ".cache" / "oopsbox" / "remote"
+
+
 @dataclass
 class ProjectInfo:
     name: str
@@ -65,10 +70,22 @@ class ProjectInfo:
     ssh_password: Optional[str] = None
     ssh_key_path: Optional[str] = None
     remote_path: Optional[str] = None
+    # more folders the agents may work in (absolute paths on this host)
+    extra_dirs: list = field(default_factory=list)
 
     @property
     def is_ssh(self) -> bool:
         return self.type == "ssh"
+
+    @property
+    def workdir(self) -> Path:
+        """Where the agents run: the project folder, or for an SSH project
+        its remote folder as mounted here."""
+        return REMOTE_ROOT / self.name / "files" if self.is_ssh else self.path
+
+    @property
+    def remote_bin(self) -> Path:
+        return REMOTE_ROOT / self.name / "bin"
 
     @classmethod
     def from_registry(cls, meta: dict) -> "ProjectInfo":
@@ -82,6 +99,7 @@ class ProjectInfo:
             ssh_password=meta.get("ssh_password"),
             ssh_key_path=meta.get("ssh_key_path"),
             remote_path=meta.get("remote_path"),
+            extra_dirs=[d for d in meta.get("extra_dirs") or [] if isinstance(d, str)],
         )
 
 
@@ -298,7 +316,9 @@ class AgentSession:
             "known_flags": self.known_flags,
             "features": {
                 "conversations": self.lists_conversations,
-                "handoff": self.terminal_command() is not None,
+                # the Terminal tab of an SSH project is a shell on the remote machine,
+                # where the agent is not
+                "handoff": self.terminal_command() is not None and not self.project.is_ssh,
             },
         }
 
@@ -514,6 +534,9 @@ class AgentSession:
                 return
             self.set_status("starting")
             try:
+                if self.project.is_ssh:
+                    from .remote import ensure
+                    await ensure(self.project)  # mount the remote folder here
                 await self._agent_start()
             except Exception as e:
                 log.exception("%s failed to start for %s", self.agent, self.project.name)

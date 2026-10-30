@@ -1,26 +1,18 @@
 # dashboard/agents/launch.py
-"""Where an agent process runs, and what it is told about shared memory.
+"""Where an agent process runs, and what it is told about its project.
 
-A local project runs the agent in the project directory. An SSH project runs
-the agent *on the remote host* over `ssh -T`: the agent's stdio is the JSON
-stream, so the protocol works unchanged across the hop, and every file read,
-edit and command happens on the remote machine. The agent CLI therefore has
-to be installed and logged in on that host.
+Every agent runs on the OopsBox host, where it is installed and signed in.
+A local project runs it in the project directory. An SSH project runs it in
+the remote folder mounted here over sshfs (agents/remote.py), with a
+`remote` command on its PATH for running commands on the remote machine.
 """
 import os
 import re
-import shlex
 from pathlib import Path
 from typing import Optional
 
-from ..memory import MEMORY_DIRNAME, STATUS_FILENAME, list_files, memory_root
+from ..memory import MEMORY_DIRNAME, STATUS_FILENAME, memory_root
 from .session import ProjectInfo
-
-# Remote shells are often non-login, which skips the PATH additions that
-# put ~/.local/bin and npm globals on PATH. Running through `bash -lc` picks
-# them up the same way an interactive login would.
-_REMOTE_PATH_PREFIX = 'export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"; '
-
 
 _SSH_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.@-]*")
 
@@ -45,98 +37,59 @@ def build_command(project: ProjectInfo, argv: list[str],
                   extra_env: Optional[dict[str, str]] = None) -> tuple[list[str], Optional[str], dict]:
     """Return (argv, cwd, env) to spawn `argv` for this project.
 
-    extra_env reaches the agent wherever it runs: through the environment
-    locally, through `export` in the remote shell over SSH.
+    An SSH project's folder must be mounted first (remote.ensure()); the
+    session does that before it starts the agent.
     """
     env = dict(os.environ)
-    extra_env = extra_env or {}
-    if not project.is_ssh:
-        env.update(extra_env)
-        # The dashboard runs as a service whose PATH lacks the per-user bin
-        # directories that kiro-cli and npm-installed agents live in.
-        home = str(Path.home())
-        env["PATH"] = f"{home}/.local/bin:{home}/.npm-global/bin:" + env.get("PATH", "/usr/bin:/bin")
-        return argv, str(project.path), env
-
-    remote_dir = project.remote_path or "~"
-    # A quoted `~` is not expanded, so home-relative paths go through $HOME.
-    if remote_dir == "~":
-        cd_target = '"$HOME"'
-    elif remote_dir.startswith("~/"):
-        cd_target = '"$HOME"/' + shlex.quote(remote_dir[2:])
-    else:
-        cd_target = shlex.quote(remote_dir)
-    exports = "".join(f"export {k}={shlex.quote(v)}; " for k, v in extra_env.items())
-    remote = f"{_REMOTE_PATH_PREFIX}{exports}cd {cd_target} && exec {shlex.join(argv)}"
-    dest, port, key = ssh_target(project.ssh_user, project.ssh_host, project.ssh_port, project.ssh_key_path)
-    ssh = [
-        "ssh", "-T",
-        "-p", str(port),
-        "-o", "StrictHostKeyChecking=accept-new",
-        "-o", "ServerAliveInterval=30",
-    ]
-    if key:
-        ssh += ["-i", key]
-    if not project.ssh_password:
-        ssh += ["-o", "BatchMode=yes"]
-    ssh += ["--", dest, "bash -lc " + shlex.quote(remote)]
-    if project.ssh_password:
-        # -e reads the password from the environment, so it never appears in
-        # the process list the way `sshpass -p` would put it.
-        env["SSHPASS"] = project.ssh_password
-        ssh = ["sshpass", "-e"] + ssh
-    return ssh, str(project.path), env
+    env.update(extra_env or {})
+    # The dashboard runs as a service whose PATH lacks the per-user bin
+    # directories that kiro-cli and npm-installed agents live in.
+    home = str(Path.home())
+    prefix = f"{home}/.local/bin:{home}/.npm-global/bin:"
+    if project.is_ssh:
+        prefix = f"{project.remote_bin}:" + prefix  # `remote <command>`
+    env["PATH"] = prefix + env.get("PATH", "/usr/bin:/bin")
+    return argv, str(project.workdir), env
 
 
-_LOCAL_MEMORY = f"""\
+def _memory_text(store: str, where: str) -> str:
+    return f"""\
 ## Shared project memory (OopsBox)
 
-This project keeps a memory store in `{MEMORY_DIRNAME}/` at the project root.
+This project keeps a memory store in `{store}/` {where}.
 Every agent that works on this project (Claude, Codex, Kiro) reads and writes
 the same files, so it is how you pick up where another agent left off.
 
-- Before you start work, read `{MEMORY_DIRNAME}/{STATUS_FILENAME}` and skim the
-  file names in `{MEMORY_DIRNAME}/decisions/`; open any that bear on the task.
-- When you finish a piece of work, update `{MEMORY_DIRNAME}/{STATUS_FILENAME}`:
+- Before you start work, read `{store}/{STATUS_FILENAME}` and skim the
+  file names in `{store}/decisions/`; open any that bear on the task.
+- When you finish a piece of work, update `{store}/{STATUS_FILENAME}`:
   what is done (Now), what comes next (Next), what is stuck (Blocked).
 - When you make a decision someone would otherwise have to rediscover, add
-  `{MEMORY_DIRNAME}/decisions/YYYY-MM-DD-<short-slug>.md` saying what was decided
-  and why. Durable facts about the project go in `{MEMORY_DIRNAME}/knowledge/`.
-- Plain markdown only. `{MEMORY_DIRNAME}/` is its own git repo and is ignored by
+  `{store}/decisions/YYYY-MM-DD-<short-slug>.md` saying what was decided
+  and why. Durable facts about the project go in `{store}/knowledge/`.
+- Plain markdown only. `{store}/` is its own git repo and is ignored by
   the project repo — do not add it to project commits.
 """
 
-# Remote agents cannot reach the store, which lives on the OopsBox host, so
-# they are handed a snapshot instead.
-_SNAPSHOT_LIMIT = 12_000
+
+_LOCAL_MEMORY = _memory_text(MEMORY_DIRNAME, "at the project root")
+
+
+def _extra_dirs_text(project: ProjectInfo) -> str:
+    if not project.extra_dirs:
+        return ""
+    listed = "\n".join(f"- `{d}`" for d in project.extra_dirs)
+    return ("\n## Other folders (OopsBox)\n\n"
+            "Besides your working directory, this project uses these folders. You may read "
+            "and change files in them when the task calls for it:\n\n" + listed + "\n")
 
 
 def memory_instructions(project: ProjectInfo) -> str:
+    """What an agent is told about its project: the shared memory, the
+    remote machine (SSH projects) and the extra folders."""
     if not project.is_ssh:
-        return _LOCAL_MEMORY
-    root = memory_root(project.path)
-    parts = [
-        "## Shared project memory (OopsBox, read-only snapshot)\n",
-        "Other agents on this project keep notes on the OopsBox host. You are on the "
-        "remote machine and cannot edit them; below is their current content. "
-        "When you finish work or make a decision worth remembering, say so plainly "
-        "at the end of your reply so it can be recorded.\n",
-    ]
-    budget = _SNAPSHOT_LIMIT
-    names = [STATUS_FILENAME] + [n for n in list_files(project.path)
-                                 if n.startswith("decisions/") and n != STATUS_FILENAME]
-    for name in names:
-        path: Path = root / name
-        try:
-            text = path.read_text(encoding="utf-8").strip()
-        except (OSError, UnicodeDecodeError):
-            continue
-        if not text:
-            continue
-        chunk = f"\n### {name}\n\n{text}\n"
-        if len(chunk) > budget:
-            parts.append("\n(… more memory files omitted)\n")
-            break
-        parts.append(chunk)
-        budget -= len(chunk)
-    return "".join(parts)
+        return _LOCAL_MEMORY + _extra_dirs_text(project)
+    from .remote import instructions as remote_instructions
+    # the store is on this host, in the project's local folder, not on the remote
+    memory = _memory_text(str(memory_root(project.path)), "on this host (not in the remote folder)")
+    return remote_instructions(project) + "\n" + memory + _extra_dirs_text(project)

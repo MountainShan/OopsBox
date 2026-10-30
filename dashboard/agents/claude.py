@@ -156,6 +156,8 @@ class ClaudeSession(AgentSession):
             argv += ["--permission-mode", self.mode]
         if self.instructions:
             argv += ["--append-system-prompt", self.instructions]
+        for d in self.project.extra_dirs:
+            argv += ["--add-dir", d]
         argv += self.extra_args
         argv, cwd, env = build_command(self.project, argv, {
             "CLAUDE_CODE_NO_FLICKER": "1",
@@ -291,7 +293,7 @@ class ClaudeSession(AgentSession):
             mcp = await self._ctl({"subtype": "mcp_status"})
             return {"data": {
                 "account": self._init.get("account"), "model": self.model, "effort": self.effort,
-                "mode": self.mode, "session": self.saved.get("session_id"), "cwd": str(self.project.path),
+                "mode": self.mode, "session": self.saved.get("session_id"), "cwd": str(self.project.workdir),
                 "context": self.usage, "rate_limits": usage.get("rate_limits"),
                 "mcp": [{"name": m.get("name"), "status": m.get("status")} for m in mcp.get("mcpServers") or []],
             }}
@@ -395,12 +397,10 @@ class ClaudeSession(AgentSession):
 
     # ── Other conversations ───────────────────────────
     def _transcripts(self):
-        resolved = str(self.project.path.resolve())
+        resolved = str(self.project.workdir.resolve())
         return Path.home() / ".claude" / "projects" / re.sub(r"[^A-Za-z0-9]", "-", resolved)
 
     async def list_conversations(self) -> list[dict]:
-        if self.project.is_ssh:
-            return []
         return await asyncio.to_thread(self._scan_conversations)
 
     def _scan_conversations(self) -> list[dict]:
@@ -639,7 +639,7 @@ class ClaudeSession(AgentSession):
             })
 
     def _rel(self, path: str) -> str:
-        root = str(self.project.path) + "/"
+        root = str(self.project.workdir) + "/"
         return path[len(root):] if isinstance(path, str) and path.startswith(root) else str(path)
 
     def _tool_title(self, name: str, args: dict) -> str:

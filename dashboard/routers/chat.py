@@ -362,6 +362,9 @@ async def chat_handoff(name: str, agent: str):
     conversation would each overwrite the other's turns.
     """
     meta = _meta(name)
+    if meta.get("type") == "ssh":
+        raise HTTPException(status_code=400, detail="An SSH project's Terminal is a shell on the remote "
+                                                    "machine, where the agent does not run")
     session = _session(name, agent)
     argv = session.terminal_command()
     if argv is None:

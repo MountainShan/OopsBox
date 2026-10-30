@@ -191,8 +191,15 @@ class CodexSession(AgentSession):
         self._turn_id: Optional[str] = None
 
     # ── Lifecycle ─────────────────────────────────────
+    def _writable_roots(self) -> list[str]:
+        """The project's other folders, writable in codex's workspace sandbox."""
+        if not self.project.extra_dirs:
+            return []
+        roots = ", ".join(json.dumps(d) for d in self.project.extra_dirs)  # a TOML array
+        return ["-c", f"sandbox_workspace_write.writable_roots=[{roots}]"]
+
     async def _agent_start(self) -> None:
-        argv, cwd, env = build_command(self.project, self.command + self.extra_args)
+        argv, cwd, env = build_command(self.project, self.command + self._writable_roots() + self.extra_args)
         self._rpc = JsonRpcProcess(
             argv, cwd, self._on_notification, self._on_request, self._on_exit,
             env=env, jsonrpc_field=False,
@@ -217,8 +224,7 @@ class CodexSession(AgentSession):
         }
         if self.model:
             params["model"] = self.model
-        if not self.project.is_ssh:
-            params["cwd"] = str(self.project.path)
+        params["cwd"] = str(self.project.workdir)
         res = None
         saved = self.saved.get("thread_id")
         if saved:
@@ -365,7 +371,7 @@ class CodexSession(AgentSession):
         tid = self._thread_id
         sub, _, rest = value.partition(" ")
         rest = rest.strip()
-        cwd = str(self.project.path) if not self.project.is_ssh else None
+        cwd = str(self.project.workdir)
 
         if name == "/model":
             await self.set_model(value, None)
@@ -562,11 +568,9 @@ class CodexSession(AgentSession):
 
     # ── Other conversations ───────────────────────────
     async def list_conversations(self) -> list[dict]:
-        if self.project.is_ssh:
-            return []
         if not self._rpc:
             await self.start()  # listing goes through the app-server
-        res = await self._call("thread/list", {"cwd": str(self.project.path), "limit": 50})
+        res = await self._call("thread/list", {"cwd": str(self.project.workdir), "limit": 50})
         return [{"id": t.get("id"), "title": t.get("name") or t.get("preview") or "",
                  "updated": _epoch(t.get("updatedAt") or t.get("createdAt")),
                  "current": t.get("id") == self._thread_id}
@@ -600,7 +604,7 @@ class CodexSession(AgentSession):
         # fails on it: there is nothing to continue, so start codex fresh
         on_disk = tid and (self.saved.get("on_disk") == tid or (
             # threads from before OopsBox kept track: look for the rollout
-            not self.project.is_ssh and any((Path.home() / ".codex" / "sessions").glob(f"*/*/*/rollout-*-{tid}.jsonl"))))
+            any((Path.home() / ".codex" / "sessions").glob(f"*/*/*/rollout-*-{tid}.jsonl"))))
         return ["codex", "resume", tid] if on_disk else ["codex"]
 
     # ── Agent → us: notifications ─────────────────────
@@ -716,7 +720,7 @@ class CodexSession(AgentSession):
             })
 
     def _rel(self, path: str) -> str:
-        root = str(self.project.path) + "/"
+        root = str(self.project.workdir) + "/"
         return path[len(root):] if path.startswith(root) else path
 
     # ── Agent → us: requests ──────────────────────────

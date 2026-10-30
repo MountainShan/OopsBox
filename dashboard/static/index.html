@@ -374,6 +374,21 @@
   </div>
 </div>
 
+<div id="foldersModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h2>Folders</h2>
+    <p id="foldersMsg" style="font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:14px;"></p>
+    <div class="field">
+      <label>Other folders, one per line</label>
+      <textarea id="foldersList" rows="5" spellcheck="false" style="width:100%;font-family:var(--mono);font-size:12.5px;resize:vertical" placeholder="/home/me/projects/shared-lib"></textarea>
+    </div>
+    <div class="actions">
+      <button class="btn-secondary" onclick="closeFoldersModal()">Cancel</button>
+      <button class="btn-primary" id="foldersSaveBtn" onclick="saveFolders()">Save</button>
+    </div>
+  </div>
+</div>
+
 <div id="deleteModal" class="modal-overlay hidden">
   <div class="modal">
     <h2>Delete Project</h2>
@@ -520,6 +535,38 @@
     openFromUrl(location.href);
     setInterval(pollStatus, 6000);
   }
+
+  // A path an agent wrote, as a file of the project: {rel, base} or null.
+  // Absolute paths count when they are inside the project's folder (the
+  // remote one for an SSH project); a relative one is taken from the folder
+  // the agent works in. Real URLs are left alone.
+  function projectFileOf(name, href) {
+    const p = projectData[name];
+    if (!p || !href) return null;
+    let path;
+    try { path = decodeURIComponent(href.split('#')[0].split('?')[0]); } catch (_) { return null; }
+    if (!path || /^[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith('//')) return null;
+    const ssh = p.type === 'ssh';
+    const roots = [[ssh ? p.remote_path : p.path, ssh ? '/api/ssh' : '/api/files']];
+    if (ssh && p.path) roots.push([p.path, '/api/files']);
+    if (path.startsWith('/')) {
+      for (const [root, base] of roots) {
+        const r = (root || '').replace(/\/+$/, '');
+        if (r && path.startsWith(r + '/')) return { rel: path.slice(r.length + 1), base };
+      }
+      return null;
+    }
+    const rel = path.replace(/^(\.\/)+/, '');
+    return rel && !rel.split('/').includes('..') ? { rel, base: roots[0][1] } : null;
+  }
+  window.openProjectFile = (name, href) => {
+    const f = projectFileOf(name, href);
+    if (!f) return false;
+    if (activeProject !== name) activateProject(name);
+    switchTab('files');
+    openFile(name, f.rel, f.rel.split('/').pop(), f.base);
+    return true;
+  };
 
   // /?open=<project>&agent=<agent>: a tapped notification lands here
   function openFromUrl(href) {
@@ -739,6 +786,9 @@
     else btn('Start', 'btn-secondary', () => startProject(name));
     const chosen = Object.entries(p.agent_access || {}).filter(([, s]) => s !== 'blocked').map(([a]) => a);
     btn('Agents', 'btn-secondary', () => openAgentsModal(name)).title = chosen.length ? chosen.join(' · ') : 'No agent allowed';
+    const folders = p.extra_dirs || [];
+    btn(folders.length ? `Folders (${folders.length})` : 'Folders', 'btn-secondary', () => openFoldersModal(name)).title =
+      folders.length ? folders.join('\n') : 'Let the agents work in more folders';
     if (p.type === 'ssh') btn('Edit', 'btn-secondary', () => openEditModal(name));
     btn('Delete', 'btn-secondary pcard-del', () => deleteProject(name));
 
@@ -1031,6 +1081,37 @@
     draw();
     loadAgentInfo().then(draw);
   }
+  // ── More folders for a project's agents ───────────
+  function openFoldersModal(name) {
+    const p = projectData[name] || {};
+    const m = document.getElementById('foldersModal');
+    m.dataset.name = name;
+    document.getElementById('foldersMsg').textContent =
+      `Folders on this server that ${name}'s agents may also work in, besides its own` +
+      (p.type === 'ssh' ? ' (its remote folder is mounted here; these are folders of this server, not of the remote machine)' : '') +
+      '. Running agents start again to pick them up.';
+    document.getElementById('foldersList').value = (p.extra_dirs || []).join('\n');
+    m.classList.remove('hidden');
+    setTimeout(() => document.getElementById('foldersList').focus(), 50);
+  }
+  function closeFoldersModal() { document.getElementById('foldersModal').classList.add('hidden'); }
+  async function saveFolders() {
+    const name = document.getElementById('foldersModal').dataset.name;
+    const folders = document.getElementById('foldersList').value.split('\n').map(s => s.trim()).filter(Boolean);
+    const b = document.getElementById('foldersSaveBtn');
+    b.disabled = true;
+    try {
+      const r = await api.put(`/api/projects/${encodeURIComponent(name)}/folders`, { folders });
+      projectData[name] = { ...projectData[name], extra_dirs: r.folders };
+      closeFoldersModal();
+      showToast(`${name}: ${r.folders.length ? r.folders.length + ' folder(s)' : 'no other folders'}` +
+        (r.restarted.length ? ` (restarted ${r.restarted.join(', ')})` : ''));
+      onChatActivity(name);
+      await loadProjects();
+    } catch (e) { showToast(e.message, true); }
+    b.disabled = false;
+  }
+
   function closeAgentsModal() { document.getElementById('agentsModal').classList.add('hidden'); }
   async function saveAgents() {
     const name = document.getElementById('agentsModal').dataset.name;

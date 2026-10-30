@@ -135,6 +135,28 @@ class TestDelete(unittest.TestCase):
         access = projects.agent_access_of({"classification": "work", "enabled_agents": ["kiro", "claude"]})
         self.assertEqual(projects.manager.default_agent("p", access), "kiro")
 
+    def test_folders_must_exist_and_be_absolute(self):
+        self.create()
+        extra = self.root.parent / "shared"
+        extra.mkdir()
+        r = asyncio.run(projects.set_folders("p", projects.SetFoldersRequest(folders=[str(extra), str(extra) + "/", " "])))
+        self.assertEqual(r["folders"], [str(extra.resolve())])
+        self.assertEqual(projects._load_registry()["p"]["extra_dirs"], [str(extra.resolve())])
+        for bad in (["relative/dir"], [str(self.root / "nope")]):
+            with self.assertRaises(ValueError):
+                projects.SetFoldersRequest(folders=bad)
+        asyncio.run(projects.set_folders("p", projects.SetFoldersRequest(folders=[])))
+        self.assertNotIn("extra_dirs", projects._load_registry()["p"])
+
+    def test_folders_reach_the_agents(self):
+        from dashboard.agents.session import ProjectInfo
+        meta = {"name": "p", "path": "/x", "extra_dirs": ["/data/a", 3]}
+        self.assertEqual(ProjectInfo.from_registry(meta).extra_dirs, ["/data/a"])
+        from dashboard.agents.codex import CodexSession
+        s = CodexSession.__new__(CodexSession)
+        s.project = ProjectInfo.from_registry(meta)
+        self.assertEqual(s._writable_roots(), ["-c", 'sandbox_workspace_write.writable_roots=["/data/a"]'])
+
     def test_new_project_is_not_adopted(self):
         self.assertFalse(self.create("fresh")["adopted"])
 

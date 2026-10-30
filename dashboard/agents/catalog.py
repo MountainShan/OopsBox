@@ -62,10 +62,9 @@ _cache_file = Path.home() / ".config" / "oopsbox" / "agents-detected.json"
 
 
 def host_key(meta: Optional[dict]) -> str:
-    """The machine a project's agents run on: "local", or user@host:port."""
-    if not meta or meta.get("type") != "ssh":
-        return LOCAL
-    return f"{meta.get('ssh_user') or ''}@{meta.get('ssh_host') or ''}:{meta.get('ssh_port') or 22}"
+    """The machine a project's agents run on. Every agent runs on this one,
+    SSH projects included (they work in the remote folder mounted here)."""
+    return LOCAL
 
 
 def _script() -> str:
@@ -134,10 +133,7 @@ def _save(data: dict) -> None:
 
 def hosts(registry: dict) -> dict[str, Optional[dict]]:
     """{host key: a project's meta to reach it by (None for this machine)}."""
-    out: dict[str, Optional[dict]] = {LOCAL: None}
-    for meta in registry.values():
-        out.setdefault(host_key(meta), meta if meta.get("type") == "ssh" else None)
-    return out
+    return {LOCAL: None}
 
 
 async def detect(registry: dict, only: Optional[str] = None) -> dict[str, dict]:
