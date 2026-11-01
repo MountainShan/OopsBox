@@ -159,6 +159,8 @@ To turn notifications on, open **Settings → Notifications** on each device and
 
 The **Files** tab browses the project: upload, download, rename, delete, and open files in an editor (code), a preview (Markdown, images, PDF). For an SSH project it shows the remote files next to the local ones.
 
+While files upload, a bar above the file list shows which file is going up, how much of it has been sent, and the total for the whole batch. **Cancel** stops the upload; files already uploaded stay.
+
 ## The status bar
 
 The bar at the bottom shows each agent's usage (the share of each limit used), and the machine's CPU, memory, disks and GPU. Click an agent for the details and when its limits reset. On a phone it shows less; tap an agent for the rest.

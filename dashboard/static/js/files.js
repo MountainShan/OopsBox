@@ -261,26 +261,86 @@ async function newFolder(side = 'local') {
   } catch (e) { showToast(e.message, true); }
 }
 
+// Uploads go one at a time through XHR, since fetch cannot report upload
+// progress. A strip above the file list shows which file, how far, and lets
+// the batch be cancelled. For an SSH project the bytes reach OopsBox first and
+// are then sent on to the remote host, so 100% is followed by a saving step.
+const _uploads = { local: null, remote: null };
+
+function _uploadOne(side, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append('file', file);
+    const xhr = new XMLHttpRequest();
+    _uploads[side].xhr = xhr;
+    xhr.open('POST', `${_apiBase(side)}/upload?path=${encodeURIComponent(_state[side].path)}`);
+    xhr.withCredentials = true;
+    xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.upload.onload = () => onProgress(file.size, file.size);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      let detail = '';
+      try { detail = JSON.parse(xhr.responseText).detail; } catch (_) {}
+      reject(new Error(detail || (xhr.status === 413 ? 'File too large' : `Upload failed (${xhr.status})`)));
+    };
+    xhr.onerror = () => reject(new Error('Upload failed: connection lost'));
+    xhr.onabort = () => reject(new Error('cancelled'));
+    xhr.send(form);
+  });
+}
+
+function _renderUpload(side) {
+  const box = document.getElementById(side === 'local' ? 'uploadStatusLocal' : 'uploadStatusRemote');
+  const u = _uploads[side];
+  if (!box) return;
+  if (!u) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  const file = u.files[u.index];
+  const pct = file.size ? Math.round(u.loaded / file.size * 100) : 100;
+  const sent = u.done + u.loaded;
+  const label = pct >= 100 && side === 'remote' ? 'Saving to remote…'
+              : pct >= 100 ? 'Saving…'
+              : `${formatSize(u.loaded)} / ${formatSize(file.size)}`;
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <div class="upload-row">
+      <span class="upload-name" title="${escHtml(file.name)}">⬆ ${escHtml(file.name)}</span>
+      <span class="upload-count">${u.files.length > 1 ? `${u.index + 1} of ${u.files.length} · ` : ''}${label}</span>
+      <button class="btn-secondary btn-sm upload-cancel" onclick="cancelUpload('${side}')">Cancel</button>
+    </div>
+    <div class="upload-bar"><div style="width:${pct}%"></div></div>
+    ${u.files.length > 1 ? `<div class="upload-total">${Math.round(sent / u.total * 100)}% of ${formatSize(u.total)} in all</div>` : ''}`;
+}
+
+function cancelUpload(side) {
+  const u = _uploads[side];
+  if (!u) return;
+  u.cancelled = true;
+  u.xhr?.abort();
+}
+
 async function uploadFiles(input, side = 'local') {
   const files = Array.from(input.files);
-  if (!files.length) return;
-  let succeeded = 0;
-  for (const file of files) {
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const r = await fetch(`${_apiBase(side)}/upload?path=${encodeURIComponent(_state[side].path)}`, {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin',
-      });
-      if (!r.ok) throw new Error((await r.json()).detail || 'Upload failed');
-      succeeded++;
-    } catch (e) { showToast(`${file.name}: ${e.message}`, true); }
-  }
   input.value = '';
+  if (!files.length) return;
+  if (_uploads[side]) { showToast('An upload is already running here', true); return; }
+  const u = _uploads[side] = { files, index: 0, loaded: 0, done: 0, xhr: null, cancelled: false,
+                               total: files.reduce((n, f) => n + f.size, 0) };
+  let succeeded = 0;
+  for (; u.index < files.length && !u.cancelled; u.index++) {
+    const file = files[u.index];
+    u.loaded = 0;
+    _renderUpload(side);
+    try {
+      await _uploadOne(side, file, loaded => { u.loaded = loaded; _renderUpload(side); });
+      succeeded++;
+    } catch (e) { if (!u.cancelled) showToast(`${file.name}: ${e.message}`, true); }
+    u.done += file.size;
+  }
+  _uploads[side] = null;
+  _renderUpload(side);
   await loadFiles(side);
-  if (succeeded > 0) showToast(`Uploaded ${succeeded} of ${files.length} file(s)`);
+  if (u.cancelled) showToast(`Upload cancelled — ${succeeded} of ${files.length} file(s) uploaded`, true);
+  else if (succeeded > 0) showToast(`Uploaded ${succeeded} of ${files.length} file(s)`);
 }
 
 async function transferFile(fromSide, path, name) {
